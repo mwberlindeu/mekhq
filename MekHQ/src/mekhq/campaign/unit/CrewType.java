@@ -22,6 +22,8 @@ import java.util.function.BiConsumer;
 
 import mekhq.campaign.personnel.Person;
 
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 public enum CrewType {
     DRIVER((u, p) -> u.addDriver(p)),
     GUNNER((u, p) -> u.addGunner(p)),

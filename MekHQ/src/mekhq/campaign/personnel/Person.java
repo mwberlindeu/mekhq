@@ -88,6 +88,9 @@ import mekhq.campaign.work.IPartWork;
 /**
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
+
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 public class Person implements Serializable, MekHqXmlSerializable {
     private static final long serialVersionUID = -847642980395311152L;
 

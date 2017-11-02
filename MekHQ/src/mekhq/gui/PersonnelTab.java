@@ -67,6 +67,9 @@ import mekhq.gui.view.PersonViewPanel;
  * Tab for interacting with all personnel
  *
  */
+
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 public final class PersonnelTab extends CampaignGuiTab {
 
     private static final long serialVersionUID = -4389102971116114869L;
