@@ -32,6 +32,9 @@ import mekhq.gui.BasicInfo;
      * A table Model for displaying information about personnel
      * @author Jay lawson
      */
+
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
     public class PersonnelTableModel extends DataTableModel {
 
         private static final long serialVersionUID = -5207167419079014157L;

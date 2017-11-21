@@ -80,6 +80,8 @@ import mekhq.gui.sorter.UnitTypeSorter;
 import mekhq.gui.sorter.WeightClassSorter;
 import mekhq.gui.view.UnitViewPanel;
 
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 /**
  * Displays table of all units in the force.
  *

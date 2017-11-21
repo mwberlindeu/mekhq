@@ -35,6 +35,9 @@ import megamek.common.MechSummary;
  * @author Neoancient
  *
  */
+
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 public interface IUnitGenerator {
     
     /*

@@ -70,6 +70,8 @@ import mekhq.Utilities;
 import mekhq.campaign.parts.Refit;
 import mekhq.campaign.unit.Unit;
 
+//MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
+
 public class MekLabTab extends CampaignGuiTab {
 
     private static final long serialVersionUID = -5836932822468918198L;
