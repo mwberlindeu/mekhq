@@ -65,6 +65,7 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 
 	protected long munition;
 	protected int shotsNeeded;
+	private boolean ammoTypeChanged = false;
 	protected boolean checkedToday;
 	protected boolean oneShot;
 
@@ -128,15 +129,15 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
     public double getTonnage() {
     	return (1.0 * getFullShots())/((AmmoType)type).getShots();
     }
-
+    
     public int getFullShots() {
-    	int fullShots = ((AmmoType)type).getShots();
-    	if(unit != null) {
-			Mounted m = unit.getEntity().getEquipment(equipmentNum);
+        int fullShots = ((AmmoType)type).getShots();
+        if(unit != null) {
+            Mounted m = unit.getEntity().getEquipment(equipmentNum);
             if(null != m && m.getOriginalShots() > 0) {
                 fullShots = m.getOriginalShots();
             }
-		}
+        }
     	if(null != unit && unit.getEntity() instanceof Protomech) {
 	        //if protomechs are using alternate munitions then cut in half
 	        if(((AmmoType)type).getMunitionType() != AmmoType.M_STANDARD) {
@@ -150,16 +151,7 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
     }
     
     protected int getCurrentShots() {
-    	int shots = getFullShots() - shotsNeeded;
-    	//replace with actual entity values if entity not null because the previous number will not
-    	//be correct for ammo swaps
-    	if(null != unit && null != unit.getEntity()) {
-    		Mounted m = unit.getEntity().getEquipment(equipmentNum);
-    		if(null != m) {
-    			shots = m.getBaseShotsLeft();
-    		}
-    	}
-    	return shots;
+    	return getFullShots() - shotsNeeded;
     }
 
     public long getValueNeeded() {
@@ -199,7 +191,8 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
     }
 
     public int getShotsNeeded() {
-    	return shotsNeeded;
+        int actualShots = (ammoTypeChanged ? getFullShots() : shotsNeeded);
+        return actualShots;
     }
 
     public void changeMunition(long m) {
@@ -211,6 +204,16 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
     		}
     	}
     	updateConditionFromEntity(false);
+    }
+    
+    public void changeMunition(EquipmentType type) {
+        if (type instanceof AmmoType) {
+            munition = ((AmmoType) type).getMunitionType();
+            this.type = type;
+            this.name = type.getName();
+            this.typeName = type.getInternalName();
+            updateConditionFromEntity(false);
+        }
     }
 
 	@Override
@@ -229,6 +232,10 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 				+munition
 				+"</munition>");
 		pw1.println(MekHqXmlUtil.indentStr(indent+1)
+				+"<ammoTypeChanged>"
+				+ammoTypeChanged
+				+"</ammoTypeChanged>");
+		pw1.println(MekHqXmlUtil.indentStr(indent+1)
 				+"<shotsNeeded>"
 				+shotsNeeded
 				+"</shotsNeeded>");
@@ -236,13 +243,13 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 				+"<checkedToday>"
 				+checkedToday
 				+"</checkedToday>");
-		pw1.println(MekHqXmlUtil.indentStr(indent+1)
-				+"<oneShot>"
-				+oneShot
-				+"</oneShot>");
+        pw1.println(MekHqXmlUtil.indentStr(indent+1)
+                +"<oneShot>"
+                +oneShot
+                +"</oneShot>");
 		writeToXmlEnd(pw1, indent);
 	}
-
+	
 	@Override
 	protected void loadFieldsFromXmlNode(Node wn) {
 		super.loadFieldsFromXmlNode(wn);
@@ -259,18 +266,24 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 				munition = Long.parseLong(wn2.getTextContent());
 			} else if (wn2.getNodeName().equalsIgnoreCase("shotsNeeded")) {
 				shotsNeeded = Integer.parseInt(wn2.getTextContent());
+			} else if (wn2.getNodeName().equalsIgnoreCase("ammoTypeChanged")) {
+				if(wn2.getTextContent().equalsIgnoreCase("true")) {
+					ammoTypeChanged = true;
+				} else {
+					ammoTypeChanged = false;
+				}
 			} else if (wn2.getNodeName().equalsIgnoreCase("checkedToday")) {
 				if(wn2.getTextContent().equalsIgnoreCase("true")) {
 					checkedToday = true;
 				} else {
 					checkedToday = false;
 				}
-			} else if (wn2.getNodeName().equalsIgnoreCase("oneShot")) {
-				if(wn2.getTextContent().equalsIgnoreCase("true")) {
-					oneShot = true;
-				} else {
-					oneShot = false;
-				}
+            } else if (wn2.getNodeName().equalsIgnoreCase("oneShot")) {
+                if(wn2.getTextContent().equalsIgnoreCase("true")) {
+                    oneShot = true;
+                } else {
+                    oneShot = false;
+                }
 			}
 		}
 		restore();
@@ -309,7 +322,7 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 	}
 
 	public void loadBin() {
-		int shots = Math.min(getAmountAvailable(), shotsNeeded);
+		int shots = Math.min(getAmountAvailable(), getShotsNeeded());
 		if(null != unit) {
 			Mounted mounted = unit.getEntity().getEquipment(equipmentNum);
 			if(null != mounted && mounted.getType() instanceof AmmoType) {
@@ -322,6 +335,7 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 					unload();
 					mounted.changeAmmoType((AmmoType)type);
 					mounted.setShotsLeft(shots);
+					ammoTypeChanged = false;
 				}
 			}
 		}
@@ -400,15 +414,15 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 					remove(false);
 					return;
 				}
-				long currentMuniType = 0;
-				if(mounted.getType() instanceof AmmoType) {
-					currentMuniType = ((AmmoType)mounted.getType()).getMunitionType();
-				}
-				if(currentMuniType == getMunitionType()) {
+				if (type == mounted.getType()) {
 					shotsNeeded = getFullShots() - mounted.getBaseShotsLeft();
+					ammoTypeChanged = false;
 				} else {
+					ammoTypeChanged = true;
 					//we have a change of munitions
-					shotsNeeded = getFullShots();
+					//entity will be updated in loadBin when a tech does the task
+					//until then, change no state so that we can switch back for
+					//free
 				}
 			}
 		}
@@ -458,7 +472,6 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 				mounted.setHit(false);
 		        mounted.setDestroyed(false);
 		        mounted.setRepairable(true);
-		        mounted.changeAmmoType((AmmoType) type);
 		        unit.repairSystem(CriticalSlot.TYPE_EQUIPMENT, equipmentNum);
 				mounted.setShotsLeft(getFullShots() - shotsNeeded);
 			}
@@ -467,14 +480,15 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
 
 	@Override
 	public boolean isSamePartType(Part part) {
-    	return  part instanceof AmmoBin
-                        && getType().equals( ((AmmoBin)part).getType() )
-                        && ((AmmoBin)part).getFullShots() == getFullShots();
+	    return  (part instanceof AmmoBin)
+	            && !(part instanceof LargeCraftAmmoBin)
+	            && getType().equals( ((AmmoBin)part).getType() )
+	            && ((AmmoBin)part).getFullShots() == getFullShots();
     }
 
 	@Override
 	public boolean needsFixing() {
-		return shotsNeeded > 0;// && null != unit;
+		return ammoTypeChanged || shotsNeeded > 0;// && null != unit;
 	}
 
 	public String getDesc() {
@@ -504,12 +518,12 @@ public class AmmoBin extends EquipmentPart implements IAcquisitionWork {
     		String availability = "";
     		int shotsAvailable = getAmountAvailable();
             String[] inventories = campaign.getPartInventory(getNewPart());
-    		if(shotsAvailable == 0) {
+            if(shotsAvailable == 0) {
                 availability = "<br><font color='red'>No ammo ("+ inventories[1] + " in transit, " + inventories[2] + " on order)</font>";
-    		} else if(shotsAvailable < shotsNeeded) {
+            } else if(shotsAvailable < getShotsNeeded()) {
                 availability = "<br><font color='red'>Only " + shotsAvailable + " available ("+ inventories[1] + " in transit, " + inventories[2] + " on order)</font>";
-    		}
-			return ((AmmoType)type).getDesc() + ", " + shotsNeeded + " shots needed" + availability;
+            }
+            return ((AmmoType)type).getDesc() + ", " + getShotsNeeded() + " shots needed" + availability;
     	} else {
     		return "";
     	}
