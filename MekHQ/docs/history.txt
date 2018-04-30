@@ -1,6 +1,100 @@
 VERSION HISTORY:
 ----------------
-v0.43.7-git 
+v0.43.10-RC4
++ PR #670: Adjusted unit rating calculation and infantry counts
+	Fixes issue #639: CO calculates Infantry Skill Level Incorrectly
+	Campaign Ops rating now properly reflects infantry skill and more accurately calculates combat unit transport capacity
++ PR #689: Make Endo Steel crits work correctly again
+	Fixes issue #688: Cannot slot Endo Steel crits
++ PR #690: Add missing OmniPod for some parts
+	Fixes issue #668: Empty heat sink/double heat sink omnipods not available for Purchase Parts
++ Updated faction-change info from Reunification for Canopus
++ Bugfix: Can't mass recruit prisoners who are willing to defect
++ Fix weird behavior with person panel when the crew size is > 1 and other conditions are met
++ PR #697: Process exploded units for prisoner capture
+	Fixes issue #531: Destroyed Units not generating crews for Capture/Prisoner
++ PR #676: Fix variable weight
+	Fixes issue #675: Save/Load Game Does Not Properly Track Weight EquipmentParts
++ PR #692: Implement SPA import from MUL
+	Fixes issue #108: Import from MUL Option Does Not Seem to Load Saved Abilities
++ PR #678: Too long popup lists
+	Fixes issue where popup menus could get extremely long
+	This is only a partial fix, and adding the methods that can be used to fix it elsewhere
++ PR #699: New day cleanup
+	Fixes issue #698: Income/Expenses Processed in wrong order
++ PR #700: Handle large craft unit values again
+	Fixes issue #680: Contract payment based on Large Craft unit value does not appear to work
++ PR #673: Implement ability to acquire ammo in parts acquisition dialog via GM Mode
+	Fixes issue #698: Unable to GM Acquire clan ammo
++ PR #701: Update Mission.planetName to Mission.planetId for consistency
+	Fixes issue #328: If you accept a contract on Taussen, the game teleports you back to Terra once you arrive
++ PR #802: Fix the campaign level planet pt. 2
+	The rest of the fix for issue #328
++ PR #703: Make payroll monthly again, whups
+	Fixes bug where payroll was accidentally made daily
++ Fix ATB adds 0 value transactions to the finance logs
+
+v0.43.9-RC3
++ Issue #647: Exception Causing UI Issues while Unit is Being Refit
++ Issue #655: Mechs (and probably other units) whose crews ejected will be able to deploy on subsequent missions
++ Updated faction-change info for FWL using Handbook Marik
++ Updated faction-change info for FC using Handbook Steiner
++ Refactor OrgTree classes to be TOE classes (For clarity of purpose)
++ PR #667: Deployed Twice
+	Fixes #666 Cloning units into scenarios by the simple expedient of clearing deployment of everything within the selected forces to be deployed.
++ Updated MegaMek.jar to v0.43.9-RC3
++ Updated MegaMekLab.jar to v0.43.9-RC3
+
+v0.43.8-RC2 (2018-02-11 22:40 UTC)
++ Issue #626: News events with year but no specific date should now fire with better distribution
++ Issue #616: Text rendering issue in Campaign Options screen
++ Data: Fix for multiple issues relating to incorrect capitalization and date omissions in planets.xml
++ VTOL and LAM bomb selections should now be saved when campaign is saved
++ Issue #620: Unused bombs are not recovered for VTOLs after battle (should recover properly for LAMs, as well)
++ Bug: large craft refits calculating ammo loading times incorrectly.
++ Issue #617: Extinct units available for purchase when they shouldn't be.
++ Issue #625: Repair Bay status window not cleared after last unit is repaired.
++ Honor user's press of the cancel button in the briefing screen "load saved game" dialog
++ Dropships and other units with transport bays that have internal components (cubicles, doors) should no longer incorrectly show some of those components as damaged.
++ Improved faction-change info for pre-CC factions and CC formation using Handbook Liao
++ Updated faction-change info for FS using Handbook Davion
++ Updated faction-change info for DC using Handbook Kurita
+
+v0.43.7-RC1 (2018-01-21 22:00 UTC)
++ Issue #567: BA standard armor cannot be repaired
++ Issue #576: CCE on loading campaign with DS with missing thruster(s)
++ Feature: Advanced time by one month.
++ Issue #583: Ammunition Reload Issues
++ Greater OpFor variety: generated infantry may now be hidden. Odds depend on AtB difficulty setting.
++ Issue #575: Refits do not correctly handle equipment changing location
++ Issue #46: Locations removed via refit seem to not remove the associated parts
++ Issue #71: Units that finish refitting are often missing ammo and components
++ Issue #114: ASF refit issues
++ Issue #508: Armor kits are free when customizing infantry
++ Issue #461 Integrated heat sinks not added to refit shopping list
++ Bug: Armor removed in a refit is not the same as armor needed to refit back to original
++ Feature (Issue #275): Improved visibility for amount of available ammo/armor in repair tab
++ Do not require waiting for a refit kit if the only needed parts are ammo or ammo bins.
++ Not having enough ammo in the warehouse to fill all the bins will not delay the start of a refit.
++ Issue #300: Comstar ranks do not take into account service years when determining the main "pilot" of a vehicle
++ Issue #378: Thruster Maintenance on Conventional/Aerospace Fighters 
++ Bug: NPE when attempting to refit unit that previously had a refit canceled.
++ Issue #454: News won't fire at campaign creation
++ Issue #500: Contract view text alignment
++ Issue #504: Tactics can be negative
++ Bug: MML packaged with MekHQ cannot find needed libraries.
++ Issue #525: Available Time for Mothball Not Calculating Correctly
++ Issue #520: GM Tools Window not placed correctly
++ Issue #537: Repair Bay tasks list location filter resets when changing mode of a task.
++ Issue #553: Fatigue check occurring too early
++ Issue #556: MM giving disconnected from server error when launched from MHQ
++ Issue #329: The "do task" button on the repair bay UI tends to jump left and right
++ Issue #570: Unit Rating unsustainable
++ Issue #574: Dropship capacity Inconsistancy
++ Issue #591: Special Abilities can be selected multiple times
++ Issue #577: MRMS does not always use BTH settings
++ Fixed unofficial Clan tech knowledge SPA.
++ Custom SPAs for tracking purposes (see docs/custom_spa.txt).
 
 v0.43.6 (2017-12-22 10:00 UTC)
 + Bug: ClassCastException when loading campaign from earlier versions with large craft with missing ammo bin.

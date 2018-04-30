@@ -1,5 +1,5 @@
 /*
- * FieldManualMercRevMrbcRating.java
+ * FieldManualMercRevDragoonsRating.java
  *
  * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
  *
@@ -22,7 +22,6 @@ package mekhq.campaign.rating;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.Map;
 
 import megamek.common.Aero;

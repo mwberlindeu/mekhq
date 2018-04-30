@@ -534,6 +534,11 @@ public class MekLabTab extends CampaignGuiTab {
         }
 
         @Override
+        public void refreshTransport() {
+            // not used for fighters
+        }
+
+        @Override
         public void refreshStatus() {
             refreshRefitSummary();
         }
@@ -664,6 +669,11 @@ public class MekLabTab extends CampaignGuiTab {
         }
 
         @Override
+        public void refreshTransport() {
+            transportTab.refresh();
+        }
+
+        @Override
         public void refreshStatus() {
             refreshRefitSummary();
         }
@@ -789,6 +799,10 @@ public class MekLabTab extends CampaignGuiTab {
         }
 
         @Override
+        public void refreshTransport() {
+        }
+
+        @Override
         public void refreshStatus() {
             refreshRefitSummary();
         }
@@ -816,7 +830,7 @@ public class MekLabTab extends CampaignGuiTab {
 
         @Override
         public void refreshSummary() {
-            structureTab.refresh();
+            structureTab.refreshSummary();
         }
 
         @Override
@@ -905,6 +919,11 @@ public class MekLabTab extends CampaignGuiTab {
         public void refreshEquipment() {
             equipmentTab.refresh();
             refreshSummary();
+        }
+
+        @Override
+        public void refreshTransport() {
+            // not used for vees
         }
 
         @Override
@@ -1026,6 +1045,11 @@ public class MekLabTab extends CampaignGuiTab {
         }
 
         @Override
+        public void refreshTransport() {
+            // not used for ba
+        }
+
+        @Override
         public void refreshStatus() {
             refreshRefitSummary();
         }
@@ -1135,6 +1159,11 @@ public class MekLabTab extends CampaignGuiTab {
         @Override
         public void refreshEquipment() {
             refreshSummary();
+        }
+
+        @Override
+        public void refreshTransport() {
+            // not used for infantry
         }
 
         @Override

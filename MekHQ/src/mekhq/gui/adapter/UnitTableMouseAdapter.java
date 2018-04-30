@@ -21,7 +21,7 @@ import javax.swing.JTable;
 import javax.swing.event.MouseInputAdapter;
 
 import megamek.client.ui.swing.UnitEditorDialog;
-import megamek.common.Aero;
+import megamek.client.ui.swing.util.MenuScroller;
 import megamek.common.AmmoType;
 import megamek.common.BattleArmor;
 import megamek.common.CriticalSlot;
@@ -56,7 +56,6 @@ import mekhq.gui.dialog.LargeCraftAmmoSwapDialog;
 import mekhq.gui.dialog.QuirksDialog;
 import mekhq.gui.dialog.TextAreaDialog;
 import mekhq.gui.model.UnitTableModel;
-import mekhq.gui.utilities.MenuScroller;
 import mekhq.gui.utilities.StaticChecks;
 
 public class UnitTableMouseAdapter extends MouseInputAdapter implements
@@ -410,7 +409,19 @@ public class UnitTableMouseAdapter extends MouseInputAdapter implements
         } else if (command.equalsIgnoreCase("MOTHBALL")) {
             UUID id = null;
             if (!selectedUnit.isSelfCrewed()) {
-                id = gui.selectTech(selectedUnit, "mothball");
+                id = gui.selectTech(selectedUnit, "mothball", true);
+                if (null != id) {
+                    Person tech = gui.getCampaign().getPerson(id);
+                    if (tech.getTechUnitIDs().size() > 0) {
+                        if (JOptionPane.YES_OPTION != JOptionPane.showConfirmDialog(gui.getFrame(),
+                                tech.getName() + " will not be able to perform maintenance on "
+                                        + tech.getTechUnitIDs().size() + " assigned units. Proceed?",
+                                        "Unmaintained unit warning",
+                                        JOptionPane.YES_NO_OPTION)) {
+                            id = null;
+                        }
+                    }
+                }
                 if (null == id) {
                     return;
                 }
@@ -422,7 +433,19 @@ public class UnitTableMouseAdapter extends MouseInputAdapter implements
         } else if (command.equalsIgnoreCase("ACTIVATE")) {
             UUID id = null;
             if (!selectedUnit.isSelfCrewed()) {
-                id = gui.selectTech(selectedUnit, "activation");
+                id = gui.selectTech(selectedUnit, "activation", true);
+                if (null != id) {
+                    Person tech = gui.getCampaign().getPerson(id);
+                    if (tech.getTechUnitIDs().size() > 0) {
+                        if (JOptionPane.YES_OPTION != JOptionPane.showConfirmDialog(gui.getFrame(),
+                                tech.getName() + " will not be able to perform maintenance on "
+                                        + tech.getTechUnitIDs().size() + " assigned units. Proceed?",
+                                        "Unmaintained unit warning",
+                                        JOptionPane.YES_NO_OPTION)) {
+                            id = null;
+                        }
+                    }
+                }
                 if (null == id) {
                     return;
                 }
