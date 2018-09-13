@@ -34,7 +34,6 @@ import java.util.ResourceBundle;
 import java.util.function.Function;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -48,6 +47,7 @@ import megamek.common.TargetRoll;
 import megamek.common.UnitType;
 import megamek.common.logging.LogLevel;
 import mekhq.MekHQ;
+import mekhq.MekHqXmlUtil;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.personnel.SkillType;
 import mekhq.campaign.rating.IUnitRating;
@@ -173,7 +173,7 @@ public class AtBConfiguration implements Serializable {
 					} catch (ParseException ex) {
                         MekHQ.getLogger().log(getClass(), METHOD_NAME,
                                 LogLevel.ERROR, "Error parsing default date for hiring hall on " + fields[2]); //$NON-NLS-1$
-                        MekHQ.getLogger().log(getClass(), METHOD_NAME, ex); //$NON-NLS-1$
+                        MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
 					}
 				}
 				break;
@@ -352,12 +352,10 @@ public class AtBConfiguration implements Serializable {
         MekHQ.getLogger().log(AtBConfiguration.class, METHOD_NAME, LogLevel.INFO,
                 "Starting load of AtB configuration data from XML..."); //$NON-NLS-1$
 
-		DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
 		Document xmlDoc = null;
-		
 		try {
 			FileInputStream fis = new FileInputStream("data/universe/atbconfig.xml");
-			DocumentBuilder db = dbf.newDocumentBuilder();
+			DocumentBuilder db = MekHqXmlUtil.newSafeDocumentBuilder();
 	
 			xmlDoc = db.parse(fis);
 		} catch (FileNotFoundException ex) {
@@ -366,7 +364,7 @@ public class AtBConfiguration implements Serializable {
 			retVal.setAllValuesToDefaults();
 			return retVal;
 		} catch (Exception ex) {
-            MekHQ.getLogger().log(AtBConfiguration.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(AtBConfiguration.class, METHOD_NAME, ex);
 			return retVal;
 		}
 		
@@ -444,7 +442,7 @@ public class AtBConfiguration implements Serializable {
 				} catch (Exception ex) {
                     MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                             "Could not parse weight class attribute for enemy forces table"); //$NON-NLS-1$
-                    MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+                    MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
 				}							
 			}
 		}
@@ -477,7 +475,7 @@ public class AtBConfiguration implements Serializable {
 						} catch (ParseException ex) {
 		                    MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
 		                            "Error parsing date for hiring hall on " + wn2.getTextContent()); //$NON-NLS-1$
-		                    MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+		                    MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
 						}
 						hiringHalls.add(new DatedRecord<String>(start, end, wn2.getTextContent()));
 						break;

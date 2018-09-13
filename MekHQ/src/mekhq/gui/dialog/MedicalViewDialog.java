@@ -127,12 +127,12 @@ public class MedicalViewDialog extends JDialog {
         try(InputStream fis = new FileInputStream(ip.getGuiElement("default_male_paperdoll"))) { //$NON-NLS-1$
             defaultMaleDoll = new Paperdoll(fis);
         } catch(IOException e) {
-            MekHQ.getLogger().log(getClass(), "<init>(Window,Campaign,Person,IconPackage)", e); //$NON-NLS-1$
+            MekHQ.getLogger().error(getClass(), "<init>(Window,Campaign,Person,IconPackage)", e); //$NON-NLS-1$
         }
         try(InputStream fis = new FileInputStream(ip.getGuiElement("default_female_paperdoll"))) { //$NON-NLS-1$
             defaultFemaleDoll = new Paperdoll(fis);
         } catch(IOException e) {
-            MekHQ.getLogger().log(getClass(), "<init>(Window,Campaign,Person,IconPackage)", e); //$NON-NLS-1$
+            MekHQ.getLogger().error(getClass(), "<init>(Window,Campaign,Person,IconPackage)", e); //$NON-NLS-1$
         }
         
         setPreferredSize(new Dimension(1024, 840));
@@ -396,7 +396,7 @@ public class MedicalViewDialog extends JDialog {
         panel.setLayout(new BoxLayout(panel, BoxLayout.PAGE_AXIS));
         panel.add(genLabel(resourceMap.getString("medicalHistory.text"))); //$NON-NLS-1$
         Map<String, List<LogEntry>> groupedEntries = p.getPersonnelLog().stream()
-            .filter(entry -> entry.isType(Person.LOGTYPE_MEDICAL))
+            .filter(entry -> Person.LOGTYPE_MEDICAL.equals(entry.getType()))
             .sorted((entry1, entry2) -> entry1.getDate().compareTo(entry2.getDate()))
             .collect(Collectors.groupingBy(entry -> DATE_FORMAT.format(entry.getDate())));
         groupedEntries.entrySet().stream()

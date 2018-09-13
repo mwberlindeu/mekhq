@@ -79,8 +79,8 @@ public class BaseAttackBuiltInScenario extends AtBScenario {
 				getContract(campaign).getAllyQuality(), allyForceWeight, campaign);
 
 		// the "second" force will be deployed (orthogonally) between 90 degrees clockwise and counterclockwise from the "primary force".
-		int angleChange = Compute.randomInt(2) - 1;
-		int secondAttackerForceStart = startPos[(attackerStartIndex + angleChange) % 4]; 
+		int angleChange = Compute.randomInt(3) - 1;
+		int secondAttackerForceStart = startPos[(attackerStartIndex + angleChange + 4) % 4]; 
 		
 		// the ally is the "second force" and will flee either in the same direction as the player (in case of the player being the defender)
 		// or where it came from (in case of the player being the attacker
@@ -93,7 +93,6 @@ public class BaseAttackBuiltInScenario extends AtBScenario {
 		addCivilianUnits(otherForce, 8, campaign);
 		BotForce civilianForce = new BotForce("Base Civilian Units", isAttacker() ? 2 : 1, defenderStart, defenderHome, otherForce);
 		civilianForce.setBehaviorSettings(BehaviorSettingsFactory.getInstance().COWARDLY_BEHAVIOR);
-		civilianForce.setHomeEdge(defenderHome); // setting behavior settings rewrites home edge, so we set it again
 		addBotForce(civilianForce);
 
 		ArrayList<Entity> turretForce = new ArrayList<>();

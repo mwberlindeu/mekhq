@@ -433,13 +433,13 @@ public final class StarUtil {
         if( subtypeValue % 100 == 0 ) { subtypeFormat = "%.0f"; } //$NON-NLS-1$
         else if( subtypeValue % 10 == 0 ) { subtypeFormat = "%.1f"; } //$NON-NLS-1$
         
-        if( luminosity == Planet.LUM_VI ) {
+        if( luminosity.equals(Planet.LUM_VI) ) {
             // subdwarfs
             return "sd" + getSpectralClassName(spectralClass) + String.format(subtypeFormat, subtypeValue / 100.0); //$NON-NLS-1$
-        } else if( luminosity == Planet.LUM_VI_PLUS ) {
+        } else if( luminosity.equals(Planet.LUM_VI_PLUS) ) {
             // extreme subdwarfs
             return "esd" + getSpectralClassName(spectralClass) + String.format(subtypeFormat, subtypeValue / 100.0); //$NON-NLS-1$
-        } else if( luminosity == Planet.LUM_VII ) {
+        } else if( luminosity.equals(Planet.LUM_VII) ) {
             // white dwarfs
             return String.format(Locale.ROOT, "D" + subtypeFormat, subtypeValue / 100.0); //$NON-NLS-1$
         } else {
@@ -630,9 +630,9 @@ public final class StarUtil {
                 }
                 iconDataLoaded = true;
             } catch (FileNotFoundException e) {
-                MekHQ.getLogger().log(StarUtil.class, METHOD_NAME, e);
+                MekHQ.getLogger().error(StarUtil.class, METHOD_NAME, e);
             } catch (IOException e) {
-                MekHQ.getLogger().log(StarUtil.class, METHOD_NAME, e);
+                MekHQ.getLogger().error(StarUtil.class, METHOD_NAME, e);
             }
         }
         return ICON_DATA.get(Utilities.nonNull(planet.getIcon(), "default"));

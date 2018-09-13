@@ -31,12 +31,10 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileFilter;
 
 import megamek.client.Client;
 import megamek.common.Aero;
@@ -74,10 +72,12 @@ import mekhq.campaign.mission.Contract;
 import mekhq.campaign.mission.Loot;
 import mekhq.campaign.mission.Mission;
 import mekhq.campaign.mission.Scenario;
+import mekhq.campaign.parts.Armor;
 import mekhq.campaign.parts.Part;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.unit.TestUnit;
 import mekhq.campaign.unit.Unit;
+import mekhq.gui.FileDialogs;
 
 /**
  * This object will be the main workhorse for the scenario
@@ -111,7 +111,7 @@ public class ResolveScenarioTracker {
 
     Campaign campaign;
     Scenario scenario;
-    JFileChooser unitList;
+    Optional<File> unitList = Optional.empty();
     Client client;
     Boolean control;
     private GameVictoryEvent victoryEvent;
@@ -145,37 +145,15 @@ public class ResolveScenarioTracker {
                 unitsStatus.put(uid, new UnitStatus(u));
             }
         }
-        unitList = new JFileChooser(".");
-        unitList.setDialogTitle("Load Units");
-
-        unitList.setFileFilter(new FileFilter() {
-            @Override
-            public boolean accept(File dir) {
-                if (dir.isDirectory()) {
-                    return true;
-                }
-                return dir.getName().endsWith(".mul");
-            }
-
-            @Override
-            public String getDescription() {
-                return "MUL file";
-            }
-        });
-
     }
 
     public void findUnitFile() {
-        unitList.showOpenDialog(null);
+        unitList = FileDialogs.openUnits(null);
     }
 
     public String getUnitFilePath() {
-        File unitFile = unitList.getSelectedFile();
-        if(null == unitFile) {
-            return "No file selected";
-        } else {
-            return unitFile.getAbsolutePath();
-        }
+        return unitList.map(File::getAbsolutePath)
+                       .orElse("No file selected");
     }
 
     public void setClient(Client c) {
@@ -183,11 +161,10 @@ public class ResolveScenarioTracker {
     }
 
     public void processMulFiles() {
-        File unitFile = unitList.getSelectedFile();
         //File salvageFile = salvageList.getSelectedFile();
-        if(null != unitFile) {
+        if(unitList.isPresent()) {
             try {
-                loadUnitsAndPilots(unitFile);
+                loadUnitsAndPilots(unitList.get());
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
@@ -680,6 +657,15 @@ public class ResolveScenarioTracker {
      *                  in order to be processed, a unit must be in the salvageStatus hashtable.
      */
     private void processPrisonerCapture(List<TestUnit> unitsToProcess) {
+
+        Mission currentMission = campaign.getMission(scenario.getMissionId());
+        String enemyCode;
+        if (currentMission instanceof AtBContract) {
+            enemyCode = ((AtBContract) currentMission).getEnemyCode();
+        } else {
+            enemyCode = "IND";
+        }
+
         for(Unit u : unitsToProcess) {
             if (null == u) {
                 continue; // Shouldn't happen... but well... ya know
@@ -713,7 +699,7 @@ public class ResolveScenarioTracker {
                 continue;
             }
             //shuffling the crew ensures that casualties are randomly assigned in multi-crew units
-            List<Person> crew = Utilities.genRandomCrewWithCombinedSkill(campaign, u).values().stream().flatMap(c -> c.stream()).collect(Collectors.toList());
+            List<Person> crew = Utilities.genRandomCrewWithCombinedSkill(campaign, u, enemyCode).values().stream().flatMap(c -> c.stream()).collect(Collectors.toList());
             crew = shuffleCrew(crew);
 
             //For vees we may need to know the commander or driver, which aren't assigned for TestUnit.
@@ -1223,6 +1209,7 @@ public class ResolveScenarioTracker {
                 //check for BLC
                 long newValue = unit.getValueOfAllMissingParts();
                 long blcValue = newValue - currentValue;
+                long repairBLC = 0;
                 String blcString = "attle loss compensation (parts) for " + unit.getName();
                 if(!unit.isRepairable()) {
                     //if the unit is not repairable, you should get BLC for it but we should subtract
@@ -1230,6 +1217,14 @@ public class ResolveScenarioTracker {
                     blcValue = unitValue - unit.getSellValue();
                     blcString = "attle loss compensation for " + unit.getName();
                 }
+                if (campaign.getCampaignOptions().payForRepairs()) {
+                    for(Part p : unit.getParts()) {
+                        if (p.needsFixing() && !(p instanceof Armor)) {
+                            repairBLC += p.getStickerPrice() * .2;
+                        }
+                    }
+                }
+                blcValue += repairBLC;
                 if(blc > 0 && blcValue > 0) {
                     long finalValue = (long)(blc * blcValue);
                     campaign.getFinances().credit(finalValue, Transaction.C_BLC, "B" + blcString, campaign.getCalendar().getTime());

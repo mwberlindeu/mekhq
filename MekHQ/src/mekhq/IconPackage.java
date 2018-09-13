@@ -33,6 +33,7 @@ public class IconPackage {
     private DirectoryItems portraits;
     private DirectoryItems camos;
     private DirectoryItems forceIcons;
+    private DirectoryItems awardIcons;
     protected static MechTileset mt;
     
     // Static defines for layered force icons
@@ -109,8 +110,16 @@ public class IconPackage {
             try {
                 mt.loadFromFile("mechset.txt");
             } catch (IOException ex) {
-                MekHQ.getLogger().log(getClass(), "loadDirectories()", ex);
+                MekHQ.getLogger().error(getClass(), "loadDirectories()", ex);
                 //TODO: do something here
+            }
+        }
+        if(null == awardIcons){
+            try{
+                awardIcons = new DirectoryItems(new File("data/images/awards"), "", PortraitFileFactory.getInstance());
+            }
+            catch (Exception e){
+                awardIcons = null;
             }
         }
     }
@@ -126,7 +135,9 @@ public class IconPackage {
     public DirectoryItems getForceIcons() {
         return forceIcons;
     }
-    
+
+    public DirectoryItems getAwardIcons() { return awardIcons; }
+
     public MechTileset getMechTiles() {
         return mt;
     }
@@ -199,7 +210,7 @@ public class IconPackage {
                     }
                 }
             } catch (Exception err) {
-                MekHQ.getLogger().log(IconPackage.class, METHOD_NAME, err);
+                MekHQ.getLogger().error(IconPackage.class, METHOD_NAME, err);
             } finally {
                 if (null != g2d) {
                     g2d.dispose();
@@ -223,7 +234,7 @@ public class IconPackage {
                 }
                 retVal = scaledImage;
             } catch (Exception err) {
-                MekHQ.getLogger().log(IconPackage.class, METHOD_NAME, err);
+                MekHQ.getLogger().error(IconPackage.class, METHOD_NAME, err);
             }
         }
         

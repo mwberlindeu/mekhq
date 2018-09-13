@@ -18,13 +18,12 @@ import java.util.ResourceBundle;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JSpinner;
+import javax.swing.JFormattedTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.WindowConstants;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
+import javax.swing.text.DefaultFormatter;
 
 import megamek.common.util.EncodeControl;
 
@@ -32,7 +31,7 @@ import megamek.common.util.EncodeControl;
  *
  * @author natit
  */
-public class PopupValueChoiceDialog extends JDialog implements WindowListener, ChangeListener {
+public class PopupValueChoiceDialog extends JDialog implements WindowListener {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private JButton btnDone;
@@ -40,7 +39,7 @@ public class PopupValueChoiceDialog extends JDialog implements WindowListener, C
     private JPanel pnlButton;
     private JSpinner value;
     private SpinnerNumberModel model;
-    private boolean validData = true;
+    private JFormattedTextField jtf;
     private int max;
     private int min;
     // End of variables declaration//GEN-END:variables
@@ -84,9 +83,10 @@ public class PopupValueChoiceDialog extends JDialog implements WindowListener, C
         btnDone = new JButton();
         btnCancel = new JButton();
         value = new JSpinner(model);
-
-        // Verifier so people get limited to the 1-100 range when using manual input
-        value.addChangeListener(this);
+        value.setEditor(new JSpinner.NumberEditor(value,"#")); //prevent digit grouping, e.g. 1,000
+        jtf = ((JSpinner.DefaultEditor) value.getEditor()).getTextField();
+        DefaultFormatter df = (DefaultFormatter)jtf.getFormatter();
+        df.setCommitsOnValidEdit(true);
 
 		ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.PopupValueChoiceDialog", new EncodeControl()); //$NON-NLS-1$
         setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -122,17 +122,13 @@ public class PopupValueChoiceDialog extends JDialog implements WindowListener, C
     }// </editor-fold>//GEN-END:initComponents
 
     private void btnDoneActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnDoneActionPerformed
-        if (validData) {
-            this.setVisible(false);
-        } else {
-            showInvalidPopup();
-        }
+        this.setVisible(false);
     }//GEN-LAST:event_btnDoneActionPerformed
 
-    private void btnCancelActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnDoneActionPerformed
+    private void btnCancelActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnCancelActionPerformed
         value.getModel().setValue(-1);
     	this.setVisible(false);
-    }
+    }//GEN-LAST:event_btnCancelActionPerformed
 
     /**
     * @param args the command line arguments
@@ -154,7 +150,6 @@ public class PopupValueChoiceDialog extends JDialog implements WindowListener, C
     public int getValue() {
     	return (Integer)value.getValue();
     }
-
 
     @Override
     public void windowActivated(WindowEvent arg0) {
@@ -186,25 +181,5 @@ public class PopupValueChoiceDialog extends JDialog implements WindowListener, C
 
     @Override
     public void windowOpened(WindowEvent arg0) {
-    }
-
-    @Override
-    public void stateChanged(ChangeEvent arg0) {
-        if (value != null) {
-            Integer val = (Integer)((JSpinner)value).getModel().getValue();
-            if ((max > 0 && val > max) || val < min) {
-                validData = false;
-            } else {
-                validData = true;
-            }
-        }
-    }
-
-    private void showInvalidPopup() {
-        JOptionPane.showMessageDialog(null,
-                "Accepted values for bulk purchases are "+min+"-"+max
-                    +System.lineSeparator()+"You've entered: "+((Integer)((JSpinner)value).getModel().getValue()),
-                "Invalid value",
-                JOptionPane.ERROR_MESSAGE);
     }
 }

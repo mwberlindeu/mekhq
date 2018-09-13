@@ -25,7 +25,7 @@ import java.io.PrintWriter;
 import java.io.Serializable;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Hashtable;
+import java.util.Map;
 import java.util.UUID;
 
 import org.w3c.dom.Node;
@@ -127,7 +127,7 @@ public class Kill implements Serializable {
 			// Errrr, apparently either the class name was invalid...
 			// Or the listed name doesn't exist.
 			// Doh!
-		    MekHQ.getLogger().log(Kill.class, METHOD_NAME, ex);
+		    MekHQ.getLogger().error(Kill.class, METHOD_NAME, ex);
 		}
 		return retVal;
 	}
@@ -155,7 +155,7 @@ public class Kill implements Serializable {
 		
 	}
 	
-	public void fixIdReferences(Hashtable<Integer, UUID> pHash) {
+	public void fixIdReferences(Map<Integer, UUID> pHash) {
     	pilotId = pHash.get(oldPilotId);
     }
 	

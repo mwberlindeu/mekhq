@@ -27,10 +27,12 @@ import megamek.common.BattleArmor;
 import megamek.common.CriticalSlot;
 import megamek.common.EquipmentType;
 import megamek.common.Mounted;
+import mekhq.MekHQ;
 import mekhq.Utilities;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.parts.AmmoStorage;
 import mekhq.campaign.parts.Part;
+import mekhq.campaign.parts.PartInventory;
 import mekhq.campaign.work.IAcquisitionWork;
 
 /**
@@ -230,8 +232,8 @@ public class BattleArmorAmmoBin extends AmmoBin implements IAcquisitionWork {
         toReturn += ">";
         toReturn += "<b>" + getAcquisitionDisplayName() + "</b> " + getAcquisitionBonus() + "<br/>";
         toReturn += getAcquisitionExtraDesc() + "<br/>";
-        String[] inventories = campaign.getPartInventory(getAcquisitionPart());
-        toReturn += inventories[1] + " in transit, " + inventories[2] + " on order<br>"; 
+        PartInventory inventories = campaign.getPartInventory(getAcquisitionPart());
+        toReturn += inventories.getTransitOrderedDetails() + "<br/>"; 
         toReturn += Utilities.getCurrencyString(getBuyCost()) + "<br/>";
         toReturn += "</font></html>";
         return toReturn;
@@ -316,7 +318,7 @@ public class BattleArmorAmmoBin extends AmmoBin implements IAcquisitionWork {
         try {
         	equipTonnage = type.getTonnage(null);
         } catch(NullPointerException ex) {
-        	//System.out.println("Found a null entity while calculating tonnage for " + name);
+            MekHQ.getLogger().error(BattleArmorAmmoBin.class, "restore", ex);
         }
     }
 

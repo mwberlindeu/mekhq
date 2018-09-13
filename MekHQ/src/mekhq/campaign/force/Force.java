@@ -478,7 +478,7 @@ public class Force implements Serializable {
             // Errrr, apparently either the class name was invalid...
             // Or the listed name doesn't exist.
             // Doh!
-            MekHQ.getLogger().log(Force.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(Force.class, METHOD_NAME, ex);
         }
         
         return retVal;
@@ -578,7 +578,7 @@ public class Force implements Serializable {
     	return o instanceof Force && ((Force)o).getId() == id && ((Force)o).getFullName().equals(getFullName());
     }
 
-	public void fixIdReferences(Hashtable<Integer, UUID> uHash) {
+	public void fixIdReferences(Map<Integer, UUID> uHash) {
 		for(int oid : oldUnits) {
 			UUID nid = uHash.get(oid);
 			if(null != nid) {

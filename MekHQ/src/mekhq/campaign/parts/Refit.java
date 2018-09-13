@@ -1779,7 +1779,7 @@ public class Refit extends Part implements IPartWork, IAcquisitionWork {
 			}
 		} catch (Exception ex) {
 			// Doh!
-            MekHQ.getLogger().log(Refit.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(Refit.class, METHOD_NAME, ex);
 		}
 
 		return retVal;
@@ -2002,7 +2002,7 @@ public class Refit extends Part implements IPartWork, IAcquisitionWork {
 	    return Part.T_BOTH;
 	}
 
-	public void fixIdReferences(Hashtable<Integer, UUID> uHash, Hashtable<Integer, UUID> pHash) {
+	public void fixIdReferences(Map<Integer, UUID> uHash, Map<Integer, UUID> pHash) {
 		assignedTechId = pHash.get(oldTechId);
 		if(null != newArmorSupplies) {
 			newArmorSupplies.fixIdReferences(uHash, pHash);

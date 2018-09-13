@@ -41,6 +41,7 @@ import java.util.GregorianCalendar;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.Vector;
@@ -56,7 +57,6 @@ import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
-import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JOptionPane;
@@ -109,10 +109,13 @@ import mekhq.campaign.personnel.SpecialAbility;
 import mekhq.campaign.rating.UnitRatingMethod;
 import mekhq.campaign.universe.Faction;
 import mekhq.campaign.universe.RATManager;
+import mekhq.gui.FileDialogs;
 import mekhq.gui.SpecialAbilityPanel;
 import mekhq.gui.model.RankTableModel;
 import mekhq.gui.model.SortedComboBoxModel;
 import mekhq.gui.utilities.TableCellListener;
+import mekhq.module.PersonnelMarketServiceManager;
+import mekhq.module.api.PersonnelMarketMethod;
 
 /**
  * @author Jay Lawson <jaylawson39 at yahoo.com>
@@ -182,6 +185,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
     private JCheckBox useArtilleryBox;
     private JCheckBox useAbilitiesBox;
     private JCheckBox useQuirksBox;
+    private JCheckBox useAeroSystemHitsBox;
     private JCheckBox useEdgeBox;
     private JCheckBox useSupportEdgeBox;
     private JCheckBox useImplantsBox;
@@ -189,6 +193,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
     private JCheckBox useAdvancedMedicalBox;
     private JCheckBox useDylansRandomXpBox;
     private JCheckBox payForPartsBox;
+    private JCheckBox payForRepairsBox;
     private JCheckBox payForUnitsBox;
     private JCheckBox payForSalariesBox;
     private JCheckBox payForOverheadBox;
@@ -436,6 +441,10 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
     private JCheckBox chkUnitMarketReportRefresh;
 
     private JSpinner spnStartGameDelay;
+    
+    // Miscellaneous tab
+    private JPanel panMisc;
+    private JCheckBox chkHistoricalDailyLog;
 
     /**
      * Creates new form CampaignOptionsDialog
@@ -484,6 +493,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         useAdvancedMedicalBox.setSelected(options.useAdvancedMedical());
         useDylansRandomXpBox.setSelected(options.useDylansRandomXp());
         payForPartsBox.setSelected(options.payForParts());
+        payForRepairsBox.setSelected(options.payForRepairs());
         payForUnitsBox.setSelected(options.payForUnits());
         payForSalariesBox.setSelected(options.payForSalaries());
         payForOverheadBox.setSelected(options.payForOverhead());
@@ -499,6 +509,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         chkAssignPortraitOnRoleChange.setSelected(options.getAssignPortraitOnRoleChange());
 
         useDamageMargin.setSelected(options.isDestroyByMargin());
+        useAeroSystemHitsBox.setSelected(options.useAeroSystemHits());
         useQualityMaintenance.setSelected(options.useQualityMaintenance());
         useUnofficalMaintenance.setSelected(options.useUnofficalMaintenance());
         checkMaintenance.setSelected(options.checkMaintenance());
@@ -585,6 +596,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         useAdvancedMedicalBox = new JCheckBox();
         useDylansRandomXpBox = new JCheckBox();
         payForPartsBox = new JCheckBox();
+        payForRepairsBox = new JCheckBox();
         payForUnitsBox = new JCheckBox();
         payForSalariesBox = new JCheckBox();
         payForRecruitmentBox = new JCheckBox();
@@ -616,6 +628,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         scrRanks = new JScrollPane();
 
         useDamageMargin = new JCheckBox();
+        useAeroSystemHitsBox = new JCheckBox();
         useQualityMaintenance = new JCheckBox();
         useUnofficalMaintenance = new JCheckBox();
         checkMaintenance = new JCheckBox();
@@ -623,6 +636,9 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         reverseQualityNames = new JCheckBox();
                 
         chkSupportStaffOnly = new JCheckBox();
+        
+        panMisc = new JPanel();
+        chkHistoricalDailyLog = new JCheckBox();
 
         ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.CampaignOptionsDialog", new EncodeControl()); //$NON-NLS-1$
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -862,12 +878,24 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         gridBagConstraints.weighty = 0.0;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         panSubRepair.add(useQuirksBox, gridBagConstraints);
+        
+        useAeroSystemHitsBox.setText(resourceMap.getString("useAeroSystemHits.text")); // NOI18N
+        useAeroSystemHitsBox.setToolTipText(resourceMap.getString("useAeroSystemHits.toolTipText")); // NOI18N
+        useAeroSystemHitsBox.setName("useAeroSystemHits"); // NOI18N
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 4;
+        gridBagConstraints.weightx = 0.0;
+        gridBagConstraints.weighty = 0.0;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.NONE;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        panSubRepair.add(useAeroSystemHitsBox, gridBagConstraints);
 
         useDamageMargin.setText(resourceMap.getString("useDamageMargin.text")); // NOI18N
         useDamageMargin.setToolTipText(resourceMap.getString("useDamageMargin.toolTipText")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 4;
+        gridBagConstraints.gridy = 5;
         gridBagConstraints.weightx = 0.0;
         gridBagConstraints.weighty = 0.0;
         gridBagConstraints.fill = java.awt.GridBagConstraints.NONE;
@@ -895,7 +923,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 5;
+        gridBagConstraints.gridy = 6;
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.weighty = 0.0;
         gridBagConstraints.fill = java.awt.GridBagConstraints.NONE;
@@ -913,7 +941,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 6;
+        gridBagConstraints.gridy = 7;
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.weighty = 1.0;
         gridBagConstraints.fill = java.awt.GridBagConstraints.NONE;
@@ -1707,24 +1735,36 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
 
         panFinances.setName("panFinances"); // NOI18N
         panFinances.setLayout(new java.awt.GridBagLayout());
+        int gridy = 0;
 
         payForPartsBox.setText(resourceMap.getString("payForPartsBox.text")); // NOI18N
         payForPartsBox.setToolTipText(resourceMap.getString("payForPartsBox.toolTipText")); // NOI18N
         payForPartsBox.setName("payForPartsBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 0;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         panFinances.add(payForPartsBox, gridBagConstraints);
+
+        payForRepairsBox.setText(resourceMap.getString("payForRepairsBox.text")); // NOI18N
+        payForRepairsBox.setToolTipText(resourceMap.getString("payForRepairsBox.toolTipText")); // NOI18N
+        payForRepairsBox.setName("payForRepairsBox"); // NOI18N
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = gridy++;
+        gridBagConstraints.gridwidth = 2;
+        gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        panFinances.add(payForRepairsBox, gridBagConstraints);
 
         payForUnitsBox.setText(resourceMap.getString("payForUnitsBox.text")); // NOI18N
         payForUnitsBox.setToolTipText(resourceMap.getString("payForUnitsBox.toolTipText")); // NOI18N
         payForUnitsBox.setName("payForUnitsBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 1;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1735,7 +1775,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         payForSalariesBox.setName("payForSalariesBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 2;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1746,7 +1786,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         payForOverheadBox.setName("payForOverheadBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 3;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1757,7 +1797,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         payForMaintainBox.setName("payForMaintainBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 4;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1768,7 +1808,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         payForTransportBox.setName("payForTransportBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 5;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1779,7 +1819,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         sellUnitsBox.setName("sellUnitsBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 6;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1790,7 +1830,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         sellPartsBox.setName("sellPartsBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 7;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1800,7 +1840,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         payForRecruitmentBox.setToolTipText(resourceMap.getString("payForRecruitmentBox.toolTipText")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 8;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1810,7 +1850,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         useLoanLimitsBox.setToolTipText(resourceMap.getString("useLoanLimitsBox.toolTipText")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 9;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1821,7 +1861,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         usePercentageMaintBox.setToolTipText(resourceMap.getString("usePercentageMaintBox.toolTipText")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 10;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1832,7 +1872,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         useInfantryDontCountBox.setToolTipText(resourceMap.getString("infantryDontCount.toolTipText")); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 11;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1844,7 +1884,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         usePeacetimeCostBox.setName("usePeacetimeCostBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 12;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1855,7 +1895,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         useExtendedPartsModifierBox.setName("useExtendedPartsModifierBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 13;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1866,7 +1906,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         showPeacetimeCostBox.setName("showPeacetimeCostBox"); // NOI18N
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 14;
+        gridBagConstraints.gridy = gridy++;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
@@ -1970,19 +2010,19 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
             btnContractPersonnel.setSelected(true);
         }
 
-        spnEquipPercent = new JSpinner(new SpinnerNumberModel(options.getEquipmentContractPercent(), 0.1, 5.0, 0.1));
+        spnEquipPercent = new JSpinner(new SpinnerNumberModel(options.getEquipmentContractPercent(), 0.1, CampaignOptions.MAXIMUM_COMBAT_EQUIPMENT_PERCENT, 0.1));
         spnEquipPercent.setEditor(new JSpinner.NumberEditor(spnEquipPercent, "0.0"));
         ((JSpinner.DefaultEditor) spnEquipPercent.getEditor()).getTextField().setEditable(false);
 
-        spnDropshipPercent = new JSpinner(new SpinnerNumberModel(options.getDropshipContractPercent(), 0.0, 1.0, 0.1));
+        spnDropshipPercent = new JSpinner(new SpinnerNumberModel(options.getDropshipContractPercent(), 0.0, CampaignOptions.MAXIMUM_DROPSHIP_EQUIPMENT_PERCENT, 0.1));
         spnDropshipPercent.setEditor(new JSpinner.NumberEditor(spnDropshipPercent, "0.0"));
         ((JSpinner.NumberEditor) spnDropshipPercent.getEditor()).getTextField().setEditable(false);
 
-        spnJumpshipPercent = new JSpinner(new SpinnerNumberModel(options.getJumpshipContractPercent(), 0.0, 1.0, 0.1));
+        spnJumpshipPercent = new JSpinner(new SpinnerNumberModel(options.getJumpshipContractPercent(), 0.0, CampaignOptions.MAXIMUM_JUMPSHIP_EQUIPMENT_PERCENT, 0.1));
         spnJumpshipPercent.setEditor(new JSpinner.NumberEditor(spnJumpshipPercent, "0.0"));
         ((JSpinner.DefaultEditor) spnJumpshipPercent.getEditor()).getTextField().setEditable(false);
 
-        spnWarshipPercent = new JSpinner(new SpinnerNumberModel(options.getWarshipContractPercent(), 0.0, 1.0, 0.1));
+        spnWarshipPercent = new JSpinner(new SpinnerNumberModel(options.getWarshipContractPercent(), 0.0, CampaignOptions.MAXIMUM_WARSHIP_EQUIPMENT_PERCENT, 0.1));
         spnWarshipPercent.setEditor(new JSpinner.NumberEditor(spnWarshipPercent, "0.0"));
         ((JSpinner.DefaultEditor) spnWarshipPercent.getEditor()).getTextField().setEditable(false);
 
@@ -2970,7 +3010,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         });
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
-        int gridy = 0;
+        gridy = 0;
         gridBagConstraints.gridy = gridy;
         gridBagConstraints.gridwidth = 2;
         gridBagConstraints.fill = java.awt.GridBagConstraints.HORIZONTAL;
@@ -3093,10 +3133,10 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         personnelMarketDylansWeightLabel = new JLabel("<html>Weight for Dylan's Method to choose most"
                                                       + "<br />common unit type based on your forces</html>");
         personnelMarketReportRefresh.setSelected(options.getPersonnelMarketReportRefresh());
-        for (int i = PersonnelMarket.TYPE_RANDOM; i < PersonnelMarket.TYPE_NUM; i++) {
-            personnelMarketType.addItem(PersonnelMarket.getTypeName(i));
+        for (PersonnelMarketMethod method : PersonnelMarketServiceManager.getInstance().getAllServices(true)) {
+            personnelMarketType.addItem(method.getModuleName());
         }
-        personnelMarketType.setSelectedIndex(options.getPersonnelMarketType());
+        personnelMarketType.setSelectedItem((String) options.getPersonnelMarketType());
         personnelMarketRandomEliteRemoval.setText(Integer.toString(options.getPersonnelMarketRandomEliteRemoval()));
         personnelMarketRandomVeteranRemoval.setText(Integer.toString(options.getPersonnelMarketRandomVeteranRemoval()));
         personnelMarketRandomRegularRemoval.setText(Integer.toString(options.getPersonnelMarketRandomRegularRemoval()));
@@ -3136,7 +3176,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         panPersonnelMarket.add(personnelMarketTypeLabel, gridBagConstraints);
 
-        personnelMarketType.setSelectedIndex(options.getPersonnelMarketType());
+        personnelMarketType.setSelectedItem((String) options.getPersonnelMarketType());
         personnelMarketType.addActionListener(new java.awt.event.ActionListener() {
             @Override
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -4099,7 +4139,22 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
                 scrSPA.getVerticalScrollBar().setValue(0);
                 scrAtB.getVerticalScrollBar().setValue(0);
             }
-         });        
+         });
+        
+        JScrollPane scrMisc = new JScrollPane(panMisc);
+        scrMisc.setPreferredSize(new java.awt.Dimension(500, 400));
+
+        chkHistoricalDailyLog.setText(resourceMap.getString("chkShowHistoricalDailyReport.text")); // NOI18N
+        chkHistoricalDailyLog.setToolTipText(resourceMap.getString("chkShowHistoricalDailyReport.toolTipText")); // NOI18N
+        chkHistoricalDailyLog.setName("chkHistoricalDailyLog"); // NOI18N
+        chkHistoricalDailyLog.setSelected(options.historicalDailyLog());
+        gridBagConstraints = new java.awt.GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 0;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        panMisc.add(chkHistoricalDailyLog, gridBagConstraints);
+
+        tabOptions.addTab(resourceMap.getString("misc.TabConstraints.tabTitle"), scrMisc);
 
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
@@ -4294,23 +4349,14 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO,
                 "Saving campaign options..."); //$NON-NLS-1$
         // Choose a file...
-        JFileChooser saveOptions = new JFileChooser(MekHQ.PRESET_DIR);
-        saveOptions.setDialogTitle("Save Campaign Options as Presets");
-        //saveCpgn.setFileFilter(new CampaignFileFilter());
-        saveOptions.setSelectedFile(new File("myoptions.xml")); //$NON-NLS-1$
-        int returnVal = saveOptions.showSaveDialog(getParent());
+        Optional<File> maybeFile = FileDialogs.saveCampaignOptions(null);
 
-        if ((returnVal != JFileChooser.APPROVE_OPTION)
-                || (saveOptions.getSelectedFile() == null)) {
-            // I want a file, y'know!
+        if (!maybeFile.isPresent()) {
             return;
         }
 
-        File file = saveOptions.getSelectedFile();
-        if (file == null) {
-            // I want a file, y'know!
-            return;
-        }
+        File file = maybeFile.get();
+
         String path = file.getPath();
         if (!path.endsWith(".xml")) {
             path += ".xml";
@@ -4345,7 +4391,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO,
                     "Campaign options saved to " + file); //$NON-NLS-1$
         } catch (Exception ex) {
-            MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+            MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
             JOptionPane
                     .showMessageDialog(
                             null,
@@ -4410,6 +4456,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         options.setDestroyByMargin(useDamageMargin.isSelected());
         options.setDestroyMargin((Integer) spnDamageMargin.getModel().getValue());
         options.setDestroyPartTarget((Integer) spnDestroyPartTarget.getModel().getValue());
+        options.setUseAeroSystemHits(useAeroSystemHitsBox.isSelected());
         options.setCheckMaintenance(checkMaintenance.isSelected());
         options.setUseQualityMaintenance(useQualityMaintenance.isSelected());
         options.setReverseQualityNames(reverseQualityNames.isSelected());
@@ -4434,6 +4481,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         options.setAdvancedMedical(useAdvancedMedicalBox.isSelected());
         options.setDylansRandomXp(useDylansRandomXpBox.isSelected());
         options.setPayForParts(payForPartsBox.isSelected());
+        options.setPayForRepairs(payForRepairsBox.isSelected());
         options.setPayForUnits(payForUnitsBox.isSelected());
         options.setPayForSalaries(payForSalariesBox.isSelected());
         options.setPayForOverhead(payForOverheadBox.isSelected());
@@ -4468,6 +4516,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         options.setIsAcquisitionPenalty((Integer) spnAcquireIsPenalty.getModel().getValue());
         options.setMaxAcquisitions(Integer.parseInt(txtMaxAcquisitions.getText()));
 
+        options.setHistoricalDailyLog(chkHistoricalDailyLog.isSelected());
 
         options.setNDiceTransitTime((Integer) spnNDiceTransitTime.getModel().getValue());
         options.setConstantTransitTime((Integer) spnConstantTransitTime.getModel().getValue());
@@ -4581,7 +4630,7 @@ public class CampaignOptionsDialog extends javax.swing.JDialog {
         options.setPersonnelMarketRandomUltraGreenRemoval(Integer.parseInt(personnelMarketRandomUltraGreenRemoval
                                                                                    .getText()));
         options.setPersonnelMarketReportRefresh(personnelMarketReportRefresh.isSelected());
-        options.setPersonnelMarketType(personnelMarketType.getSelectedIndex());
+        options.setPersonnelMarketType((String) personnelMarketType.getSelectedItem());
         // End Personnel Market
 
         // Start Against the Bot

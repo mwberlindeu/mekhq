@@ -31,7 +31,6 @@ import java.util.Map;
 import java.util.Vector;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -340,7 +339,7 @@ public class SpecialAbility implements MekHqXmlSerializable {
             // Errrr, apparently either the class name was invalid...
             // Or the listed name doesn't exist.
             // Doh!
-            MekHQ.getLogger().log(SpecialAbility.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(SpecialAbility.class, METHOD_NAME, ex);
         }
 
         if(retVal.displayName.isEmpty()) {
@@ -419,7 +418,7 @@ public class SpecialAbility implements MekHqXmlSerializable {
             // Errrr, apparently either the class name was invalid...
             // Or the listed name doesn't exist.
             // Doh!
-            MekHQ.getLogger().log(SpecialAbility.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(SpecialAbility.class, METHOD_NAME, ex);
         }
 
         if(retVal.displayName.isEmpty()) {
@@ -444,19 +443,17 @@ public class SpecialAbility implements MekHqXmlSerializable {
         edgeTriggers = new Hashtable<>();
         implants = new Hashtable<>();
 
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         Document xmlDoc = null;
-
 
         try {
             FileInputStream fis = new FileInputStream("data/universe/defaultspa.xml");
             // Using factory get an instance of document builder
-            DocumentBuilder db = dbf.newDocumentBuilder();
+            DocumentBuilder db = MekHqXmlUtil.newSafeDocumentBuilder();
 
             // Parse using builder to get DOM representation of the XML file
             xmlDoc = db.parse(fis);
         } catch (Exception ex) {
-            MekHQ.getLogger().log(SpecialAbility.class, METHOD_NAME, ex);
+            MekHQ.getLogger().error(SpecialAbility.class, METHOD_NAME, ex);
         }
 
         Element spaEle = xmlDoc.getDocumentElement();

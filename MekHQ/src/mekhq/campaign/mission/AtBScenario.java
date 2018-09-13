@@ -44,7 +44,7 @@ import megamek.client.RandomSkillsGenerator;
 import megamek.client.RandomUnitGenerator;
 import megamek.client.bot.princess.BehaviorSettings;
 import megamek.client.bot.princess.BehaviorSettingsFactory;
-import megamek.client.bot.princess.HomeEdge;
+import megamek.client.bot.princess.CardinalEdge;
 import megamek.client.bot.princess.PrincessException;
 import megamek.common.Board;
 import megamek.common.Compute;
@@ -404,7 +404,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
 
     public void setPlanetaryConditions(Mission mission, Campaign campaign) {
         if (null != mission) {
-            Planet p = Planets.getInstance().getPlanets().get(mission.getPlanetId(null));
+            Planet p = Planets.getInstance().getPlanets().get(mission.getPlanetId());
             if (null != p) {
                 atmosphere = Utilities.nonNull(p.getPressure(Utilities.getDateTimeDay(campaign.getCalendar())), atmosphere);
                 gravity = Utilities.nonNull(p.getGravity(), gravity).floatValue();
@@ -699,7 +699,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                 alliesPlayer.add(en);
                 attachedUnitIds.add(UUID.fromString(en.getExternalIdAsString()));
             } else {
-                System.out.println("Entity for player-controlled allies is null");
+                MekHQ.getLogger().error(AtBScenario.class, "setStandardMissionForces", "Entity for player-controlled allies is null");
             }
         }
 
@@ -713,7 +713,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                 allyEntities.add(en);
                 attachedUnitIds.add(UUID.fromString(en.getExternalIdAsString()));
             } else {
-                System.err.println("Entity for ally bot is null");
+                MekHQ.getLogger().error(AtBScenario.class, "setStandardMissionForces", "Entity for ally bot is null");
             }
         }
 
@@ -980,7 +980,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
             en = null;
             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                     "Unable to load entity: " + ms.getSourceFile() + ": " + ms.getEntryName() + ": " + ex.getMessage()); //$NON-NLS-1$
-            MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+            MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
             return null;
         }
 
@@ -1065,7 +1065,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
         } catch (Exception ex) {
             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                     "Unable to load unit: " + name); //$NON-NLS-1$
-            MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+            MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
         }
         if (mechFileParser == null) {
             return null;
@@ -1879,7 +1879,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                         } catch (Exception e) {
                             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                                     "Error loading allied unit in scenario"); //$NON-NLS-1$
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                            MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                         }
                         if (en != null) {
                             alliesPlayer.add(en);
@@ -1903,7 +1903,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                         } catch (Exception e) {
                             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                                     "Error loading allied unit in scenario"); //$NON-NLS-1$
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                            MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                         }
                         if (en != null) {
                             bigBattleAllies.add(en);
@@ -1935,7 +1935,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                                 } catch (Exception e) {
                                     MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                                             "Error loading allied unit in scenario"); //$NON-NLS-1$
-                                    MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                                    MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                                 }
                                 if (null != en) {
                                     specMissionEnemies.get(weightClass).add(en);
@@ -1952,7 +1952,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                 } catch (Exception e) {
                     MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                             "Error loading allied unit in scenario"); //$NON-NLS-1$
-                    MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                    MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                     bf = null;
                 }
                 if (null != bf) {
@@ -2214,7 +2214,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
             } catch (PrincessException ex) {
                 MekHQ.getLogger().log(getClass(), "BotForce()", LogLevel.ERROR, //$NON-NLS-1$
                         "Error getting Princess default behaviors"); //$NON-NLS-1$
-                MekHQ.getLogger().log(getClass(), "BotForce()", ex); //$NON-NLS-1$
+                MekHQ.getLogger().error(getClass(), "BotForce()", ex); //$NON-NLS-1$
             }
         };
 
@@ -2241,32 +2241,33 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
             } catch (PrincessException ex) {
                 MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                         "Error getting Princess default behaviors"); //$NON-NLS-1$
-                MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+                MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
             }
-            behaviorSettings.setHomeEdge(findHomeEdge(home));
+            behaviorSettings.setRetreatEdge(CardinalEdge.NEAREST_OR_NONE);
+            behaviorSettings.setDestinationEdge(CardinalEdge.NEAREST_OR_NONE);
         }
 
         /* Convert from MM's Board to Princess's HomeEdge */
-        public HomeEdge findHomeEdge(int start) {
+        public CardinalEdge findCardinalEdge(int start) {
             switch (start) {
             case Board.START_N:
-                return HomeEdge.NORTH;
+                return CardinalEdge.NORTH;
             case Board.START_S:
-                return HomeEdge.SOUTH;
+                return CardinalEdge.SOUTH;
             case Board.START_E:
-                return HomeEdge.EAST;
+                return CardinalEdge.EAST;
             case Board.START_W:
-                return HomeEdge.WEST;
+                return CardinalEdge.WEST;
             case Board.START_NW:
-                return (Compute.randomInt(2) == 0)?HomeEdge.NORTH:HomeEdge.WEST;
+                return (Compute.randomInt(2) == 0) ? CardinalEdge.NORTH : CardinalEdge.WEST;
             case Board.START_NE:
-                return (Compute.randomInt(2) == 0)?HomeEdge.NORTH:HomeEdge.EAST;
+                return (Compute.randomInt(2) == 0) ? CardinalEdge.NORTH : CardinalEdge.EAST;
             case Board.START_SW:
-                return (Compute.randomInt(2) == 0)?HomeEdge.SOUTH:HomeEdge.WEST;
+                return (Compute.randomInt(2) == 0) ? CardinalEdge.SOUTH : CardinalEdge.WEST;
             case Board.START_SE:
-                return (Compute.randomInt(2) == 0)?HomeEdge.SOUTH:HomeEdge.EAST;
+                return (Compute.randomInt(2) == 0) ? CardinalEdge.SOUTH : CardinalEdge.EAST;
             default:
-                return HomeEdge.getHomeEdge(Compute.randomInt(4));
+                return CardinalEdge.getCardinalEdge(Compute.randomInt(4));
             }
         }
 
@@ -2334,8 +2335,12 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
             this.behaviorSettings = behaviorSettings;
         }
 
-        public void setHomeEdge(int i) {
-            behaviorSettings.setHomeEdge(findHomeEdge(i));
+        public void setDestinationEdge(int i) {
+            behaviorSettings.setDestinationEdge(findCardinalEdge(i));
+        }
+        
+        public void setRetreatEdge(int i) {
+            behaviorSettings.setRetreatEdge(findCardinalEdge(i));
         }
 
         public void writeToXml(PrintWriter pw1, int indent) {
@@ -2357,12 +2362,12 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
             pw1.println(MekHqXmlUtil.indentStr(indent+1) + "<behaviorSettings>");
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "verbosity", behaviorSettings.getVerbosity().toString());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "forcedWithdrawal", behaviorSettings.isForcedWithdrawal());
-            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "goHome", behaviorSettings.shouldGoHome());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "autoFlee", behaviorSettings.shouldAutoFlee());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "selfPreservationIndex", behaviorSettings.getSelfPreservationIndex());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "fallShameIndex", behaviorSettings.getFallShameIndex());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "hyperAggressionIndex", behaviorSettings.getHyperAggressionIndex());
-            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "homeEdge", behaviorSettings.getHomeEdge().ordinal());
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "destinationEdge", behaviorSettings.getDestinationEdge().ordinal());
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "retreatEdge", behaviorSettings.getRetreatEdge().ordinal());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "herdMentalityIndex", behaviorSettings.getHerdMentalityIndex());
             MekHqXmlUtil.writeSimpleXmlTag(pw1, indent+2, "braveryIndex", behaviorSettings.getBraveryIndex());
             pw1.println(MekHqXmlUtil.indentStr(indent+1) + "</behaviorSettings>");
@@ -2401,7 +2406,7 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                             } catch (Exception e) {
                                 MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
                                         "Error loading allied unit in scenario"); //$NON-NLS-1$
-                                MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                                MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                             }
                             if (en != null) {
                                 entityList.add(en);
@@ -2417,8 +2422,6 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                             behaviorSettings.setVerbosity(LogLevel.getLogLevel(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("forcedWithdrawal")) {
                             behaviorSettings.setForcedWithdrawal(Boolean.parseBoolean(wn3.getTextContent()));
-                        } else if (wn3.getNodeName().equalsIgnoreCase("goHome")) {
-                            behaviorSettings.setGoHome(Boolean.parseBoolean(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("autoFlee")) {
                             behaviorSettings.setAutoFlee(Boolean.parseBoolean(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("selfPreservationIndex")) {
@@ -2427,8 +2430,10 @@ public abstract class AtBScenario extends Scenario implements IAtBScenario {
                             behaviorSettings.setFallShameIndex(Integer.parseInt(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("hyperAggressionIndex")) {
                             behaviorSettings.setHyperAggressionIndex(Integer.parseInt(wn3.getTextContent()));
-                        } else if (wn3.getNodeName().equalsIgnoreCase("homeEdge")) {
-                            behaviorSettings.setHomeEdge(Integer.parseInt(wn3.getTextContent()));
+                        } else if (wn3.getNodeName().equalsIgnoreCase("destinationEdge")) {
+                            behaviorSettings.setDestinationEdge(Integer.parseInt(wn3.getTextContent()));
+                        } else if (wn3.getNodeName().equalsIgnoreCase("retreatEdge")) {
+                            behaviorSettings.setRetreatEdge(Integer.parseInt(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("herdMentalityIndex")) {
                             behaviorSettings.setHerdMentalityIndex(Integer.parseInt(wn3.getTextContent()));
                         } else if (wn3.getNodeName().equalsIgnoreCase("braveryIndex")) {

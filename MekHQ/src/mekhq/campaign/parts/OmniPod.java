@@ -220,7 +220,8 @@ public class OmniPod extends Part {
 
     @Override
     public MissingPart getMissingPart() {
-        return null;
+        // This is used only for acquisition.
+        return new MissingOmniPod(partType, campaign);
     }
 
     @Override

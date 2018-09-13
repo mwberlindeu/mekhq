@@ -11,7 +11,6 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.joda.time.DateTime;
 import org.w3c.dom.Document;
@@ -21,6 +20,7 @@ import org.w3c.dom.NodeList;
 
 import megamek.common.logging.LogLevel;
 import mekhq.MekHQ;
+import mekhq.MekHqXmlUtil;
 
 /**
  * Instead of making this a static like Planets, we are just going to reload a years
@@ -45,7 +45,7 @@ public class News {
             // For debugging only!
             unmarshaller.setEventHandler(new javax.xml.bind.helpers.DefaultValidationEventHandler());
         } catch(JAXBException e) {
-            MekHQ.getLogger().log(News.class, "<init>", e);
+            MekHQ.getLogger().error(News.class, "<init>", e);
         }
     }
 
@@ -80,19 +80,18 @@ public class News {
             int id = 0;
             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO,
                     "Starting load of news data for " + year + " from XML..."); //$NON-NLS-1$
+
             // Initialize variables.
-            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             Document xmlDoc = null;
-        
-            
+
             try(FileInputStream fis = new FileInputStream("data/universe/news.xml")) {
                 // Using factory get an instance of document builder
-                DocumentBuilder db = dbf.newDocumentBuilder();
+                DocumentBuilder db = MekHqXmlUtil.newSafeDocumentBuilder();
         
                 // Parse using builder to get DOM representation of the XML file
                 xmlDoc = db.parse(fis);
             } catch (Exception ex) {
-                MekHQ.getLogger().log(getClass(), METHOD_NAME, ex);
+                MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
             }
         
             Element newsEle = xmlDoc.getDocumentElement();
@@ -123,7 +122,7 @@ public class News {
                         try {
                             newsItem = (NewsItem) unmarshaller.unmarshal(wn);
                         } catch(JAXBException e) {
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, e);
+                            MekHQ.getLogger().error(getClass(), METHOD_NAME, e);
                             continue;
                         }
                         if(null == newsItem.getDate()) {
