@@ -40,12 +40,18 @@ import megamek.common.util.EncodeControl;
 import mekhq.MekHQ;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.event.PersonChangedEvent;
+import mekhq.campaign.log.PersonalLogger;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.personnel.Skill;
 import mekhq.campaign.personnel.SkillType;
 import mekhq.gui.model.PersonnelTableModel;
+import mekhq.gui.preferences.JComboBoxPreference;
+import mekhq.gui.preferences.JIntNumberSpinnerPreference;
+import mekhq.gui.preferences.JToggleButtonPreference;
+import mekhq.gui.preferences.JWindowPreference;
 import mekhq.gui.sorter.FormattedNumberSorter;
 import mekhq.gui.sorter.RankSorter;
+import mekhq.preferences.PreferencesNode;
 
 public final class BatchXPDialog extends JDialog {
     private static final long serialVersionUID = -7897406116865495209L;
@@ -98,6 +104,8 @@ public final class BatchXPDialog extends JDialog {
         personnelSorter.setRowFilter(personnelFilter);
         
         initComponents();
+
+        setUserPreferences();
     }
 
     private void initComponents() {
@@ -108,6 +116,28 @@ public final class BatchXPDialog extends JDialog {
         
         pack();
         setLocationRelativeTo(getParent());
+    }
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(BatchXPDialog.class);
+
+        choiceType.setName("primaryRole");
+        preferences.manage(new JComboBoxPreference(choiceType));
+
+        choiceExp.setName("experienceLevel");
+        preferences.manage(new JComboBoxPreference(choiceExp));
+
+        choiceSkill.setName("skill");
+        preferences.manage(new JComboBoxPreference(choiceSkill));
+
+        skillLevel.setName("skillLevel");
+        preferences.manage(new JIntNumberSpinnerPreference(skillLevel));
+
+        allowPrisoners.setName("allowPrisoners");
+        preferences.manage(new JToggleButtonPreference(allowPrisoners));
+
+        this.setName("dialog");
+        preferences.manage(new JWindowPreference(this));
     }
     
     private JComponent getPersonnelTable() {
@@ -293,10 +323,10 @@ public final class BatchXPDialog extends JDialog {
                         if(null == spa) {
                             if(campaign.getCampaignOptions().useEdge()) {
                                 p.acquireAbility(PilotOptions.EDGE_ADVANTAGES, "edge", p.getEdge() + 1); //$NON-NLS-1$
-                                p.addLogEntry(campaign.getDate(), String.format(resourceMap.getString("gainedEdge.text"))); //$NON-NLS-1$
+                                PersonalLogger.gainedEdge(p, campaign.getDate());
                             }
                         } else {
-                            p.addLogEntry(campaign.getDate(), String.format(resourceMap.getString("gained.format"), spa)); //$NON-NLS-1$
+                            PersonalLogger.gained(p, campaign.getDate(), spa);
                         }
                     }
                 }

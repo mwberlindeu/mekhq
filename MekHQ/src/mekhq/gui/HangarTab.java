@@ -73,12 +73,16 @@ import mekhq.gui.adapter.UnitTableMouseAdapter;
 import mekhq.gui.model.ProcurementTableModel;
 import mekhq.gui.model.UnitTableModel;
 import mekhq.gui.model.XTableColumnModel;
+import mekhq.gui.preferences.JComboBoxPreference;
+import mekhq.gui.preferences.JTablePreference;
+import mekhq.gui.preferences.JToggleButtonPreference;
 import mekhq.gui.sorter.FormattedNumberSorter;
 import mekhq.gui.sorter.TargetSorter;
 import mekhq.gui.sorter.UnitStatusSorter;
 import mekhq.gui.sorter.UnitTypeSorter;
 import mekhq.gui.sorter.WeightClassSorter;
 import mekhq.gui.view.UnitViewPanel;
+import mekhq.preferences.PreferencesNode;
 
 //MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
 
@@ -113,6 +117,7 @@ public final class HangarTab extends CampaignGuiTab {
     HangarTab(CampaignGUI gui, String name) {
         super(gui, name);
         MekHQ.registerHandler(this);
+        setUserPreferences();
     }
 
     @Override
@@ -189,7 +194,7 @@ public final class HangarTab extends CampaignGuiTab {
         XTableColumnModel unitColumnModel = new XTableColumnModel();
         unitTable.setColumnModel(unitColumnModel);
         unitTable.createDefaultColumnsFromModel();
-        unitSorter = new TableRowSorter<UnitTableModel>(unitModel);
+        unitSorter = new TableRowSorter<>(unitModel);
         unitSorter.setComparator(UnitTableModel.COL_STATUS, new UnitStatusSorter());
         unitSorter.setComparator(UnitTableModel.COL_TYPE, new UnitTypeSorter());
         unitSorter.setComparator(UnitTableModel.COL_WCLASS, new WeightClassSorter());
@@ -203,7 +208,7 @@ public final class HangarTab extends CampaignGuiTab {
                 unitTable, unitModel) {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
+                if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
                     if ((splitUnit.getSize().width - splitUnit.getDividerLocation() + splitUnit
                             .getDividerSize()) < HangarTab.UNIT_VIEW_WIDTH) {
                         // expand
@@ -212,7 +217,6 @@ public final class HangarTab extends CampaignGuiTab {
                         // collapse
                         splitUnit.setDividerLocation(1.0);
                     }
-
                 }
             }            
         });
@@ -321,7 +325,20 @@ public final class HangarTab extends CampaignGuiTab {
         gridBagConstraints.weighty = 1.0;
         add(splitUnit, gridBagConstraints);
     }
-    
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(HangarTab.class);
+
+        choiceUnit.setName("unitType");
+        preferences.manage(new JComboBoxPreference(choiceUnit));
+
+        choiceUnitView.setName("unitView");
+        preferences.manage(new JComboBoxPreference(choiceUnitView));
+
+        unitTable.setName("unitTable");
+        preferences.manage(new JTablePreference(unitTable));
+    }
+
     /* For export */
     public JTable getUnitTable() {
         return unitTable;

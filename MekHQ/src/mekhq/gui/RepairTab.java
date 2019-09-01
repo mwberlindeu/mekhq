@@ -79,10 +79,13 @@ import mekhq.gui.model.TaskTableModel;
 import mekhq.gui.model.TechTableModel;
 import mekhq.gui.model.UnitTableModel;
 import mekhq.gui.model.XTableColumnModel;
+import mekhq.gui.preferences.JTablePreference;
+import mekhq.gui.preferences.JWindowPreference;
 import mekhq.gui.sorter.TaskSorter;
 import mekhq.gui.sorter.TechSorter;
 import mekhq.gui.sorter.UnitStatusSorter;
 import mekhq.gui.sorter.UnitTypeSorter;
+import mekhq.preferences.PreferencesNode;
 import mekhq.service.MassRepairService;
 import mekhq.service.PartsAcquisitionService;
 
@@ -128,6 +131,7 @@ public final class RepairTab extends CampaignGuiTab implements ITechWorkPanel {
     RepairTab(CampaignGUI gui, String name) {
         super(gui, name);
         MekHQ.registerHandler(this);
+        setUserPreferences();
     }
 
     /*
@@ -461,6 +465,13 @@ public final class RepairTab extends CampaignGuiTab implements ITechWorkPanel {
         filterTechs();
     }
 
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(RepairTab.class);
+
+        servicedUnitTable.setName("serviceUnitsTable");
+        preferences.manage(new JTablePreference(servicedUnitTable));
+    }
+
     protected void updateTechTarget() {
         TargetRoll target = null;
 
@@ -570,9 +581,10 @@ public final class RepairTab extends CampaignGuiTab implements ITechWorkPanel {
                 MechView mv = new MechView(unit.getEntity(), true, true);
                 txtServicedUnitView.setText("<div style='font: 12pt monospaced'>" + mv.getMechReadoutBasic() + "<br>"
                         + mv.getMechReadoutLoadout() + "</div>");
-            }
-            if (!unit.equals(selectedUnit)) {
-                choiceLocation.setSelectedIndex(0);
+
+                if (!unit.equals(selectedUnit)) {
+                    choiceLocation.setSelectedIndex(0);
+                }
             }
             selectedUnit = unit;
         } else {
@@ -789,6 +801,8 @@ public final class RepairTab extends CampaignGuiTab implements ITechWorkPanel {
     }
 
     public void refreshTaskList() {
+        selectedRow = taskTable.getSelectedRow();
+        
         UUID uuid = null;
         if (null != getSelectedServicedUnit()) {
             uuid = getSelectedServicedUnit().getId();
@@ -855,12 +869,12 @@ public final class RepairTab extends CampaignGuiTab implements ITechWorkPanel {
         // If requested, switch to top entry
         if(getCampaign().getCampaignOptions().useResetToFirstTech() && techTable.getRowCount() > 0) {
             techTable.setRowSelectionInterval(0, 0);
-        } else {
+        } else if (selectedTech != null) {
             // Or get the selected tech back
             for (int i = 0; i < techTable.getRowCount(); i++) {
                 Person p = techsModel
                         .getTechAt(techTable.convertRowIndexToModel(i));
-                if (selectedTech.getId().equals(p.getId())) {
+                if (p != null && selectedTech.getId().equals(p.getId())) {
                     techTable.setRowSelectionInterval(i, i);
                     break;
                 }

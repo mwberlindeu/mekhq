@@ -1,18 +1,18 @@
 /*
  * Copyright (c) 2018 - The MegaMek Team
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -130,11 +130,9 @@ public class CampaignXmlParser {
     /**
      * Designed to create a campaign object from an input stream containing an XML structure.
      *
-     * @param is The file holding the XML, in InputStream form.
      * @return The created Campaign object, or null if there was a problem.
-     * @throws ParseException
-     * @throws DOMException
-     * @throws NullEntityException
+     * @throws CampaignXmlParseException Thrown when there was a problem parsing the CPNX file
+     * @throws NullEntityException Thrown when an entity is referenced but cannot be loaded or found
      */
     public Campaign parse() throws CampaignXmlParseException, NullEntityException {
         final String METHOD_NAME = "parse()"; //$NON-NLS-1$
@@ -342,7 +340,7 @@ public class CampaignXmlParser {
 
         // If the version is earlier than 0.3.4 r1782, then we need to translate
         // the rank system.
-        if (Version.versionCompare(version, "0.3.4-r1782")) {
+        if (version.isLowerThan("0.3.4-r1782")) {
             retVal.setRankSystem(
                     RankTranslator.translateRankSystem(retVal.getRanks().getOldRankSystem(), retVal.getFactionCode()));
             if (retVal.getRanks() == null) {
@@ -415,7 +413,9 @@ public class CampaignXmlParser {
                         continue;
                     }
                     // Remove existing duplicate parts.
-                    if (u.getPartForEquipmentNum(((EquipmentPart) prt).getEquipmentNum(), ((EquipmentPart) prt).getLocation()) != null) {
+                    Part duplicatePart = u.getPartForEquipmentNum(((EquipmentPart) prt).getEquipmentNum(), ((EquipmentPart) prt).getLocation());
+                    if (duplicatePart instanceof EquipmentPart
+                        && ((EquipmentPart)prt).getType() == ((EquipmentPart)duplicatePart).getType()) {
                         removeParts.add(prt);
                         continue;
                     }
@@ -424,11 +424,6 @@ public class CampaignXmlParser {
                     Mounted m = u.getEntity().getEquipment(
                             ((MissingEquipmentPart) prt).getEquipmentNum());
                     if (null == m || m.getLocation() == Entity.LOC_NONE) {
-                        removeParts.add(prt);
-                        continue;
-                    }
-                    // Remove existing duplicate parts.
-                    if (u.getPartForEquipmentNum(((MissingEquipmentPart) prt).getEquipmentNum(), ((MissingEquipmentPart) prt).getLocation()) != null) {
                         removeParts.add(prt);
                         continue;
                     }
@@ -583,7 +578,7 @@ public class CampaignXmlParser {
         // Okay, Units, need their pilot references fixed.
         for(Unit unit : retVal.getUnits()) {
             // Also, the unit should have its campaign set.
-            unit.campaign = retVal;
+            unit.setCampaign(retVal);
 
             // reset the pilot and entity, to reflect newly assigned personnel
             unit.resetPilotAndEntity();
@@ -592,11 +587,17 @@ public class CampaignXmlParser {
                 unit.getRefit().reCalc();
                 if (null == unit.getRefit().getNewArmorSupplies()
                         && unit.getRefit().getNewArmorSuppliesId() > 0) {
-                    Armor armorSupplies = (Armor) retVal.getPart(
-                            unit.getRefit().getNewArmorSuppliesId());
-                    unit.getRefit().setNewArmorSupplies(armorSupplies);
-                    if (null == armorSupplies.getUnit()) {
-                        armorSupplies.setUnit(unit);
+                    Part armorPart = retVal.getPart(unit.getRefit().getNewArmorSuppliesId());
+                    if (armorPart instanceof Armor) {
+                        Armor armorSupplies = (Armor) armorPart;
+                        unit.getRefit().setNewArmorSupplies(armorSupplies);
+                        if (null == armorSupplies.getUnit()) {
+                            armorSupplies.setUnit(unit);
+                        }
+                    } else {
+                        MekHQ.getLogger().error(CampaignXmlParser.class, METHOD_NAME,
+                            String.format("[Campain Load] Refit for unit %s (%s) references armor supplies that are incorrect; ignoring.",
+                                unit.getName(), unit.getId().toString()));
                     }
                 }
                 if (!unit.getRefit().isCustomJob()
@@ -618,7 +619,8 @@ public class CampaignXmlParser {
             // possible that these might have changed if changes were made to
             // the
             // ordering of equipment in the underlying data file for the unit
-            Utilities.unscrambleEquipmentNumbers(unit);
+            // We're not checking for refit here.
+            Utilities.unscrambleEquipmentNumbers(unit, false);
 
             // some units might need to be assigned to scenarios
             Scenario s = retVal.getScenario(unit.getScenarioId());
@@ -672,7 +674,7 @@ public class CampaignXmlParser {
         List<Unit> removeUnits = new ArrayList<>();
         for (Unit unit : retVal.getUnits()) {
             // just in case parts are missing (i.e. because they weren't tracked
-            // in previous versions)            
+            // in previous versions)
             unit.initializeParts(true);
             unit.runDiagnostic(false);
             if (!unit.isRepairable()) {
@@ -720,6 +722,8 @@ public class CampaignXmlParser {
         }
 
         //**EVERYTHING HAS BEEN LOADED. NOW FOR SANITY CHECKS**//
+
+        fixupUnitTechProblems(retVal);
 
         //unload any ammo bins in the warehouse
         ArrayList<AmmoBin> binsToUnload = new ArrayList<AmmoBin>();
@@ -804,17 +808,55 @@ public class CampaignXmlParser {
 
         return retVal;
     }
-    
+
     /**
-     * Pulled out purely for encapsulation. Makes the code neater and easier to read.
+     * This will fixup unit-tech problems seen in some save games, such as techs
+     * having been double-assigned or being assigned to mothballed units.
+     */
+    private void fixupUnitTechProblems(Campaign retVal) {
+        final String METHOD_NAME = "fixupUnitTechProblems(Campaign)";
+
+        // Cleanup problems with techs and units
+        for (Person tech : retVal.getTechs()) {
+            for (UUID id : new ArrayList<>(tech.getTechUnitIDs())) {
+                Unit u = retVal.getUnit(id);
+
+                String reason = null;
+                String unitDesc = id.toString();
+                if (null == u) {
+                    reason = "referenced missing unit";
+                    tech.removeTechUnitId(id);
+                } else if (null == u.getTechId()) {
+                    reason = "was not referenced by unit";
+                    u.setTech(tech);
+                } else if (u.isMothballed()) {
+                    reason = "referenced mothballed unit";
+                    unitDesc = u.getName();
+                    tech.removeTechUnitId(id);
+                } else if (!tech.getId().equals(u.getTechId())) {
+                    reason = String.format("referenced tech %s's maintained unit", u.getTech().getName());
+                    unitDesc = u.getName();
+                    tech.removeTechUnitId(id);
+                }
+                if (null != reason) {
+                    MekHQ.getLogger().log(CampaignXmlParser.class, METHOD_NAME, LogLevel.WARNING,
+                            String.format("Tech %s %s %s (fixed)", tech.getName(), reason, unitDesc));
+                }
+            }
+        }
+    }
+
+    /**
+     * Pulled out purely for encapsulation. Makes the code neater and easier to
+     * read.
      *
      * @param retVal The Campaign object that is being populated.
      * @param wni    The XML node we're working from.
      * @throws ParseException
      * @throws DOMException
      */
-    private static void processInfoNode(Campaign retVal, Node wni,
-            Version version) throws DOMException, CampaignXmlParseException {
+    private static void processInfoNode(Campaign retVal, Node wni, Version version)
+            throws DOMException, CampaignXmlParseException {
         NodeList nl = wni.getChildNodes();
 
         String rankNames = null;
@@ -911,7 +953,7 @@ public class CampaignXmlParser {
                 } else if (xn.equalsIgnoreCase("rankNames")) {
                     rankNames = wn.getTextContent().trim();
                 } else if (xn.equalsIgnoreCase("ranks") || xn.equalsIgnoreCase("rankSystem")) {
-                    if (Version.versionCompare(version, "0.3.4-r1645")) {
+                    if (version.isLowerThan("0.3.4-r1645")) {
                         rankSystem = Integer.parseInt(wn.getTextContent().trim());
                     } else {
                         Ranks r = Ranks.generateInstanceFromXML(wn, version);
@@ -1573,6 +1615,8 @@ public class CampaignXmlParser {
             for (String s : unitList) {
                 unitListString += "\n" + s;
             }
+            MekHQ.getLogger().log(CampaignXmlParser.class, METHOD_NAME, LogLevel.ERROR,
+                String.format("Could not load the following units: %s", unitListString)); //$NON-NLS-1$
             return unitListString;
         }
     }
@@ -1660,15 +1704,12 @@ public class CampaignXmlParser {
 
             // deal with equipmentparts that are now subtyped
             int pid = p.getId();
-            if (p instanceof EquipmentPart
-                    && ((EquipmentPart) p).getType() instanceof MiscType
-                    && ((EquipmentPart) p).getType().hasFlag(MiscType.F_MASC) && !(p instanceof MASC)) {
+            if (isLegacyMASC(p)) {
                 p = new MASC(p.getUnitTonnage(), ((EquipmentPart) p).getType(),
                         ((EquipmentPart) p).getEquipmentNum(), retVal, 0, p.isOmniPodded());
                 p.setId(pid);
             }
-            if (p instanceof MissingEquipmentPart
-                    && ((MissingEquipmentPart) p).getType().hasFlag(MiscType.F_MASC) && !(p instanceof MASC)) {
+            if (isLegacyMissingMASC(p)) {
                 p = new MissingMASC(p.getUnitTonnage(),
                         ((MissingEquipmentPart) p).getType(), ((MissingEquipmentPart) p).getEquipmentNum(), retVal,
                         ((MissingEquipmentPart) p).getTonnage(), 0, p.isOmniPodded());
@@ -1733,7 +1774,33 @@ public class CampaignXmlParser {
         MekHQ.getLogger().log(CampaignXmlParser.class, METHOD_NAME, LogLevel.INFO,
                 "Load Part Nodes Complete!"); //$NON-NLS-1$
     }
-    
+
+    /**
+     * Determines if the supplied part is a MASC from an older save. This means that it needs to be converted
+     * to an actual MASC part.
+     * @param p The part to check.
+     * @return Whether it's an old MASC.
+     */
+    private static boolean isLegacyMASC(Part p) {
+        return (p instanceof EquipmentPart) &&
+                !(p instanceof MASC) &&
+                ((EquipmentPart) p).getType().hasFlag(MiscType.F_MASC) &&
+                (((EquipmentPart) p).getType() instanceof MiscType);
+    }
+
+    /**
+     * Determines if the supplied part is a "missing" MASC from an older save. This means that it needs to be converted
+     * to an actual "missing" MASC part.
+     * @param p The part to check.
+     * @return Whether it's an old "missing" MASC.
+     */
+    private static boolean isLegacyMissingMASC(Part p) {
+        return (p instanceof MissingEquipmentPart) &&
+                !(p instanceof MissingMASC) &&
+                ((MissingEquipmentPart) p).getType().hasFlag(MiscType.F_MASC) &&
+                (((MissingEquipmentPart) p).getType() instanceof MiscType);
+    }
+
     private static void updatePlanetaryEventsFromXML(Node wn) {
         // TODO: make Planets a member of Campaign
         Planets.reload(true);

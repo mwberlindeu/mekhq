@@ -68,7 +68,6 @@ import megameklab.com.util.CConfig;
 import megameklab.com.util.RefreshListener;
 import megameklab.com.util.UnitUtil;
 import mekhq.MekHQ;
-import mekhq.Utilities;
 import mekhq.campaign.parts.Refit;
 import mekhq.campaign.unit.Unit;
 
@@ -117,8 +116,8 @@ public class MekLabTab extends CampaignGuiTab {
     @Override
     public void initTab() {
         entityVerifier = EntityVerifier.getInstance(new File("data/mechfiles/UnitVerifierOptions.xml"));
-        UnitUtil.loadFonts();
         new CConfig();
+        UnitUtil.loadFonts();
         MekHQ.getLogger().log(getClass(), "initTab()", LogLevel.INFO, //$NON-NLS-1$
                 "Starting MegaMekLab version: " + MegaMekLab.VERSION); //$NON-NLS-1$
         btnRefit = new JButton("Begin Refit");
@@ -221,7 +220,7 @@ public class MekLabTab extends CampaignGuiTab {
         } catch (EntityLoadingException ex) {
             MekHQ.getLogger().error(getClass(), "loadUnit(Unit)", ex); //$NON-NLS-1$
         }
-        entity.setYear(unit.campaign.getCalendar().get(Calendar.YEAR));
+        entity.setYear(unit.getCampaign().getCalendar().get(Calendar.YEAR));
         UnitUtil.updateLoadedUnit(entity);
         entity.setModel(entity.getModel() + " Mk II");
         removeAll();
@@ -255,7 +254,7 @@ public class MekLabTab extends CampaignGuiTab {
         } catch (EntityLoadingException ex) {
             MekHQ.getLogger().error(getClass(), "resetUnit()", ex); //$NON-NLS-1$
         }
-        entity.setYear(unit.campaign.getCalendar().get(Calendar.YEAR));
+        entity.setYear(unit.getCampaign().getCalendar().get(Calendar.YEAR));
         UnitUtil.updateLoadedUnit(entity);
         removeAll();
         labPanel = getCorrectLab(entity);
@@ -337,7 +336,7 @@ public class MekLabTab extends CampaignGuiTab {
         lblName.setText("<html><b>" + unit.getName() + "</b></html>");
         lblRefit.setText(refit.getRefitClassName());
         lblTime.setText(refit.getTime() + " minutes");
-        lblCost.setText(Utilities.getCurrencyString(refit.getCost()));
+        lblCost.setText(refit.getCost().toAmountAndSymbolString());
         lblMove.setText("Movement: " + walk + "/" + run + "/" + jump);
         if (bvDiff > 0) {
             lblBV.setText("<html>BV: " + entity.calculateBattleValue(true, true) + " (<font color='green'>+"
@@ -476,7 +475,7 @@ public class MekLabTab extends CampaignGuiTab {
         private megameklab.com.ui.Aero.tabs.StructureTab structureTab;
         private megameklab.com.ui.Aero.tabs.EquipmentTab equipmentTab;
         private megameklab.com.ui.Aero.tabs.BuildTab buildTab;
-        private megameklab.com.ui.Aero.tabs.PreviewTab previewTab;
+        private megameklab.com.ui.tabs.PreviewTab previewTab;
 
         public AeroPanel(Aero a) {
             entity = a;
@@ -493,7 +492,7 @@ public class MekLabTab extends CampaignGuiTab {
 
             structureTab = new megameklab.com.ui.Aero.tabs.StructureTab(this);
             structureTab.setAsCustomization();
-            previewTab = new megameklab.com.ui.Aero.tabs.PreviewTab(this);
+            previewTab = new megameklab.com.ui.tabs.PreviewTab(this);
             equipmentTab = new megameklab.com.ui.Aero.tabs.EquipmentTab(this);
             buildTab = new megameklab.com.ui.Aero.tabs.BuildTab(this, equipmentTab);
             structureTab.addRefreshedListener(this);
@@ -607,7 +606,7 @@ public class MekLabTab extends CampaignGuiTab {
         private megameklab.com.ui.Aero.tabs.EquipmentTab equipmentTab;
         private megameklab.com.ui.Aero.tabs.BuildTab buildTab;
         private megameklab.com.ui.aerospace.TransportTab transportTab;
-        private megameklab.com.ui.Aero.tabs.PreviewTab previewTab;
+        private megameklab.com.ui.tabs.PreviewTab previewTab;
 
         public DropshipPanel(SmallCraft a) {
             entity = a;
@@ -624,7 +623,7 @@ public class MekLabTab extends CampaignGuiTab {
 
             structureTab = new megameklab.com.ui.aerospace.DropshipStructureTab(this);
             structureTab.setAsCustomization();
-            previewTab = new megameklab.com.ui.Aero.tabs.PreviewTab(this);
+            previewTab = new megameklab.com.ui.tabs.PreviewTab(this);
             equipmentTab = new megameklab.com.ui.Aero.tabs.EquipmentTab(this);
             buildTab = new megameklab.com.ui.Aero.tabs.BuildTab(this, equipmentTab);
             transportTab = new megameklab.com.ui.aerospace.TransportTab(this);
@@ -741,7 +740,7 @@ public class MekLabTab extends CampaignGuiTab {
         private megameklab.com.ui.Mek.tabs.StructureTab structureTab;
         private megameklab.com.ui.Mek.tabs.EquipmentTab equipmentTab;
         private megameklab.com.ui.Mek.tabs.BuildTab buildTab;
-        private megameklab.com.ui.Mek.tabs.PreviewTab previewTab;
+        private megameklab.com.ui.tabs.PreviewTab previewTab;
 
         public MekPanel(Mech m) {
             entity = m;
@@ -759,7 +758,7 @@ public class MekLabTab extends CampaignGuiTab {
             structureTab = new megameklab.com.ui.Mek.tabs.StructureTab(this);
             structureTab.setAsCustomization();
             equipmentTab = new megameklab.com.ui.Mek.tabs.EquipmentTab(this);
-            previewTab = new megameklab.com.ui.Mek.tabs.PreviewTab(this);
+            previewTab = new megameklab.com.ui.tabs.PreviewTab(this);
             buildTab = new megameklab.com.ui.Mek.tabs.BuildTab(this, equipmentTab);
             structureTab.addRefreshedListener(this);
             equipmentTab.addRefreshedListener(this);
@@ -1114,7 +1113,7 @@ public class MekLabTab extends CampaignGuiTab {
 
         private Infantry entity;
         private megameklab.com.ui.Infantry.tabs.StructureTab structureTab;
-        private megameklab.com.ui.Infantry.tabs.PreviewTab previewTab;
+        private megameklab.com.ui.tabs.PreviewTab previewTab;
 
         public InfantryPanel(Infantry inf) {
             entity = inf;
@@ -1132,7 +1131,7 @@ public class MekLabTab extends CampaignGuiTab {
             structureTab = new megameklab.com.ui.Infantry.tabs.StructureTab(this);
             structureTab.setAsCustomization();
             structureTab.addRefreshedListener(this);
-            previewTab = new megameklab.com.ui.Infantry.tabs.PreviewTab(this);
+            previewTab = new megameklab.com.ui.tabs.PreviewTab(this);
 
             addTab("Build", new JScrollPane(structureTab));
             addTab("Preview", new JScrollPane(previewTab));

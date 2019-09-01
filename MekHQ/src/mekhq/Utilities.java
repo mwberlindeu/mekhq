@@ -32,8 +32,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -62,6 +60,8 @@ import java.util.stream.Collectors;
 import javax.swing.JTable;
 import javax.swing.table.TableModel;
 
+import mekhq.campaign.finances.Money;
+import mekhq.campaign.parts.equipment.*;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.joda.time.DateTime;
@@ -99,15 +99,12 @@ import megamek.common.util.EncodeControl;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.CampaignOptions;
 import mekhq.campaign.parts.Part;
-import mekhq.campaign.parts.equipment.AmmoBin;
-import mekhq.campaign.parts.equipment.BattleArmorEquipmentPart;
-import mekhq.campaign.parts.equipment.EquipmentPart;
-import mekhq.campaign.parts.equipment.MissingEquipmentPart;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.personnel.SkillType;
 import mekhq.campaign.unit.CrewType;
 import mekhq.campaign.unit.Unit;
 import mekhq.campaign.unit.UnitTechProgression;
+import org.w3c.dom.Node;
 
 /**
  *
@@ -123,7 +120,7 @@ public class Utilities {
     private static String[] romanNumerals = "M,CM,D,CD,C,XC,L,XL,X,IX,V,IV,I".split(","); //$NON-NLS-1$ //$NON-NLS-2$
 
     public static int roll3d6() {
-        Vector<Integer> rolls = new Vector<Integer>();
+        Vector<Integer> rolls = new Vector<>();
         rolls.add(Compute.d6());
         rolls.add(Compute.d6());
         rolls.add(Compute.d6());
@@ -279,7 +276,7 @@ public class Utilities {
     }
 
     public static ArrayList<AmmoType> getMunitionsFor(Entity entity, AmmoType cur_atype, int techLvl) {
-        ArrayList<AmmoType> atypes = new ArrayList<AmmoType>();
+        ArrayList<AmmoType> atypes = new ArrayList<>();
         for(AmmoType atype : AmmoType.getMunitionsFor(cur_atype.getAmmoType())) {
             //this is an abbreviated version of setupMunitions in the CustomMechDialog
             //TODO: clan/IS limitations?
@@ -342,13 +339,6 @@ public class Utilities {
         if (a.getLocation()!=b.getLocation())
             return false;
         return true;
-    }
-
-
-    public static String getCurrencyString(long value) {
-        NumberFormat numberFormat = DecimalFormat.getIntegerInstance();
-        String text = numberFormat.format(value) + " C-Bills";
-        return text;
     }
 
     /**
@@ -619,9 +609,9 @@ public class Utilities {
         String commanderName = oldCrew.getName();
         int averageGunnery = 0;
         int averagePiloting = 0;
-        List<Person> drivers = new ArrayList<Person>();
-        List<Person> gunners = new ArrayList<Person>();
-        List<Person> vesselCrew = new ArrayList<Person>();
+        List<Person> drivers = new ArrayList<>();
+        List<Person> gunners = new ArrayList<>();
+        List<Person> vesselCrew = new ArrayList<>();
         Person navigator = null;
         Person consoleCmdr = null;
         int totalGunnery = 0;
@@ -998,6 +988,28 @@ public class Utilities {
         return name;
     }
 
+    public static String printMoneyArray(Money[] array) {
+        StringBuilder values = new StringBuilder(); //$NON-NLS-1$
+        for(int i = 0; i < array.length; i++) {
+            values.append(array[i].toXmlString());
+            if(i < (array.length-1)) {
+                values.append(","); //$NON-NLS-1$
+            }
+        }
+        return values.toString();
+    }
+
+    public static Money[] readMoneyArray(Node node) {
+        String[] values = node.getTextContent().split(",");
+        Money[] result = new Money[values.length];
+
+        for (int i = 0; i < values.length; i++) {
+            result[i] = Money.fromXmlString(values[i]);
+        }
+
+        return result;
+    }
+
     public static String printIntegerArray(int[] array) {
         String values = ""; //$NON-NLS-1$
         for(int i = 0; i < array.length; i++) {
@@ -1085,19 +1097,18 @@ public class Utilities {
         }
     }
 
-    public static void unscrambleEquipmentNumbers(Unit unit) {
+    public static void unscrambleEquipmentNumbers(Unit unit, boolean refit) {
         //BA has one part per equipment entry per suit and may need to have trooper fields set following
         //a refit
         if (unit.getEntity() instanceof BattleArmor) {
             assignTroopersAndEquipmentNums(unit);
             return;
         }
-        List<Integer> equipNums = new ArrayList<Integer>();
+        List<Integer> equipNums = new ArrayList<>();
         for(Mounted m : unit.getEntity().getEquipment()) {
             equipNums.add(unit.getEntity().getEquipmentNum(m));
         }
         List<Part> remaining = new ArrayList<>();
-        List<Part> notFound = new ArrayList<>();
         for (Part part : unit.getParts()) {
             int eqnum = -1;
             EquipmentType etype = null;
@@ -1117,25 +1128,47 @@ public class Utilities {
                 }
             }
         }
-        // For ammo types we want to match the same munition type if possible to avoid the possibility
+        // For ammo types we want to match the same munition type if possible to avoid 
         // imposing unnecessary ammo swaps.
-        boolean allMunitions = false;
-        Mounted m;
-        while ((remaining.size() > 0) && !allMunitions) {
-            for(Part part : remaining) {
-                if (part instanceof EquipmentPart) {
-                    EquipmentPart epart = (EquipmentPart)part;
-                    int i = -1;
-                    boolean found = false;
-                    for (int equipNum : equipNums) {
-                        i++;
-                        m = unit.getEntity().getEquipment(equipNum);
-                        if (!allMunitions && (part instanceof AmmoBin)
-                                && (!(m.getType() instanceof AmmoType)
-                                        || (((AmmoType) epart.getType()).getMunitionType()
-                                                != ((AmmoType) m.getType()).getMunitionType()))) {
-                                continue;
+        // However, if we've just done a refit we may very well have changed ammo types, 
+        // so we need to set the equipment numbers in this case.
+        List<Part> notFound = new ArrayList<>();
+        for(Part part : remaining) {
+            boolean found = false;
+            int i = -1;
+
+            if (part instanceof EquipmentPart) {
+                EquipmentPart epart = (EquipmentPart)part;
+                for (int equipNum : equipNums) {
+                    i++;
+                    Mounted m = unit.getEntity().getEquipment(equipNum);
+                    if (part instanceof AmmoBin) {
+                        //If this is a refit, we want to update our ammo bin parts to match
+                        //the munitions specified in the refit, then reassign the equip number
+                        if (refit) {
+                            if (m.getType().equals(epart.getType())
+                                    && !m.isDestroyed()) {
+                                epart.setEquipmentNum(equipNum);
+                                ((AmmoBin) epart).changeMunition(((AmmoType) m.getType()));
+                                found = true;
+                                break;
+                            }
+                        } else {
+                            //If this is not a refit, make sure the munitions match
+                            if (m.getType() instanceof AmmoType) {
+                                if (((AmmoType) epart.getType()).getMunitionType()
+                                        != ((AmmoType) m.getType()).getMunitionType()) {
+                                    continue;
+                                }
+                                if (m.getType().equals(epart.getType())
+                                        && !m.isDestroyed()) {
+                                    epart.setEquipmentNum(equipNum);
+                                    found = true;
+                                    break;
+                                }
+                            }
                         }
+                    } else {
                         if (m.getType().equals(epart.getType())
                                 && !m.isDestroyed()) {
                             epart.setEquipmentNum(equipNum);
@@ -1143,43 +1176,37 @@ public class Utilities {
                             break;
                         }
                     }
-                    if(found) {
-                        equipNums.remove(i);
-                    } else {
-                        notFound.add(epart);
+                }
+            } else if (part instanceof MissingEquipmentPart) {
+                MissingEquipmentPart epart = (MissingEquipmentPart)part;
+                for(int equipNum : equipNums) {
+                    i++;
+                    Mounted m = unit.getEntity().getEquipment(equipNum);
+                    if (part instanceof MissingAmmoBin
+                            && (!(m.getType() instanceof AmmoType)
+                            || (((AmmoType) epart.getType()).getMunitionType()
+                            != ((AmmoType) m.getType()).getMunitionType()))) {
+                        continue;
                     }
-                } else if (part instanceof MissingEquipmentPart) {
-                    MissingEquipmentPart epart = (MissingEquipmentPart)part;
-                    int i = -1;
-                    boolean found = false;
-                    for(int equipNum : equipNums) {
-                        i++;
-                        m = unit.getEntity().getEquipment(equipNum);
-                        if (!allMunitions && (part instanceof AmmoBin)
-                                && (!(m.getType() instanceof AmmoType)
-                                        || (((AmmoType) epart.getType()).getMunitionType()
-                                                != ((AmmoType) m.getType()).getMunitionType()))) {
-                            continue;
-                        }
-                        if (m.getType().equals(epart.getType())
-                                && !m.isDestroyed()) {
-                            epart.setEquipmentNum(equipNum);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if(found) {
-                        equipNums.remove(i);
-                    } else {
-                        notFound.add(epart);
+                    if (m.getType().equals(epart.getType())
+                            && !m.isDestroyed()) {
+                        epart.setEquipmentNum(equipNum);
+                        found = true;
+                        break;
                     }
                 }
             }
-            allMunitions = true;
-            remaining = new ArrayList<>(notFound);
-            notFound.clear();
+
+            if(found) {
+                equipNums.remove(i);
+            } else {
+                notFound.add(part);
+            }
         }
-        
+
+        remaining = new ArrayList<>(notFound);
+        notFound.clear();
+
         if (remaining.size() > 0) {
             StringBuilder builder = new StringBuilder();
             builder.append(String.format("Could not unscramble equipment for %s (%s)\r\n\r\n", unit.getName(), unit.getId()));
@@ -1193,11 +1220,34 @@ public class Utilities {
                 }
             }
 
-            builder.append("\r\nAvailable (remaining) equipment:\r\n");
-            for (int equipNum : equipNums) {
-                m = unit.getEntity().getEquipment(equipNum);
+            builder.append("\r\nEquipment Parts:\r\n");
+            for (Part p : unit.getParts()) {
+                if (!(p instanceof EquipmentPart) &&
+                        (!(p instanceof MissingEquipmentPart))) {
+                    continue;
+                }
+                int equipNum = -1;
+                if (p instanceof EquipmentPart) {
+                    EquipmentPart ePart = (EquipmentPart)p;
+                    equipNum = ePart.getEquipmentNum();
+                } else if (p instanceof MissingEquipmentPart) {
+                    MissingEquipmentPart mePart = (MissingEquipmentPart)p;
+                    equipNum = mePart.getEquipmentNum();
+                }
+                boolean isMissing = remaining.contains(p);
+                String eName = equipNum >= 0 ? unit.getEntity().getEquipment(equipNum).getName() : "<None>";
+                if (isMissing) {
+                    eName = "<Incorrect>";
+                }
+                builder.append(String.format(" %d: %s %s %s %s\r\n", equipNum, p.getName(), p.getLocationName(), eName, isMissing ? " (Missing)" : ""));
+            }
+
+            builder.append("\r\nEquipment:\r\n");
+            for (Mounted m : unit.getEntity().getEquipment()) {
+                int equipNum = unit.getEntity().getEquipmentNum(m);
                 EquipmentType mType = m.getType();
-                builder.append(String.format(" %d: %s %s\r\n", equipNum, m.getName(), mType.getName()));
+                boolean isAvailable = equipNums.contains(equipNum);
+                builder.append(String.format(" %d: %s %s%s\r\n", equipNum, m.getName(), mType.getName(), isAvailable ? " (Available)" : ""));
             }
             MekHQ.getLogger().log(Utilities.class, "unscrambleEquipmentNumbers", LogLevel.WARNING, builder.toString());
         }
@@ -1371,7 +1421,7 @@ public class Utilities {
 
     public static Vector<String> splitString(String str, String sep) {
         StringTokenizer st = new StringTokenizer(str, sep);
-        Vector<String> output = new Vector<String>();
+        Vector<String> output = new Vector<>();
         while(st.hasMoreTokens()) {
             output.add(st.nextToken());
         }
@@ -1434,39 +1484,11 @@ public class Utilities {
         return roman;
     }
 
-    // TODO: Optionize this to allow user to choose roman or arabic numerals
-    public static int getArabicNumberFromRomanNumerals(String name) {
-        // If we're 0, then we just return an empty string
-        if (name.equals("")) { //$NON-NLS-1$
-            return 0;
-        }
-
-        // Roman numeral, prepended with a space for display purposes
-        int arabic = 0;
-        String roman = name;
-
-        for (int i = 0; i < roman.length(); i++) {
-            int num = romanNumerals.toString().indexOf(roman.charAt(i));
-            if (i < roman.length()) {
-                int temp = romanNumerals.toString().indexOf(roman.charAt(i+1));
-                // If this is a larger number, then we need to combine them
-                if (temp > num) {
-                    num = temp - num;
-                    i++;
-                }
-            }
-
-            arabic += num;
-        }
-
-        return arabic-1;
-    }
-
     public static Map<String, Integer> sortMapByValue(Map<String, Integer> unsortMap, boolean highFirst) {
 
         // Convert Map to List
         List<Map.Entry<String, Integer>> list =
-            new LinkedList<Map.Entry<String, Integer>>(unsortMap.entrySet());
+            new LinkedList<>(unsortMap.entrySet());
 
         // Sort list with comparator, to compare the Map values
         Collections.sort(list, new Comparator<Map.Entry<String, Integer>>() {
@@ -1478,7 +1500,7 @@ public class Utilities {
         });
 
         // Convert sorted map back to a Map
-        Map<String, Integer> sortedMap = new LinkedHashMap<String, Integer>();
+        Map<String, Integer> sortedMap = new LinkedHashMap<>();
         if(highFirst) {
             ListIterator<Map.Entry<String, Integer>> li = list.listIterator(list.size());
             while(li.hasPrevious()) {

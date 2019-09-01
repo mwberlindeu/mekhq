@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.UUID;
 
+import megamek.client.ratgenerator.MissionRole;
 import megamek.common.Compute;
 import megamek.common.Entity;
 import megamek.common.EntityMovementMode;
@@ -38,12 +39,15 @@ import mekhq.Utilities;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.event.MarketNewPersonnelEvent;
 import mekhq.campaign.event.NewDayEvent;
+import mekhq.campaign.finances.Money;
 import mekhq.campaign.finances.Transaction;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.personnel.SkillType;
 import mekhq.campaign.rating.IUnitRating;
 import mekhq.campaign.universe.Faction;
+import mekhq.campaign.universe.IUnitGenerator;
 import mekhq.campaign.universe.RandomFactionGenerator;
+import mekhq.campaign.universe.UnitGeneratorParameters;
 
 /**
  * Main engine of the Against the Bot campaign system.
@@ -69,7 +73,7 @@ public class AtBEventProcessor {
         // TODO: move code from Campaign here
         if (campaign.getPersonnelMarket().getPaidRecruitment()
                 && campaign.getCalendar().get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
-            if (campaign.getFinances().debit(100000, Transaction.C_MISC,
+            if (campaign.getFinances().debit(Money.of(100000), Transaction.C_MISC,
                     "Paid recruitment roll", campaign.getDate())) {
                 doPaidRecruitment();
             } else {
@@ -143,6 +147,8 @@ public class AtBEventProcessor {
     
     private void addRecruitUnit(Person p) {
         final String METHOD_NAME = "addRecruitUnit(Person)"; //$NON-NLS-1$
+        UnitGeneratorParameters params = new UnitGeneratorParameters();
+        
         int unitType;
         switch (p.getPrimaryRole()) {
             case Person.T_MECHWARRIOR:
@@ -160,6 +166,13 @@ public class AtBEventProcessor {
                 break;
             case Person.T_INFANTRY:
                 unitType = UnitType.INFANTRY;
+                
+                // infantry will have a 1/3 chance of being field guns
+                if(Compute.d6() <= 2) {
+                    params.getMissionRoles().add(MissionRole.FIELD_GUN);
+                    params.getMovementModes().addAll(IUnitGenerator.ALL_INFANTRY_MODES);
+                }
+                
                 break;
             case Person.T_BA:
                 unitType = UnitType.BATTLE_ARMOR;
@@ -187,11 +200,17 @@ public class AtBEventProcessor {
                 weight = EntityWeightClass.WEIGHT_HEAVY;
             }
         }
-        Entity en = null;
+        Entity en;
 
         String faction = getRecruitFaction(campaign);
-        MechSummary ms = campaign.getUnitGenerator().generate(faction, unitType, weight,
-                campaign.getCalendar().get(Calendar.YEAR), IUnitRating.DRAGOON_F);
+        
+        params.setFaction(faction);
+        params.setUnitType(unitType);
+        params.setWeightClass(weight);
+        params.setYear(campaign.getCalendar().get(Calendar.YEAR));
+        params.setQuality(IUnitRating.DRAGOON_F);
+        
+        MechSummary ms = campaign.getUnitGenerator().generate(params);
         if (null != ms) {
             if (Faction.getFaction(faction).isClan() && ms.getName().matches(".*Platoon.*")) {
                 String name = "Clan " + ms.getName().replaceAll("Platoon", "Point");
@@ -273,7 +292,7 @@ public class AtBEventProcessor {
     public static String getRecruitFaction(Campaign c) {
         if (c.getFactionCode().equals("MERC")) {
             if (c.getCalendar().get(Calendar.YEAR) > 3055 && Compute.randomInt(20) == 0) {
-                ArrayList<String> clans = new ArrayList<String>();
+                ArrayList<String> clans = new ArrayList<>();
                 for (String f : RandomFactionGenerator.getInstance().getCurrentFactions()) {
                     if (Faction.getFaction(f).isClan()) {
                         clans.add(f);

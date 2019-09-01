@@ -1,3 +1,22 @@
+/*
+ * Copyright (c) 2019 The MegaMek Team. All rights reserved.
+ *
+ * This file is part of MekHQ.
+ *
+ * MekHQ is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MekHQ is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 package mekhq.gui.adapter;
 
 import java.awt.*;
@@ -6,6 +25,7 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.util.*;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
@@ -25,26 +45,18 @@ import megamek.common.options.PilotOptions;
 import megamek.common.util.EncodeControl;
 import mekhq.MekHQ;
 import mekhq.Utilities;
+import mekhq.campaign.finances.Money;
+import mekhq.campaign.log.PersonalLogger;
 import mekhq.campaign.personnel.Award;
 import mekhq.campaign.Kill;
-import mekhq.campaign.LogEntry;
+import mekhq.campaign.log.LogEntry;
 import mekhq.campaign.event.PersonChangedEvent;
 import mekhq.campaign.event.PersonLogEvent;
 import mekhq.campaign.finances.Transaction;
 import mekhq.campaign.personnel.*;
 import mekhq.campaign.unit.Unit;
 import mekhq.gui.CampaignGUI;
-import mekhq.gui.dialog.CustomizePersonDialog;
-import mekhq.gui.dialog.EditKillLogDialog;
-import mekhq.gui.dialog.EditLogEntryDialog;
-import mekhq.gui.dialog.EditPersonnelHitsDialog;
-import mekhq.gui.dialog.EditPersonnelInjuriesDialog;
-import mekhq.gui.dialog.EditPersonnelLogDialog;
-import mekhq.gui.dialog.ImageChoiceDialog;
-import mekhq.gui.dialog.KillDialog;
-import mekhq.gui.dialog.PopupValueChoiceDialog;
-import mekhq.gui.dialog.RetirementDefectionDialog;
-import mekhq.gui.dialog.TextAreaDialog;
+import mekhq.gui.dialog.*;
 import mekhq.gui.model.PersonnelTableModel;
 import mekhq.gui.utilities.MultiLineTooltip;
 import mekhq.gui.utilities.StaticChecks;
@@ -79,10 +91,12 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
     private static final String CMD_CALLSIGN = "CALLSIGN"; //$NON-NLS-1$
     private static final String CMD_DEPENDENT = "DEPENDENT"; //$NON-NLS-1$
     private static final String CMD_COMMANDER = "COMMANDER"; //$NON-NLS-1$
-    private static final String CMD_EDIT_LOG_ENTRY = "LOG_SINGLE"; //$NON-NLS-1$
     private static final String CMD_EDIT_PERSONNEL_LOG = "LOG"; //$NON-NLS-1$
+    private static final String CMD_ADD_LOG_ENTRY = "ADD_PERSONNEL_LOG_SINGLE"; //$NON-NLS-1$
+    private static final String CMD_EDIT_MISSIONS_LOG = "MISSIONS_LOG"; //$NON-NLS-1$
+    private static final String CMD_ADD_MISSION_ENTRY = "ADD_MISSION_ENTRY"; //$NON-NLS-1$
     private static final String CMD_EDIT_KILL_LOG = "KILL_LOG"; //$NON-NLS-1$
-    private static final String CMD_KILL = "KILL"; //$NON-NLS-1$
+    private static final String CMD_ADD_KILL = "ADD_KILL"; //$NON-NLS-1$
     private static final String CMD_BUY_EDGE = "EDGE_BUY"; //$NON-NLS-1$
     private static final String CMD_SET_EDGE = "EDGE_SET"; //$NON-NLS-1$
     private static final String CMD_SET_XP = "XP_SET"; //$NON-NLS-1$
@@ -93,6 +107,7 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
     private static final String CMD_EDIT_PORTRAIT = "PORTRAIT"; //$NON-NLS-1$
     private static final String CMD_EDIT_HITS = "EDIT_HITS"; //$NON-NLS-1$
     private static final String CMD_EDIT = "EDIT"; //$NON-NLS-1$
+    private static final String CMD_ROLL_MECH = "ROLL_MECH"; //$NON-NLS-1$
     private static final String CMD_SACK = "SACK"; //$NON-NLS-1$
     private static final String CMD_REMOVE = "REMOVE"; //$NON-NLS-1$
     private static final String CMD_EDGE_TRIGGER = "EDGE"; //$NON-NLS-1$
@@ -143,11 +158,20 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
     private static final String OPT_SURNAME_HYP_YOURS = "hyp_yours"; //$NON-NLS-1$
     private static final String OPT_SURNAME_HYP_SPOUSE = "hyp_spouse"; //$NON-NLS-1$
 
+    //Mechwarrior Edge Options
     private static final String OPT_EDGE_MASC_FAILURE = "edge_when_masc_fails"; //$NON-NLS-1$
     private static final String OPT_EDGE_EXPLOSION = "edge_when_explosion"; //$NON-NLS-1$
     private static final String OPT_EDGE_KO = "edge_when_ko"; //$NON-NLS-1$
     private static final String OPT_EDGE_TAC = "edge_when_tac"; //$NON-NLS-1$
     private static final String OPT_EDGE_HEADHIT = "edge_when_headhit"; //$NON-NLS-1$
+    
+    //Aero Edge Options
+    private static final String OPT_EDGE_WHEN_AERO_ALT_LOSS= "edge_when_aero_alt_loss"; //$NON-NLS-1$
+    private static final String OPT_EDGE_WHEN_AERO_EXPLOSION= "edge_when_aero_explosion"; //$NON-NLS-1$
+    private static final String OPT_EDGE_WHEN_AERO_KO= "edge_when_aero_ko"; //$NON-NLS-1$
+    private static final String OPT_EDGE_WHEN_AERO_LUCKY_CRIT= "edge_when_aero_lucky_crit"; //$NON-NLS-1$
+    private static final String OPT_EDGE_WHEN_AERO_NUKE_CRIT= "edge_when_aero_nuke_crit"; //$NON-NLS-1$
+    private static final String OPT_EDGE_WHEN_AERO_UNIT_CARGO_LOST= "edge_when_aero_unit_cargo_lost"; //$NON-NLS-1$
     
     private static final String OPT_PRISONER_FREE = "free"; //$NON-NLS-1$
     private static final String OPT_PRISONER_IMPRISONED = "imprisoned"; //$NON-NLS-1$
@@ -252,14 +276,8 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                     }
                     // check for tech unit assignments
                     if (!person.getTechUnitIDs().isEmpty()) {
-                        // I need to create a new array list to avoid concurrent
-                        // problems
-                        ArrayList<UUID> temp = new ArrayList<UUID>();
-                        for (UUID i : person.getTechUnitIDs()) {
-                            temp.add(i);
-                        }
-                        for (UUID i : temp) {
-                            u = gui.getCampaign().getUnit(i);
+                        for (UUID id : new ArrayList<>(person.getTechUnitIDs())) {
+                            u = gui.getCampaign().getUnit(id);
                             if (null != u) {
                                 u.remove(person, true);
                                 u.resetEngineer();
@@ -290,9 +308,9 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 }
                 if (null != u) {
                     u.addPilotOrSoldier(selectedPerson, useTransfers);
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_SOLDIER:
@@ -312,9 +330,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.addPilotOrSoldier(p, useTransfers);
                         }
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_DRIVER:
@@ -330,9 +349,9 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 }
                 if (null != u) {
                     u.addDriver(selectedPerson, useTransfers);
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_VESSEL_PILOT:
@@ -352,9 +371,9 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.addDriver(p, useTransfers);
                         }
                     }
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_GUNNER:
@@ -374,9 +393,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.addGunner(p, useTransfers);
                         }
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_CREW:
@@ -396,9 +416,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.addVesselCrew(p, useTransfers);
                         }
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_NAVIGATOR:
@@ -418,9 +439,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.setNavigator(p, useTransfers);
                         }
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_TECH_OFFICER:
@@ -440,9 +462,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             u.setTechOfficer(p, useTransfers);
                         }
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_TECH:
@@ -453,9 +476,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                     if (u.canTakeTech()) {
                         u.setTech(selectedPerson);
                     }
+
+                    u.resetPilotAndEntity();
+                    u.runDiagnostic(false);
                 }
-                u.resetPilotAndEntity();
-                u.runDiagnostic(false);
                 break;
             }
             case CMD_ADD_PREGNANCY:
@@ -477,10 +501,10 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
             case CMD_REMOVE_SPOUSE:
             {
                 if (!selectedPerson.getSpouse().isDeadOrMIA()) {
-                    selectedPerson.getSpouse().addLogEntry(gui.getCampaign().getDate(),
-                        String.format(resourceMap.getString("divorcedFrom.format"), selectedPerson.getFullName())); //$NON-NLS-1$
-                    selectedPerson.addLogEntry(gui.getCampaign().getDate(),
-                        String.format(resourceMap.getString("divorcedFrom.format"), selectedPerson.getSpouse().getFullName())); //$NON-NLS-1$
+
+                    PersonalLogger.divorcedFrom(selectedPerson, selectedPerson.getSpouse(), gui.getCampaign().getDate());
+                    PersonalLogger.divorcedFrom(selectedPerson.getSpouse(), selectedPerson, gui.getCampaign().getDate());
+
                     if (selectedPerson.getMaidenName() != null) {
                         selectedPerson.setName(selectedPerson.getName().split(SPACE, 2)[0]
                                 + SPACE
@@ -537,9 +561,9 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 }
 
                 spouse.setSpouseID(selectedPerson.getId());
-                spouse.addLogEntry(gui.getCampaign().getDate(), String.format(resourceMap.getString("marries.format"), selectedPerson.getFullName())); //$NON-NLS-1$
+                PersonalLogger.marriage(spouse, selectedPerson, gui.getCampaign().getDate());
                 selectedPerson.setSpouseID(spouse.getId());
-                selectedPerson.addLogEntry(gui.getCampaign().getDate(), String.format(resourceMap.getString("marries.format"), spouse.getFullName())); //$NON-NLS-1$
+                PersonalLogger.marriage(selectedPerson, spouse, gui.getCampaign().getDate());
                 MekHQ.triggerEvent(new PersonChangedEvent(selectedPerson));
                 MekHQ.triggerEvent(new PersonChangedEvent(spouse));
                 break;
@@ -547,10 +571,12 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
             case CMD_ADD_AWARD:
             {
                 selectedPerson.awardController.addAndLogAward(data[1], data[2], gui.getCampaign().getDate());
+                break;
             }
             case CMD_RMV_AWARD:
             {
                 selectedPerson.awardController.removeAward(data[1], data[2], data[3]);
+                break;
             }
             case CMD_IMPROVE:
             {
@@ -709,14 +735,16 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 }
                 break;
             case CMD_RECRUIT:
-                gui.getCampaign().changePrisonerStatus(selectedPerson, Person.PRISONER_NOT);
+                for(Person person : people) {
+                    if (StaticChecks.isWillingToDefect(person)) {
+                        gui.getCampaign().changePrisonerStatus(person, Person.PRISONER_NOT);
+                    }
+                }
                 break;
             case CMD_RANSOM:
                 // ask the user if they want to sell off their prisoners. If yes, then add a daily report entry, add the money and remove them all.
-                int total = 0;
-                for(Person person : people) {
-                    total += person.getRansomValue();
-                }
+                Money total = Money.zero();
+                total = total.plus(Arrays.stream(people).map(Person::getRansomValue).collect(Collectors.toList()));
                 
                 if (0 == JOptionPane.showConfirmDialog(
                         null,
@@ -769,7 +797,7 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
             case CMD_SACK:
             {
                 boolean showDialog = false;
-                ArrayList<UUID> toRemove = new ArrayList<UUID>();
+                ArrayList<UUID> toRemove = new ArrayList<>();
                 for (Person person : people) {
                     if (gui.getCampaign().getRetirementDefectionTracker()
                             .removeFromCampaign(
@@ -823,6 +851,13 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 CustomizePersonDialog npd = new CustomizePersonDialog(
                         gui.getFrame(), true, selectedPerson, gui.getCampaign());
                 npd.setVisible(true);
+                gui.getCampaign().personUpdated(selectedPerson);
+                MekHQ.triggerEvent(new PersonChangedEvent(selectedPerson));
+                break;
+            case CMD_ROLL_MECH:
+                GMToolsDialog gmToolsDialog = new GMToolsDialog(
+                    gui.getFrame(), gui, selectedPerson);
+                gmToolsDialog.setVisible(true);
                 gui.getCampaign().personUpdated(selectedPerson);
                 MekHQ.triggerEvent(new PersonChangedEvent(selectedPerson));
                 break;
@@ -911,6 +946,8 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 for (Person person : people) {
                     selectedPerson.setXp(selectedPerson.getXp() - cost);
                     person.setEdge(person.getEdge() + 1);
+                    //Make the new edge point available to support personnel, but don't reset until the week ends
+                    person.setCurrentEdge(person.getCurrentEdge() + 1);
                     gui.getCampaign().personUpdated(person);
                     MekHQ.triggerEvent(new PersonChangedEvent(person));
                 }
@@ -928,33 +965,45 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 int i = pvcd.getValue();
                 for (Person person : people) {
                     person.setEdge(i);
+                    //Reset currentEdge for support people
+                    person.resetCurrentEdge();
                     gui.getCampaign().personUpdated(person);
                     MekHQ.triggerEvent(new PersonChangedEvent(person));
                 }
                 break;
             }
-            case CMD_KILL:
+            case CMD_ADD_KILL:
             {
-                KillDialog nkd;
+                AddOrEditKillEntryDialog nkd;
                 Unit unit = gui.getCampaign().getUnit(selectedPerson.getUnitId());
                 if (people.length > 1) {
-                    nkd = new KillDialog(gui.getFrame(), true, new Kill(null, QUESTION_MARK,
-                        unit != null ? unit.getName() : resourceMap.getString("bareHands.text"), gui.getCampaign().getDate()), resourceMap.getString("crew.text")); //$NON-NLS-1$ //$NON-NLS-2$
+                    nkd = new AddOrEditKillEntryDialog(
+                            gui.getFrame(),
+                            true,
+                            null,
+                            unit != null ? unit.getName() : resourceMap.getString("bareHands.text"),
+                            gui.getCampaign().getDate());
                 } else {
-                    nkd = new KillDialog(gui.getFrame(), true, new Kill(selectedPerson.getId(), QUESTION_MARK,
-                        unit != null ? unit.getName() : resourceMap.getString("bareHands.text"), gui.getCampaign().getDate()), selectedPerson.getFullName()); //$NON-NLS-1$
+                    nkd = new AddOrEditKillEntryDialog(
+                            gui.getFrame(),
+                            true,
+                            selectedPerson.getId(),
+                            unit != null ? unit.getName() : resourceMap.getString("bareHands.text"),
+                            gui.getCampaign().getDate());
                 }
                 nkd.setVisible(true);
-                if (!nkd.wasCancelled()) {
-                    Kill kill = nkd.getKill();
+                if (nkd.getKill().isPresent()) {
+                    Kill kill = nkd.getKill().get();
                     if (people.length > 1) {
                         for (Person person : people) {
                             Kill k = kill.clone();
                             k.setPilotId(person.getId());
                             gui.getCampaign().addKill(k);
+                            MekHQ.triggerEvent(new PersonLogEvent(person));
                         }
                     } else {
                         gui.getCampaign().addKill(kill);
+                        MekHQ.triggerEvent(new PersonLogEvent(selectedPerson));
                     }
                 }
                 break;
@@ -969,13 +1018,29 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 epld.setVisible(true);
                 MekHQ.triggerEvent(new PersonLogEvent(selectedPerson));
                 break;
-            case CMD_EDIT_LOG_ENTRY:
-                EditLogEntryDialog eeld = new EditLogEntryDialog(gui.getFrame(), true, new LogEntry(gui.getCampaign().getDate(), "")); //$NON-NLS-1$
-                eeld.setVisible(true);
-                LogEntry entry = eeld.getEntry();
-                if (null != entry) {
+            case CMD_ADD_LOG_ENTRY:
+                AddOrEditPersonnelEntryDialog addPersonnelLogDialog = new AddOrEditPersonnelEntryDialog(gui.getFrame(), true, gui.getCampaign().getDate()); //$NON-NLS-1$
+                addPersonnelLogDialog.setVisible(true);
+                Optional<LogEntry> personnelEntry = addPersonnelLogDialog.getEntry();
+                if (personnelEntry.isPresent()) {
                     for (Person person : people) {
-                        person.addLogEntry(entry.clone());
+                        person.addLogEntry(personnelEntry.get().clone());
+                        MekHQ.triggerEvent(new PersonLogEvent(selectedPerson));
+                    }
+                }
+                break;
+            case CMD_EDIT_MISSIONS_LOG:
+                EditMissionLogDialog emld = new EditMissionLogDialog(gui.getFrame(), true, gui.getCampaign(), selectedPerson);
+                emld.setVisible(true);
+                MekHQ.triggerEvent(new PersonLogEvent(selectedPerson));
+                break;
+            case CMD_ADD_MISSION_ENTRY:
+                AddOrEditMissionEntryDialog addMissionDialog = new AddOrEditMissionEntryDialog(gui.getFrame(), true, gui.getCampaign().getDate()); //$NON-NLS-1$
+                addMissionDialog.setVisible(true);
+                Optional<LogEntry> missionEntry = addMissionDialog.getEntry();
+                if (missionEntry.isPresent()) {
+                    for (Person person : people) {
+                        person.addMissionLogEntry(missionEntry.get().clone());
                         MekHQ.triggerEvent(new PersonLogEvent(selectedPerson));
                     }
                 }
@@ -1071,16 +1136,20 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 break;
             case CMD_EDIT_SALARY:
             {
-                PopupValueChoiceDialog pcvd = new PopupValueChoiceDialog(gui.getFrame(),
-                        true, resourceMap.getString("changeSalary.text"), //$NON-NLS-1$
-                        selectedPerson.getSalary(), -1, 100000);
+                PopupValueChoiceDialog pcvd = new PopupValueChoiceDialog(
+                        gui.getFrame(),
+                        true,
+                        resourceMap.getString("changeSalary.text"), //$NON-NLS-1$
+                        selectedPerson.getSalary().getAmount().intValue(),
+                        -1,
+                        100000);
                 pcvd.setVisible(true);
                 int salary = pcvd.getValue();
                 if (salary < -1) {
                     return;
                 }
                 for (Person person : people) {
-                    person.setSalary(salary);
+                    person.setSalary(Money.of(salary));
                     MekHQ.triggerEvent(new PersonChangedEvent(person));
                 }
                 break;
@@ -1317,8 +1386,13 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                         || gui.getCampaign().getCampaignOptions().capturePrisoners())
                     && StaticChecks.areAllPrisoners(selected)) {
                 popup.add(newMenuItem(resourceMap.getString("ransom.text"), CMD_RANSOM));
-                popup.add(newMenuItem(resourceMap.getString("recruit.text"), CMD_RECRUIT, //$NON-NLS-1$
-                        StaticChecks.areAllWillingToDefect(selected)));
+            }
+
+            if(gui.getCampaign().getCampaignOptions().getUseAtB()
+                    && (gui.getCampaign().getCampaignOptions().getUseAtBCapture()
+                    || gui.getCampaign().getCampaignOptions().capturePrisoners())
+                    && StaticChecks.areAnyWillingToDefect(selected)) {
+                popup.add(newMenuItem(resourceMap.getString("recruit.text"), CMD_RECRUIT));
             }
 
             menu = new JMenu(resourceMap.getString("changePrimaryRole.text")); //$NON-NLS-1$
@@ -1897,7 +1971,7 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             Unit u = gui.getCampaign().getUnit(person.getUnitId());
                             if (null != u) {
                                 JMenu specialistMenu = new JMenu(resourceMap.getString("weaponSpecialist.text")); //$NON-NLS-1$
-                                TreeSet<String> uniqueWeapons = new TreeSet<String>();
+                                TreeSet<String> uniqueWeapons = new TreeSet<>();
                                 for (int j = 0; j < u.getEntity().getWeaponList().size(); j++) {
                                     Mounted m = u.getEntity().getWeaponList().get(j);
                                     uniqueWeapons.add(m.getName());
@@ -2065,6 +2139,7 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 if (gui.getCampaign().getCampaignOptions().useEdge()) {
                     menu = new JMenu(resourceMap.getString("setEdgeTriggers.text")); //$NON-NLS-1$
                     //Start of Edge reroll options
+                    //Mechwarriors
                     cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerHeadHits.text")); //$NON-NLS-1$
                     cbMenuItem.setSelected(person.getOptions()
                             .booleanOption(OPT_EDGE_HEADHIT));
@@ -2099,6 +2174,58 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                             .booleanOption(OPT_EDGE_MASC_FAILURE));
                     cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_MASC_FAILURE));
                     if (person.getPrimaryRole() != Person.T_MECHWARRIOR) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    //Aero pilots and gunners
+                    cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerAeroAltLoss.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_ALT_LOSS));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_ALT_LOSS));
+                    if (person.getPrimaryRole() != Person.T_SPACE_PILOT
+                            && person.getPrimaryRole() != Person.T_SPACE_GUNNER
+                            && person.getPrimaryRole() != Person.T_AERO_PILOT) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    cbMenuItem = new JCheckBoxMenuItem(
+                            resourceMap.getString("edgeTriggerAeroExplosion.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_EXPLOSION));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_EXPLOSION));
+                    if (person.getPrimaryRole() != Person.T_SPACE_PILOT
+                            && person.getPrimaryRole() != Person.T_SPACE_GUNNER
+                            && person.getPrimaryRole() != Person.T_AERO_PILOT) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerAeroKO.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_KO));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_KO));
+                    if (person.getPrimaryRole() != Person.T_AERO_PILOT) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerAeroLuckyCrit.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_LUCKY_CRIT));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_LUCKY_CRIT));
+                    if (person.getPrimaryRole() != Person.T_SPACE_PILOT
+                            && person.getPrimaryRole() != Person.T_SPACE_GUNNER
+                            && person.getPrimaryRole() != Person.T_AERO_PILOT) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerAeroNukeCrit.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_NUKE_CRIT));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_NUKE_CRIT));
+                    if (person.getPrimaryRole() != Person.T_SPACE_PILOT
+                            && person.getPrimaryRole() != Person.T_SPACE_GUNNER) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
+                    cbMenuItem.addActionListener(this);
+                    menu.add(cbMenuItem);
+                    cbMenuItem = new JCheckBoxMenuItem(resourceMap.getString("edgeTriggerAeroTrnBayCrit.text")); //$NON-NLS-1$
+                    cbMenuItem.setSelected(person.getOptions()
+                            .booleanOption(OPT_EDGE_WHEN_AERO_UNIT_CARGO_LOST));
+                    cbMenuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_UNIT_CARGO_LOST));
+                    if (person.getPrimaryRole() != Person.T_SPACE_PILOT
+                            && person.getPrimaryRole() != Person.T_SPACE_GUNNER) { cbMenuItem.setForeground(new Color(150, 150, 150)); }
                     cbMenuItem.addActionListener(this);
                     menu.add(cbMenuItem);
                     // Support Edge
@@ -2195,6 +2322,30 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                     menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_MASC_FAILURE, TRUE));
                     menuItem.addActionListener(this);
                     submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroAltLoss.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_ALT_LOSS, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroExplosion.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_EXPLOSION, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroKO.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_KO, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroLuckyCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_LUCKY_CRIT, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroNukeCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_NUKE_CRIT, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroTrnBayCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_UNIT_CARGO_LOST, TRUE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
                     if (gui.getCampaign().getCampaignOptions().useSupportEdge()) {
                         menuItem = new JMenuItem(resourceMap.getString("edgeTriggerHealCheck.text")); //$NON-NLS-1$
                         menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, PersonnelOptions.EDGE_MEDICAL, TRUE));
@@ -2233,6 +2384,30 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                     submenu.add(menuItem);
                     menuItem = new JMenuItem(resourceMap.getString("edgeTriggerMASCFailure.text")); //$NON-NLS-1$
                     menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_MASC_FAILURE, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroAltLoss.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_ALT_LOSS, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroExplosion.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_EXPLOSION, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroKO.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_KO, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroLuckyCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_LUCKY_CRIT, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroNukeCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_NUKE_CRIT, FALSE));
+                    menuItem.addActionListener(this);
+                    submenu.add(menuItem);
+                    menuItem = new JMenuItem(resourceMap.getString("edgeTriggerAeroTrnBayCrit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(makeCommand(CMD_EDGE_TRIGGER, OPT_EDGE_WHEN_AERO_UNIT_CARGO_LOST, FALSE));
                     menuItem.addActionListener(this);
                     submenu.add(menuItem);
                     if (gui.getCampaign().getCampaignOptions().useSupportEdge()) {
@@ -2301,20 +2476,34 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
 
             }
             menuItem = new JMenuItem(resourceMap.getString("addSingleLogEntry.text")); //$NON-NLS-1$
-            menuItem.setActionCommand(CMD_EDIT_LOG_ENTRY);
+            menuItem.setActionCommand(CMD_ADD_LOG_ENTRY);
             menuItem.addActionListener(this);
             menuItem.setEnabled(true);
             popup.add(menuItem);
-            if (oneSelected || StaticChecks.allHaveSameUnit(selected)) {
-                menuItem = new JMenuItem(resourceMap.getString("assignKill.text")); //$NON-NLS-1$
-                menuItem.setActionCommand(CMD_KILL);
+            if (oneSelected) {
+                // Edit mission log
+                menuItem = new JMenuItem(resourceMap.getString("editMissionLog.text")); //$NON-NLS-1$
+                menuItem.setActionCommand(CMD_EDIT_MISSIONS_LOG);
                 menuItem.addActionListener(this);
                 menuItem.setEnabled(true);
                 popup.add(menuItem);
             }
+            // Add one item to all personnel mission logs
+            menuItem = new JMenuItem(resourceMap.getString("addMissionEntry.text")); //$NON-NLS-1$
+            menuItem.setActionCommand(CMD_ADD_MISSION_ENTRY);
+            menuItem.addActionListener(this);
+            menuItem.setEnabled(true);
+            popup.add(menuItem);
             if (oneSelected) {
                 menuItem = new JMenuItem(resourceMap.getString("editKillLog.text")); //$NON-NLS-1$
                 menuItem.setActionCommand(CMD_EDIT_KILL_LOG);
+                menuItem.addActionListener(this);
+                menuItem.setEnabled(true);
+                popup.add(menuItem);
+            }
+            if (oneSelected || StaticChecks.allHaveSameUnit(selected)) {
+                menuItem = new JMenuItem(resourceMap.getString("assignKill.text")); //$NON-NLS-1$
+                menuItem.setActionCommand(CMD_ADD_KILL);
                 menuItem.addActionListener(this);
                 menuItem.setEnabled(true);
                 popup.add(menuItem);
@@ -2392,6 +2581,14 @@ public class PersonnelTableMouseAdapter extends MouseInputAdapter implements
                 menuItem.addActionListener(this);
                 menuItem.setEnabled(gui.getCampaign().isGM());
                 menu.add(menuItem);
+
+                if (null == person.getUnitId()) {
+                    menuItem = new JMenuItem(resourceMap.getString("rollForUnit.text")); //$NON-NLS-1$
+                    menuItem.setActionCommand(CMD_ROLL_MECH);
+                    menuItem.addActionListener(this);
+                    menuItem.setEnabled(gui.getCampaign().isGM());
+                    menu.add(menuItem);
+                }
             }
             if (gui.getCampaign().getCampaignOptions().useAdvancedMedical()) {
                 menuItem = new JMenuItem(resourceMap.getString("removeAllInjuries.text")); //$NON-NLS-1$

@@ -245,6 +245,7 @@ public class RATManager extends AbstractUnitGenerator implements IUnitGenerator 
             MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO,
                     "While loading altFactions: "); //$NON-NLS-1$
             MekHQ.getLogger().error(getClass(), METHOD_NAME, ex);
+            return;
         }
 
         Element elem = xmlDoc.getDocumentElement();
@@ -306,6 +307,7 @@ public class RATManager extends AbstractUnitGenerator implements IUnitGenerator 
                     MekHQ.getLogger().log(RATManager.class, METHOD_NAME, LogLevel.ERROR,
                             "While loading RAT info from " + f.getName() + ": "); //$NON-NLS-1$
                     MekHQ.getLogger().error(RATManager.class, METHOD_NAME, ex);
+                    continue;
                 }
                 Element elem = xmlDoc.getDocumentElement();
                 NodeList nl = elem.getChildNodes();
@@ -481,13 +483,21 @@ public class RATManager extends AbstractUnitGenerator implements IUnitGenerator 
         RAT rat = findRAT(faction, unitType, weightClass, year, quality);
         if (rat != null) {
             if (unitType == UnitType.TANK) {
-                filter = filter.and(ms -> ms.getUnitType().equals("Tank"));
+                filter = filter != null ? filter.and(RATManager::isTank) : RATManager::isTank;
             } else if (unitType == UnitType.VTOL) {
-                filter = filter.and(ms -> ms.getUnitType().equals("VTOL"));
+                filter = filter != null ? filter.and(RATManager::isVTOL) : RATManager::isVTOL;
             }
             return RandomUnitGenerator.getInstance().generate(count, rat.ratName, filter);
         }
-        return new ArrayList<MechSummary>();
+        return new ArrayList<>();
+    }
+
+    private static boolean isTank(MechSummary summary) {
+        return summary.getUnitType().equals("Tank");
+    }
+
+    private static boolean isVTOL(MechSummary summary) {
+        return summary.getUnitType().equals("VTOL");
     }
 
     @Override
@@ -510,6 +520,31 @@ public class RATManager extends AbstractUnitGenerator implements IUnitGenerator 
         return new ArrayList<MechSummary>();
     }
 
+    /**
+     * Generates a list of mech summaries from a RAT determined by the given faction, quality and other parameters.
+     * Note that for the purposes of this implementation, the only properties of "parameters" used are 
+     * unit type, year, weight classes and movement modes. We also expect the rating to be a number 1-5, rather than A-F.
+     * @param count How many units to generate
+     * @param parameters RATGenerator parameters (some are ignored)
+     */
+    @Override
+    public List<MechSummary> generate(int count, UnitGeneratorParameters parameters) {
+        return generate(count, parameters.getFaction(), parameters.getUnitType(), parameters.getWeightClass(),  
+                parameters.getYear(), parameters.getQuality(), parameters.getMovementModes(), parameters.getFilter());
+    }
+    
+    /**
+     * Generates a single unit, for the given faction, using the given set of parameters.
+     * Note that some of the properties of the parameters may be ignored for generation mechanisms that aren't the RAT Generator
+     * @param parameters data structure containing unit generation parameters
+     * @return Generated units. Null if none generated.
+     */
+    @Override
+    public MechSummary generate(UnitGeneratorParameters parameters) {
+        return generate(parameters.getFaction(), parameters.getUnitType(), parameters.getWeightClass(),  
+                parameters.getYear(), parameters.getQuality(), parameters.getMovementModes(), parameters.getFilter());
+    }
+    
     private static class RAT {
         String ratName = null;
         HashSet<String> factions = new HashSet<>();

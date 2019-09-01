@@ -12,7 +12,6 @@ import java.awt.event.FocusListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.text.DateFormat;
-import java.text.NumberFormat;
 import java.text.ParseException;
 import java.util.GregorianCalendar;
 import java.util.ResourceBundle;
@@ -20,18 +19,19 @@ import java.util.ResourceBundle;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
-import javax.swing.JFormattedTextField;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
-import javax.swing.text.DefaultFormatterFactory;
-import javax.swing.text.NumberFormatter;
 
 import megamek.common.util.EncodeControl;
 import mekhq.MekHQ;
+import mekhq.campaign.finances.Money;
 import mekhq.campaign.finances.Transaction;
+import mekhq.gui.preferences.JWindowPreference;
+import mekhq.gui.utilities.JMoneyTextField;
+import mekhq.preferences.PreferencesNode;
 
 public class EditTransactionDialog extends JDialog implements ActionListener, FocusListener, MouseListener {
 
@@ -42,13 +42,13 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
 
     private final DateFormat LONG_DATE = DateFormat.getDateInstance(DateFormat.LONG);
 
-    private ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.AddFundsDialog", new EncodeControl()); //$NON-NLS-1$
+    private ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.EditTransactionDialog", new EncodeControl()); //$NON-NLS-1$
 
     private Transaction oldTransaction;
     private Transaction newTransaction;
     private JFrame parent;
 
-    private JFormattedTextField amountField;
+    private JMoneyTextField amountField;
     private JTextField descriptionField;
     private JButton dateButton;
     private JComboBox<String> categoryCombo;
@@ -64,9 +64,10 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
         this.parent = parent;
 
         initGUI();
-        setTitle("Edit Financial Transaction");
+        setTitle(resourceMap.getString("dialog.title"));
         setLocationRelativeTo(parent);
         pack();
+        setUserPreferences();
     }
 
     private void initGUI() {
@@ -77,6 +78,13 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
         } catch (ParseException e) {
             MekHQ.getLogger().error(getClass(), "initGUI()", e);
         }
+    }
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(EditTransactionDialog.class);
+
+        this.setName("dialog");
+        preferences.manage(new JWindowPreference(this));
     }
 
     private JPanel buildMainPanel() throws ParseException {
@@ -117,11 +125,10 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
 
         c.gridx = 0;
         c.gridy++;
-        amountField = new JFormattedTextField();
+        amountField = new JMoneyTextField();
         amountField.addFocusListener(this);
-        amountField.setFormatterFactory(new DefaultFormatterFactory(new NumberFormatter(NumberFormat.getIntegerInstance())));
-        amountField.setText(amountField.getFormatter().valueToString(newTransaction.getAmount()));
-        amountField.setToolTipText(resourceMap.getString("jFormattedTextFieldFundsQuantity.toolTipText"));
+        amountField.setMoney(newTransaction.getAmount());
+        amountField.setToolTipText(resourceMap.getString("fundsQuantityField.toolTipText"));
         amountField.setName("amountField");
         amountField.setColumns(10);
         l.setConstraints(amountField, c);
@@ -134,7 +141,7 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
         panel.add(dateButton);
 
         c.gridx++;
-        categoryCombo = new JComboBox<String>(Transaction.getCategoryList());
+        categoryCombo = new JComboBox<>(Transaction.getCategoryList());
         categoryCombo.setSelectedItem(Transaction.getCategoryName(newTransaction.getCategory()));
         categoryCombo.setToolTipText("Category of the transaction");
         categoryCombo.setName("categoryCombo");
@@ -180,7 +187,7 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     @Override
     public void actionPerformed(ActionEvent e) {
         if (saveButton.equals(e.getSource())) {
-            newTransaction.setAmount((Long)amountField.getValue());
+            newTransaction.setAmount(amountField.getMoney());
             newTransaction.setCategory(Transaction.getCategoryIndex((String) categoryCombo.getSelectedItem()));
             newTransaction.setDescription(descriptionField.getText());
             try {
@@ -211,12 +218,7 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     }
 
     private void selectAllTextInField(final JTextField field) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                field.selectAll();
-            }
-        });
+        SwingUtilities.invokeLater(() -> field.selectAll());
     }
 
     @Override

@@ -24,8 +24,11 @@ package mekhq.gui.dialog;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -36,6 +39,8 @@ import java.util.ResourceBundle;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -44,12 +49,22 @@ import javax.swing.ListSelectionModel;
 import javax.swing.table.TableColumn;
 
 import megamek.common.util.EncodeControl;
+import mekhq.MekHQ;
 import mekhq.campaign.Campaign;
+import mekhq.campaign.mission.AtBContract;
+import mekhq.campaign.mission.AtBDynamicScenario;
+import mekhq.campaign.mission.AtBDynamicScenarioFactory;
 import mekhq.campaign.mission.AtBScenario;
 import mekhq.campaign.mission.Loot;
 import mekhq.campaign.mission.Mission;
 import mekhq.campaign.mission.Scenario;
+import mekhq.campaign.mission.ScenarioTemplate;
+import mekhq.campaign.mission.atb.AtBScenarioModifier;
+import mekhq.campaign.mission.atb.AtBScenarioModifier.EventTiming;
+import mekhq.gui.FileDialogs;
 import mekhq.gui.model.LootTableModel;
+import mekhq.gui.preferences.JWindowPreference;
+import mekhq.preferences.PreferencesNode;
 
 /**
  *
@@ -74,6 +89,8 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
     private JTable lootTable;
     private JPanel panLoot;
     
+    private JComboBox<AtBScenarioModifier> modifierBox;
+    
     private javax.swing.JPanel panMain;
     private javax.swing.JPanel panBtn;
     private javax.swing.JButton btnClose;
@@ -88,7 +105,6 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
     private javax.swing.JLabel lblStatus;
     private javax.swing.JButton btnDate;
 
-    
     public CustomizeScenarioDialog(java.awt.Frame parent, boolean modal, Scenario s, Mission m, Campaign c) {
         super(parent, modal);
         this.frame = parent;
@@ -113,6 +129,7 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
         lootModel = new LootTableModel(loots);
         initComponents();
         setLocationRelativeTo(parent);
+        setUserPreferences();
     }
 
     private void initComponents() {
@@ -237,6 +254,27 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
         gridBagConstraints.insets = new java.awt.Insets(5, 5, 0, 0);
         panMain.add(scrDesc, gridBagConstraints);
         
+        if(scenario instanceof AtBDynamicScenario && scenario.isCurrent()) {
+            gridBagConstraints.gridx = 0;
+            gridBagConstraints.gridy++;
+            gridBagConstraints.gridwidth = 1;
+            
+            modifierBox = new JComboBox<>();
+            for(AtBScenarioModifier modifier : AtBScenarioModifier.getScenarioModifiers()) {
+                modifierBox.addItem(modifier);
+            }
+            panMain.add(modifierBox, gridBagConstraints);
+            
+            JButton addEventButton = new JButton("Apply Modifier");
+            addEventButton.addActionListener(new java.awt.event.ActionListener() {
+                public void actionPerformed(ActionEvent evt) {
+                    btnAddModifierActionPerformed(evt);
+                }
+            });
+            gridBagConstraints.gridx = 1;
+            panMain.add(addEventButton, gridBagConstraints);
+        }
+        
         if(!scenario.isCurrent()) {
 	        txtReport.setText(scenario.getReport());
 	        txtReport.setName("txtReport");
@@ -260,10 +298,28 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
 	        panMain.add(scrReport, gridBagConstraints);
         }
         
+        if(newScenario && (mission instanceof AtBContract)) {
+            JButton btnLoad = new JButton("Generate From Template");
+            btnLoad.addActionListener(new java.awt.event.ActionListener() {
+                public void actionPerformed(ActionEvent evt) {
+                    btnLoadActionPerformed(evt);
+                }
+            });
+            panBtn.add(btnLoad);
+        } else if (mission instanceof AtBContract) {
+            JButton btnFinalize = new JButton("Finalize");
+            btnFinalize.addActionListener(new java.awt.event.ActionListener() {
+                public void actionPerformed(ActionEvent evt) {
+                    btnFinalizeActionPerformed(evt);
+                }
+            });
+            panBtn.add(btnFinalize);
+        }
+        
         btnOK.setText(resourceMap.getString("btnOkay.text")); // NOI18N
         btnOK.setName("btnOK"); // NOI18N
         btnOK.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
+            public void actionPerformed(ActionEvent evt) {
                 btnOKActionPerformed(evt);
             }
         });
@@ -272,11 +328,11 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
         btnClose.setText(resourceMap.getString("btnCancel.text")); // NOI18N
         btnClose.setName("btnClose"); // NOI18N
         btnClose.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
+            public void actionPerformed(ActionEvent evt) {
                 btnCloseActionPerformed(evt);
             }
         });
-        gridBagConstraints.gridx = 1;
+        gridBagConstraints.gridx = GridBagConstraints.RELATIVE;
         gridBagConstraints.gridwidth = 1;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.CENTER;
         gridBagConstraints.insets = new java.awt.Insets(5, 5, 0, 0);
@@ -287,8 +343,15 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
         
         pack();
     }
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(CustomizeScenarioDialog.class);
+
+        this.setName("dialog");
+        preferences.manage(new JWindowPreference(this));
+    }
     
-    private void btnOKActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnHireActionPerformed
+    private void btnOKActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnHireActionPerformed
     	scenario.setName(txtName.getText());
     	scenario.setDesc(txtDesc.getText());
     	if(!scenario.isCurrent() || (campaign.getCampaignOptions().getUseAtB() && scenario instanceof AtBScenario)) {
@@ -304,6 +367,32 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
     		campaign.addScenario(scenario, mission);
     	}
     	this.setVisible(false);
+    }
+    
+    private void btnLoadActionPerformed(ActionEvent evt) {
+        File file = FileDialogs.openScenarioTemplate((JFrame) getOwner()).orElse(null);
+        if(file == null) {
+            return;
+        }
+        
+        ScenarioTemplate scenarioTemplate = ScenarioTemplate.Deserialize(file);
+        
+        if(scenarioTemplate == null) {
+            JOptionPane.showMessageDialog(this, "Error loading specified file. See log for details.", "Load Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        
+        AtBDynamicScenario scenario = AtBDynamicScenarioFactory.initializeScenarioFromTemplate(scenarioTemplate, (AtBContract) mission, campaign);
+        if(newScenario) {
+            campaign.addScenario(scenario, mission);
+        }
+        
+        this.setVisible(false);
+    }
+    
+    private void btnFinalizeActionPerformed(ActionEvent evt) {
+        AtBDynamicScenarioFactory.finalizeScenario((AtBDynamicScenario) scenario, (AtBContract) mission, campaign);
+        this.setVisible(false);
     }
     
     public int getMissionId() {
@@ -453,6 +542,19 @@ public class CustomizeScenarioDialog extends javax.swing.JDialog {
                 }
             }
         }
+    }
+    
+    /**
+     * Event handler for the 'add modifier' button.
+     * @param event
+     */
+    private void btnAddModifierActionPerformed(ActionEvent event) {
+        AtBDynamicScenario scenarioPtr = (AtBDynamicScenario) scenario;
+        AtBScenarioModifier modifierPtr = (AtBScenarioModifier) modifierBox.getSelectedItem();
+        EventTiming timing = scenarioPtr.getNumBots() > 0 ? EventTiming.PostForceGeneration : EventTiming.PreForceGeneration;
+        
+        modifierPtr.processModifier(scenarioPtr, campaign, timing);
+        txtDesc.setText(txtDesc.getText() + "\n\n" + modifierPtr.getAdditionalBriefingText());
     }
     
 }

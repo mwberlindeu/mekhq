@@ -44,10 +44,13 @@ import javax.swing.JTextArea;
 import javax.swing.WindowConstants;
 
 import megamek.common.util.EncodeControl;
+import mekhq.MekHQ;
 import mekhq.campaign.personnel.BodyLocation;
 import mekhq.campaign.personnel.Injury;
 import mekhq.campaign.personnel.InjuryType;
 import mekhq.gui.model.FilterableComboBoxModel;
+import mekhq.gui.preferences.JWindowPreference;
+import mekhq.preferences.PreferencesNode;
 
 /**
  *
@@ -83,6 +86,7 @@ public class EditInjuryEntryDialog extends JDialog {
         injury = e;
         initComponents();
         setLocationRelativeTo(parent);
+        setUserPreferences();
     }
 
     private void initComponents() {
@@ -94,26 +98,26 @@ public class EditInjuryEntryDialog extends JDialog {
             locations[i] = new BodyLocationChoice(loc);
             ++ i;
         }
-        types = InjuryType.getAllTypes().stream()
-            .map((type) -> new InjuryTypeChoice(type))
-            .collect(Collectors.toList()).toArray(new InjuryTypeChoice[0]);
-        String[] tf = { "True", "False" };
-        txtDays = new JTextArea();
-        ddLocation = new JComboBox<>(locations);
-        ddType = new JComboBox<>(types);
-        ddTypeModel = new FilterableComboBoxModel<InjuryTypeChoice>(ddType.getModel());
-        ddType.setModel(ddTypeModel);
-        ddTypeModel.setFilter(it -> {
-            BodyLocation loc = ((BodyLocationChoice) ddLocation.getSelectedItem()).loc;
-            return it.type.isValidInLocation(loc);
-        });
 
+        ddLocation = new JComboBox<>(locations);
         for (BodyLocationChoice choice : locations) {
             if (injury.getLocation() == choice.loc) {
                 ddLocation.setSelectedItem(choice);
                 break;
             }
         }
+
+        types = InjuryType.getAllTypes().stream()
+            .map((type) -> new InjuryTypeChoice(type))
+            .collect(Collectors.toList()).toArray(new InjuryTypeChoice[0]);
+
+        ddType = new JComboBox<>(types);
+        ddTypeModel = new FilterableComboBoxModel<InjuryTypeChoice>(ddType.getModel());
+        ddTypeModel.setFilter(it -> {
+            BodyLocation loc = ((BodyLocationChoice) ddLocation.getSelectedItem()).loc;
+            return it.type.isValidInLocation(loc);
+        });
+        ddType.setModel(ddTypeModel);
 
         for (InjuryTypeChoice choice : types) {
             if (injury.getType() == choice.type) {
@@ -122,8 +126,10 @@ public class EditInjuryEntryDialog extends JDialog {
             }
         }
         
+        txtDays = new JTextArea();
         txtFluff = new JTextArea();
         txtHits = new JTextArea();
+        String[] tf = { "True", "False" };
         ddPermanent = new JComboBox<String>(tf);
         ddWorkedOn = new JComboBox<String>(tf);
         ddExtended = new JComboBox<String>(tf);
@@ -325,7 +331,14 @@ public class EditInjuryEntryDialog extends JDialog {
         getContentPane().add(panBtn, BorderLayout.PAGE_END);
         pack();
     }
-    
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(EditInjuryEntryDialog.class);
+
+        this.setName("dialog");
+        preferences.manage(new JWindowPreference(this));
+    }
+
     private void btnOKActionPerformed(ActionEvent evt) {
         injury.setTime(Integer.parseInt(txtDays.getText()));
         injury.setHits(Integer.parseInt(txtHits.getText()));

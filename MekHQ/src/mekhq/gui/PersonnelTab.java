@@ -60,11 +60,15 @@ import mekhq.campaign.personnel.Person;
 import mekhq.gui.adapter.PersonnelTableMouseAdapter;
 import mekhq.gui.model.PersonnelTableModel;
 import mekhq.gui.model.XTableColumnModel;
+import mekhq.gui.preferences.JComboBoxPreference;
+import mekhq.gui.preferences.JTablePreference;
+import mekhq.gui.preferences.JToggleButtonPreference;
 import mekhq.gui.sorter.BonusSorter;
 import mekhq.gui.sorter.FormattedNumberSorter;
 import mekhq.gui.sorter.LevelSorter;
 import mekhq.gui.sorter.RankSorter;
 import mekhq.gui.view.PersonViewPanel;
+import mekhq.preferences.PreferencesNode;
 
 /**
  * Tab for interacting with all personnel
@@ -125,6 +129,7 @@ public final class PersonnelTab extends CampaignGuiTab {
     PersonnelTab(CampaignGUI gui, String name) {
         super(gui, name);
         MekHQ.registerHandler(this);
+        setUserPreferences();
     }
 
     @Override
@@ -241,7 +246,7 @@ public final class PersonnelTab extends CampaignGuiTab {
                 personnelTable, personModel) {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
+                if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 2) {
                     if ((splitPersonnel.getSize().width
                             - splitPersonnel.getDividerLocation() + splitPersonnel
                                 .getDividerSize()) < PersonnelTab.PERSONNEL_VIEW_WIDTH) {
@@ -251,7 +256,6 @@ public final class PersonnelTab extends CampaignGuiTab {
                         // collapse
                         splitPersonnel.setDividerLocation(1.0);
                     }
-
                 }
             }            
         });
@@ -287,6 +291,22 @@ public final class PersonnelTab extends CampaignGuiTab {
         add(splitPersonnel, gridBagConstraints);
 
         filterPersonnel();
+    }
+
+    private void setUserPreferences() {
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(PersonnelTab.class);
+
+        choicePerson.setName("personnelType");
+        preferences.manage(new JComboBoxPreference(choicePerson));
+
+        choicePersonView.setName("personnelView");
+        preferences.manage(new JComboBoxPreference(choicePersonView));
+
+        chkGroupByUnit.setName("groupByUnit");
+        preferences.manage(new JToggleButtonPreference(chkGroupByUnit));
+
+        personnelTable.setName("personnelTable");
+        preferences.manage(new JTablePreference(personnelTable));
     }
 
     /* For export */
@@ -448,6 +468,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), false);
@@ -488,6 +509,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -529,6 +551,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -569,6 +592,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -609,6 +633,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -649,6 +674,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -689,6 +715,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), false);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), false);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);
@@ -729,6 +756,7 @@ public final class PersonnelTab extends CampaignGuiTab {
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_RANK), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_NAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_CALL), true);
+            columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_BLOODNAME), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_AGE), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_GENDER), true);
             columnModel.setColumnVisible(columnModel.getColumnByModelIndex(PersonnelTableModel.COL_TYPE), true);

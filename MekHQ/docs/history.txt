@@ -1,6 +1,90 @@
 VERSION HISTORY:
 ----------------
-v0.45.2-SNAPSHOT
+0.46.0 (2019-08-12 1900 UTC)
++ Issue 1249: Tech Names Missing in Event Log
+
+0.46.0-rc.2 (2019-08-12 0100 UTC)
++ Issue #1075: Fix 'Mech location repair and salvage times to match StratOps
++ Issue #1224: Scenario templates no longer fail to generate forces when the 'use vehicles' AtB setting is turned off
++ Issue #1238: Fix bug where self crewed units could not be activated after being mothballed
++ PR #1239: Add GM Mothball/Activate to unit menu in hangar
++ Issue #1240: Cannot Salvage at 100%
+
+v0.46.0-rc.1 (2019-07-23 0300 UTC)
++ PR #1163: Fix vast overvaluing of opfor BV in the briefing tab
++ Issue #1161: don't cast non-Infantry to Infantry during peacetime cost calculations
++ Issue #70: BA no longer has a 100% salvage chance
++ Issue #1165: Player no longer gets dinged contract score for not having forces deployed immediately upon AtB contract start
++ Issue #1170: Fixed issue introduced in 45.4 where player couldn't hire personnel from personnel market with mechs
++ Issue #1164, #1174: Fix various issues involving money, in add/edit transaction, add/edit loot.
++ Issue #1182: Fixes a NPE because some money amounts are not always initialized in all contracts.
++ Issue #1128: Player can now view stats for enemy personnel when resolving a scenario.
++ Issue #1197: Fix bug where personnel could not be assigned to Battle Armor after repair.
++ Issue #1185: Player can acquire ammo bins via parts acquisition dialog.
++ Issue #1205: Improve purchase parts dialog performance when sorting.
++ PR #1217: Fix error preventing scenario resolution involving KIA personnel
++ PR #1216: Track part ID moves during campaign loads that may affect refits (may fix some outstanding refit bugs)
++ Issue #1110: Badger / Bandit vehicles can't be customized prior to 3047
++ Issue #1230: Tripod mech breaking campaign save
+
+v0.45.4 (2019-03-24 1700 UTC)
++ PR #1067: Switch to Joda Money library internally for financial math
++ Issue #1057: Don't allow Rotor damage to go negative or use negative damages
++ Issue #1085: Find different replacement part if original missing or has a new ID
++ Issue #1076: Address bug in Personnel Market where GM Add still costs money and add GM Hire Full Complement
++ PR #1084: Save user preferences for UI settings such as window sizes and positions, et al
++ Issue #1082: Fix issue preventing creation of new AtB contract
++ Issue #1086: Fix issue introduced in 45.3 preventing "special" AtB scenarios from starting
++ Issue #1106: Fix issue introduced in 45.3 preventing AtB scenarios containing aircraft from starting under some conditions
++ Issue #112: Adds mission log and counter for personnel
++ Issue #1115: Fix stack overflow in BattleArmorSuit::getTonnage
++ Issue #1116: [Feature] Show people's Bloodnames in "Fluff" filter on personnel tab
++ Issue #1125, #1127: Fix issues with loading units containing damaged AMS and MASC systems.
++ Issue #1109: Fix issue where damaged equipment can be restored with a reload
++ Issue #713: Fix incorrect reporting of training munitions/fuel costs, minor performance improvement on monthly rollover
++ PR #1136: Don't expand/contract tab panels on right double click (Mac OS X improvement)
++ PR #1143: In Repair tab -> Acquisitions, user can once again click 'Order One' more than once
++ Adding CampaignAnon AtB Instruction guide (very good for new players) - See AtB Stuff folder in Docs.
++ Issue #1144: fix bug where bondsmen could not be recruited
++ Issue #1148: fix bug where loan could not be paid off
++ Issue #1150: fix bug introduced in 45.3 preventing AtB scenarios reinforced by immobile player units from starting
++ Issue #1138: fix NPE in isOmniPodded check for AmmoBin's after refit
+
+v0.45.3 (2019-02-12 0500 UTC)
++ Issue #990: Feature: Add bulk confirm dialog if more than one unit is removed
++ PR #995: Speed up campaign load times by optimizing spare parts importing
++ PR #994: Fix exception seen during log entry updates
++ PR #998: Fix Mac OS X issue so the DateChooser dialog isn't hidden when you create a new campaign
++ PR #996: Feature: adds origin faction to a person's details and support for RAT roller in a person's GM menu
++ PR #997: Add weekly Support Personnel edge refresh and usage
++ PR #1006: Speed up calculation of jump paths
++ PR #999: Adds a GM hire button to new recruit dialog
++ PR #1017: Adds the list of missing units on campaign load to the log
++ Issue #1010: Battle Armor fails to load with StackOverflowException
++ Issue #991: Fix bug where loan collateral and total value is incorrect after save and load.
++ Issue #986: Fix bug where Retirement/Defection dialog doesn't show details for first row.
++ Issue #985: Fix bug where personnel could not be exported.
++ Issue #1022: Fix bug where failed acquisitions did not count against logistics person's limit
++ Issue #964: Do not raise UnitChangedEvent if there is no unit in GM Acquire Instantly
++ Issue #1009: Fix bug where default injury type wrong
++ Issue #976: Fix bug where techs without any minutes left may get stuck on overnight tasks
++ PR #1031: Fix bug where selected repair task moves when you change mode
++ Issue #1028: Fix bug where Mass Repair Options were not applied unless you clicked Save
++ Issue #1005: Allow fractional tons to be loaded in LargeCraftAmmoBins
++ Issue #825: Arbitrary contract score modifier now persists across save/load
++ Issue #970: Can now recruit multiple prisoners at a time
++ Issue #1036: Enable zero intensity level for AtB Scenario Generation
++ Issue #779: Fix AtB deployment nag before a contract has started
++ PR #1036: Make startup GUI show all four buttons at lower resolutions
++ PR #1041: Fix some unit/tech mismatches at CPNX load
++ Issue #772: Fix graphical display issues with multiple-day advancement
++ PR #1045: Crewed Unit Options Handling (SPA/Edge)
++ PR #1045: Resolve errata for reloading times of capital missile ammo (now 1 hour per missile)
++ Issue #1049: Warehouse tab may fail to properly render
++ PR #1053: Add a Change Camouflage context menu item to forces in the TOE
++ Issue #361: Adds assigned Force to the columns on the hangar tab
+
+v0.45.2 (2018-11-18 0200 UTC)
 + Switched build system from ant to gradle.
 + Issue #917: Hire Full Compliment Regularly Hires Bondsmen
 + Issue #919: Dropship Crewmembers/techs displayed as "Nobody" In Repair Bay
@@ -21,6 +105,10 @@ v0.45.2-SNAPSHOT
 + PR #959: Fix for inability to repair damaged VTOL internal structure after loading campaign
 + Issue #967: Fix bug where acquired Units could never be bought
 + PR #971: Feature allowing grouping personnel by their unit on the Personnel tab
++ Issue #865: Changing Award Date Does Not Update Award Tooltip
++ Issue #973: No contracts are offered at the start of an AtB campaign.
++ Issue #949: Mechwarrior KO'ed at beginning of battle
++ Issue #981: Fixed bug where refits overcharged for armor or would perform excess moves
 
 v0.45.1 (2018-09-03 2300 UTC)
 + PR #864: Security - address XXE vulnerabilities in XML parsers

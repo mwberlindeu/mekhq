@@ -192,7 +192,6 @@ public class MassRepairService {
 		List<Unit> units = new ArrayList<Unit>();
 
 		for (Unit unit : campaignGUI.getCampaign().getServiceableUnits()) {
-
 			if (!isValidMRMSUnit(unit)) {
 				continue;
 			}
@@ -217,12 +216,13 @@ public class MassRepairService {
 			}
 		});
 
-		massRepairSalvageUnits(campaignGUI, units);
+		List<MassRepairOption> activeMROs = createActiveMROsFromConfiguration(campaignGUI);
+
+		massRepairSalvageUnits(campaignGUI, units, activeMROs);
 	}
 
-	public static void massRepairSalvageUnits(CampaignGUI campaignGUI, List<Unit> units) {
+	public static void massRepairSalvageUnits(CampaignGUI campaignGUI, List<Unit> units, List<MassRepairOption> activeMROs) {
 		CampaignOptions options = campaignGUI.getCampaign().getCampaignOptions();
-		List<MassRepairOption> activeMROs = createActiveMROsFromConfiguration(campaignGUI);
 
 		Map<MassRepairUnitAction.STATUS, List<MassRepairUnitAction>> unitActionsByStatus = new HashMap<MassRepairUnitAction.STATUS, List<MassRepairUnitAction>>();
 
@@ -603,11 +603,11 @@ public class MassRepairService {
 						if (unfixable) {
 							campaign.addReport(String.format(
 									"<font color='orange'>Found an unfixable limb (%s) on %s which contains %s parts. Going to remove all parts and scrap the limb before proceeding with other repairs.</font>",
-									loc.getName(), unit.getName(), countOfPartsPerLocation.get(locId)));
+									loc != null ? loc.getName() : Integer.toString(locId), unit.getName(), countOfPartsPerLocation.get(locId)));
 						} else {
 							campaign.addReport(String.format(
 									"<font color='orange'>Found missing location (%s) on %s which contains %s parts. Going to remove all parts before proceeding with other repairs.</font>",
-									loc.getName(), unit.getName(), countOfPartsPerLocation.get(locId)));
+									loc != null ? loc.getName() : Integer.toString(locId), unit.getName(), countOfPartsPerLocation.get(locId)));
 						}
 					}
 

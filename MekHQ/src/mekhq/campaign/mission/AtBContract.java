@@ -31,6 +31,7 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.UUID;
 
+import mekhq.campaign.finances.Money;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
@@ -115,6 +116,9 @@ public class AtBContract extends Contract implements Serializable {
     public static final int EVT_REINFORCEMENTS = 8;
     public static final int EVT_SPECIALEVENTS = 9;
     public static final int EVT_BIGBATTLE = 10;
+
+    /** The minimum intensity below which no scenarios will be generated */
+    public static final double MINIMUM_INTENSITY = 0.01;
 
     /* null unless subcontract */
     protected AtBContract parentContract;
@@ -1069,17 +1073,25 @@ public class AtBContract extends Contract implements Serializable {
     }
     
     @Override
-    public long getMonthlyPayOut() {
+    public Money getMonthlyPayOut() {
         if (extensionLength == 0) {
             return super.getMonthlyPayOut();
         }
-        /* The tranport clause and the advance monies have already been
+        /* The transport clause and the advance monies have already been
          * accounted for over the original length of the contract. The extension
          * uses the base monthly amounts for support and overhead, with a 
          * 50% bonus to the base amount.
          */
-        return (long)((getBaseAmount() * 1.5 + getSupportAmount()
-                + getOverheadAmount()) / getLength());
+
+        if (getLength() <= 0) {
+            return Money.zero();
+        }
+
+        return getBaseAmount()
+                .multipliedBy(1.5)
+                .plus(getSupportAmount())
+                .plus(getOverheadAmount())
+                .dividedBy(getLength());
     }
     
     public void checkForFollowup(Campaign campaign) {
@@ -1195,6 +1207,10 @@ public class AtBContract extends Contract implements Serializable {
                 +employerMinorBreaches
                 +"</employerMinorBreaches>");
         pw1.println(MekHqXmlUtil.indentStr(indent+1)
+                +"<contractScoreArbitraryModifier>"
+                +contractScoreArbitraryModifier
+                +"</contractScoreArbitraryModifier>");
+        pw1.println(MekHqXmlUtil.indentStr(indent+1)
                 +"<priorLogisticsFailure>"
                 +priorLogisticsFailure
                 +"</priorLogisticsFailure>");
@@ -1275,6 +1291,8 @@ public class AtBContract extends Contract implements Serializable {
                 playerMinorBreaches = Integer.parseInt(wn2.getTextContent());
             } else if (wn2.getNodeName().equalsIgnoreCase("employerMinorBreaches")) {
                 employerMinorBreaches = Integer.parseInt(wn2.getTextContent());
+            } else if (wn2.getNodeName().equalsIgnoreCase("contractScoreArbitraryModifier")) {
+                contractScoreArbitraryModifier = Integer.parseInt(wn2.getTextContent());
             } else if (wn2.getNodeName().equalsIgnoreCase("priorLogisticsFailure")) {
                 priorLogisticsFailure = Boolean.parseBoolean(wn2.getTextContent());
             } else if (wn2.getNodeName().equalsIgnoreCase("battleTypeMod")) {

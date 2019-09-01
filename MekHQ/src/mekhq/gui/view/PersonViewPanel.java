@@ -11,7 +11,6 @@ import java.awt.Dialog.ModalityType;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.swing.BorderFactory;
@@ -34,7 +33,7 @@ import mekhq.MekHQ;
 import mekhq.campaign.personnel.Award;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.Kill;
-import mekhq.campaign.LogEntry;
+import mekhq.campaign.log.LogEntry;
 import mekhq.campaign.event.PersonChangedEvent;
 import mekhq.campaign.personnel.Injury;
 import mekhq.campaign.personnel.Person;
@@ -67,6 +66,7 @@ public class PersonViewPanel extends JPanel {
     private JTextArea txtDesc;
     private JPanel pnlKills;
     private JPanel pnlLog;
+    private JPanel pnlMissionsLog;
     private JPanel pnlInjuries;
 
     private JLabel lblType;
@@ -78,6 +78,8 @@ public class PersonViewPanel extends JPanel {
     private JLabel lblGender2;
     private JLabel lblStatus1;
     private JLabel lblStatus2;
+    private JLabel lblOrigin1;
+    private JLabel lblOrigin2;
     private JLabel lblRecruited1;
     private JLabel lblRecruited2;
     private JLabel lblTimeServed1;
@@ -88,6 +90,8 @@ public class PersonViewPanel extends JPanel {
     private JLabel lblTough2;
     private JLabel lblEdge1;
     private JLabel lblEdge2;
+    private JLabel lblEdgeAvail1;
+    private JLabel lblEdgeAvail2;
     private JLabel lblAbility1;
     private JLabel lblAbility2;
     private JLabel lblImplants1;
@@ -124,6 +128,7 @@ public class PersonViewPanel extends JPanel {
         txtDesc = new JTextArea();
         pnlKills = new JPanel();
         pnlLog = new JPanel();
+        pnlMissionsLog = new JPanel();
         pnlInjuries = new JPanel();
         setLayout(new GridBagLayout());
         setBackground(Color.WHITE);
@@ -270,6 +275,25 @@ public class PersonViewPanel extends JPanel {
             gridBagConstraints.fill = GridBagConstraints.BOTH;
             gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
             add(pnlLog, gridBagConstraints);
+            gridy++;
+        }
+
+        if(person.getMissionLog().size() >0) {
+            fillMissionLog();
+
+            pnlMissionsLog.setName("missionLog"); //$NON-NLS-1$
+            pnlMissionsLog.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createTitledBorder(resourceMap.getString("missionLog.title")), //$NON-NLS-1$
+                    BorderFactory.createEmptyBorder(5,5,5,5)));
+            pnlMissionsLog.setBackground(Color.WHITE);
+            gridBagConstraints = new GridBagConstraints();
+            gridBagConstraints.gridx = 0;
+            gridBagConstraints.gridy = gridy;
+            gridBagConstraints.gridwidth = 2;
+            gridBagConstraints.insets = new Insets(5, 5, 5, 20);
+            gridBagConstraints.fill = GridBagConstraints.BOTH;
+            gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+            add(pnlMissionsLog, gridBagConstraints);
             gridy++;
         }
 
@@ -457,6 +481,8 @@ public class PersonViewPanel extends JPanel {
         lblGender2 = new JLabel();
         lblStatus1 = new JLabel();
         lblStatus2 = new JLabel();
+        lblOrigin1 = new JLabel();
+        lblOrigin2 = new JLabel();
         lblRecruited1 = new JLabel();
         lblRecruited2 = new JLabel();
         lblTimeServed1 = new JLabel();
@@ -467,6 +493,8 @@ public class PersonViewPanel extends JPanel {
         lblTough2 = new JLabel();
         lblEdge1 = new JLabel();
         lblEdge2 = new JLabel();
+        lblEdgeAvail1 = new JLabel();
+        lblEdgeAvail2 = new JLabel();
         lblAbility1 = new JLabel();
         lblAbility2 = new JLabel();
         lblImplants1 = new JLabel();
@@ -581,6 +609,29 @@ public class PersonViewPanel extends JPanel {
         gridBagConstraints.fill = GridBagConstraints.NONE;
         gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
         pnlStats.add(lblStatus2, gridBagConstraints);
+
+        if (campaign.getCampaignOptions().showOriginFaction()) {
+            firsty++;
+            lblOrigin1.setName("lblOrigin1"); // NOI18N
+            lblOrigin1.setText(resourceMap.getString("lblOrigin1.text")); //$NON-NLS-1$
+            gridBagConstraints = new GridBagConstraints();
+            gridBagConstraints.gridx = 0;
+            gridBagConstraints.gridy = firsty;
+            gridBagConstraints.fill = GridBagConstraints.NONE;
+            gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+            pnlStats.add(lblOrigin1, gridBagConstraints);
+
+            lblOrigin2.setName("lblOrigin2"); // NOI18N
+            lblOrigin2.setText(person.getOriginFaction().getFullName(person.getCampaign().getGameYear()));
+            gridBagConstraints = new GridBagConstraints();
+            gridBagConstraints.gridx = 1;
+            gridBagConstraints.gridy = firsty;
+            gridBagConstraints.weightx = 0.5;
+            gridBagConstraints.insets = new Insets(0, 10, 0, 0);
+            gridBagConstraints.fill = GridBagConstraints.NONE;
+            gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+            pnlStats.add(lblOrigin2, gridBagConstraints);
+        }
 
         if (campaign.getCampaignOptions().getUseTimeInService()) {
             if ((null != person.getRecruitmentAsString()) && !person.isDependent() && !person.isPrisoner() && !person.isBondsman()) {
@@ -725,6 +776,30 @@ public class PersonViewPanel extends JPanel {
             gridBagConstraints.fill = GridBagConstraints.NONE;
             gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
             pnlStats.add(lblEdge2, gridBagConstraints);
+            
+            if (person.isAdmin() || person.isDoctor() || person.isTech()) {
+                //Add the Edge Available field for support personnel only
+                secondy++;
+                lblEdgeAvail1.setName("lblEdgeAvail1"); // NOI18N //$NON-NLS-1$
+                lblEdgeAvail1.setText(resourceMap.getString("lblEdgeAvail1.text")); //$NON-NLS-1$
+                gridBagConstraints = new GridBagConstraints();
+                gridBagConstraints.gridx = 2;
+                gridBagConstraints.gridy = secondy;
+                gridBagConstraints.fill = GridBagConstraints.NONE;
+                gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+                pnlStats.add(lblEdgeAvail1, gridBagConstraints);
+
+                lblEdgeAvail2.setName("lblEdgeAvail2"); // NOI18N //$NON-NLS-1$
+                lblEdgeAvail2.setText(Integer.toString(person.getCurrentEdge()));
+                gridBagConstraints = new GridBagConstraints();
+                gridBagConstraints.gridx = 3;
+                gridBagConstraints.gridy = secondy;
+                gridBagConstraints.weightx = 0.5;
+                gridBagConstraints.insets = new Insets(0, 10, 0, 0);
+                gridBagConstraints.fill = GridBagConstraints.NONE;
+                gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+                pnlStats.add(lblEdgeAvail2, gridBagConstraints);
+            }
         }
 
         //special abilities and implants need to be three columns wide to handle their large width
@@ -908,6 +983,48 @@ public class PersonViewPanel extends JPanel {
         pnlLog.add(eventTable, gridBagConstraints);
     }
 
+    private void fillMissionLog() {
+        List<LogEntry> missionLog = person.getMissionLog();
+        pnlMissionsLog.setLayout(new GridBagLayout());
+
+        JLabel lblMissions = new JLabel(String.format(resourceMap.getString("format.missions"), missionLog.size())); //$NON-NLS-1$
+        GridBagConstraints gridBagConstraints = new GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 0;
+        gridBagConstraints.weightx = 1.0;
+        gridBagConstraints.insets = new Insets(0, 5, 0, 0);
+        gridBagConstraints.fill = GridBagConstraints.NONE;
+        gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
+        pnlMissionsLog.add(lblMissions, gridBagConstraints);
+
+        PersonnelEventLogModel eventModel = new PersonnelEventLogModel();
+        eventModel.setData(missionLog);
+        JTable missionsTable = new JTable(eventModel);
+        missionsTable.setRowSelectionAllowed(false);
+        missionsTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        TableColumn column;
+        for(int i = 0; i < eventModel.getColumnCount(); ++ i) {
+            column = missionsTable.getColumnModel().getColumn(i);
+            column.setCellRenderer(eventModel.getRenderer());
+            column.setPreferredWidth(eventModel.getPreferredWidth(i));
+            if(eventModel.hasConstantWidth(i)) {
+                column.setMinWidth(eventModel.getPreferredWidth(i));
+                column.setMaxWidth(eventModel.getPreferredWidth(i));
+            }
+        }
+        missionsTable.setIntercellSpacing(new Dimension(0, 0));
+        missionsTable.setShowGrid(false);
+        missionsTable.setTableHeader(null);
+
+        gridBagConstraints = new GridBagConstraints();
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = 1;
+        gridBagConstraints.fill = GridBagConstraints.BOTH;
+        gridBagConstraints.weightx = 1.0;
+        gridBagConstraints.weighty = 1.0;
+        pnlMissionsLog.add(missionsTable, gridBagConstraints);
+    }
+
     private void fillInjuries() {
         GridBagConstraints gridBagConstraints;
         pnlInjuries.setLayout(new GridBagLayout());
@@ -964,7 +1081,7 @@ public class PersonViewPanel extends JPanel {
         JTable killTable = new JTable(killModel);
         killTable.setRowSelectionAllowed(false);
         killTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-        TableColumn column = null;
+        TableColumn column;
         for(int i = 0; i < killModel.getColumnCount(); ++ i) {
             column = killTable.getColumnModel().getColumn(i);
             column.setCellRenderer(killModel.getRenderer());

@@ -4,7 +4,6 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Image;
 import java.awt.Toolkit;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.UUID;
 
@@ -83,7 +82,8 @@ import mekhq.gui.BasicInfo;
         public final static int COL_KILLS  =  36;
         public final static int COL_SALARY =  37;
         public final static int COL_XP =      38;
-        public final static int N_COL =       39;
+        public final static int COL_BLOODNAME = 39;
+        public final static int N_COL =       40;
 
         public PersonnelTableModel(Campaign c) {
             data = new ArrayList<Person>();
@@ -197,6 +197,8 @@ import mekhq.gui.BasicInfo;
                     return "Salary";
                 case COL_KILLS:
                     return "Kills";
+                case COL_BLOODNAME:
+                    return "Bloodname";
                 default:
                     return "?";
             }
@@ -208,6 +210,7 @@ import mekhq.gui.BasicInfo;
             case COL_DEPLOY:
                 return 70;
             case COL_CALL:
+            case COL_BLOODNAME:
             case COL_SALARY:
             case COL_SKILL:
                 return 50;
@@ -290,7 +293,6 @@ import mekhq.gui.BasicInfo;
         @Override
         public Object getValueAt(int row, int col) {
             Person p;
-            DecimalFormat formatter = new DecimalFormat();
             if(data.isEmpty()) {
                 return "";
             } else {
@@ -650,10 +652,13 @@ import mekhq.gui.BasicInfo;
                 }
             }
             if(col == COL_SALARY) {
-                return formatter.format(p.getSalary());
+                return p.getSalary().toAmountAndSymbolString();
             }
             if(col == COL_KILLS) {
                 return Integer.toString(getCampaign().getKillsFor(p.getId()).size());
+            }
+            if(col == COL_BLOODNAME) {
+                return p.getBloodname();
             }
             return "?";
         }
