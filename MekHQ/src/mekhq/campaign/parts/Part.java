@@ -34,6 +34,7 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
+import megamek.common.Aero;
 import megamek.common.Entity;
 import megamek.common.EquipmentType;
 import megamek.common.ITechnology;
@@ -908,6 +909,27 @@ public abstract class Part implements Serializable, MekHqXmlSerializable, IPartW
 				mods.addModifier(2, "Clan tech");
 			}
 		}
+		if(null != tech 
+				&& tech.getOptions().booleanOption(PersonnelOptions.TECH_WEAPON_SPECIALIST)
+				&& (IPartWork.findCorrectRepairType(this) == Part.REPAIR_PART_TYPE.WEAPON 
+				|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.PHYSICAL_WEAPON)) {
+			mods.addModifier(-1, "Weapon specialist");
+		}
+		if(null != tech 
+				&& tech.getOptions().booleanOption(PersonnelOptions.TECH_ARMOR_SPECIALIST)
+						&& IPartWork.findCorrectRepairType(this) == Part.REPAIR_PART_TYPE.ARMOR) {
+			mods.addModifier(-1, "Armor specialist");
+		}
+		if(null != tech 
+				&& tech.getOptions().booleanOption(PersonnelOptions.TECH_INTERNAL_SPECIALIST)
+				&& (IPartWork.findCorrectRepairType(this) == Part.REPAIR_PART_TYPE.ACTUATOR
+			 	|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.ELECTRONICS
+			 	|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.ENGINE
+			 	|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.GYRO
+			 	|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.MEK_LOCATION
+			 	|| IPartWork.findCorrectMassRepairType(this) == Part.REPAIR_PART_TYPE.GENERAL_LOCATION)) {
+			mods.addModifier(-1, "Internal specialist");
+		}
 		String qualityName = getQualityName(quality, campaign.getCampaignOptions().reverseQualityNames());
 		switch(quality) {
 		case QUALITY_A:
@@ -1400,9 +1422,6 @@ public abstract class Part implements Serializable, MekHqXmlSerializable, IPartW
     public boolean isInLocation(String loc) {
         if (null == unit || null == unit.getEntity()) {
             return false;
-        }
-        if (loc.equals("FSLG")) {
-            return getLocation() == Entity.LOC_NONE;
         }
     	return getLocation() == getUnit().getEntity().getLocationFromAbbr(loc);
     }

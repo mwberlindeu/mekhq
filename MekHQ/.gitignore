@@ -8,6 +8,7 @@
 /mmconf/megameklab.properties
 /mmconf/mekhq.properties
 /campaigns/*.cpnx
+/campaigns/*.cpnx.gz
 /*.mul
 /.settings/
 /classes
@@ -17,3 +18,6 @@ MekHQ.jar
 /*.tar.bz2
 /*.blame
 /.classpath
+/.gradle/
+/build/
+/out/
