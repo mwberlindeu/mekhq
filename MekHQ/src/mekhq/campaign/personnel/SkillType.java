@@ -1,45 +1,36 @@
 /*
  * SkillType.java
- * 
+ *
  * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.personnel;
+
+import megamek.Version;
+import megamek.common.*;
+import mekhq.MekHqXmlUtil;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.util.Hashtable;
-
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-
-import megamek.common.Aero;
-import megamek.common.BattleArmor;
-import megamek.common.ConvFighter;
-import megamek.common.Entity;
-import megamek.common.Infantry;
-import megamek.common.Jumpship;
-import megamek.common.Protomech;
-import megamek.common.SmallCraft;
-import megamek.common.Tank;
-import mekhq.MekHQ;
-import mekhq.MekHqXmlUtil;
-import mekhq.Version;
 
 /**
  * Skill type will hold static information for each skill type like base target number,
@@ -54,7 +45,7 @@ public class SkillType implements Serializable {
     public static final String REGULAR_NM = "Regular";
     public static final String VETERAN_NM = "Veteran";
     public static final String ELITE_NM = "Elite";
-    public static final String[] SKILL_LEVEL_NAMES = {ULTRA_GREEN_NM, GREEN_NM, REGULAR_NM, VETERAN_NM, ELITE_NM};
+    public static final String[] SKILL_LEVEL_NAMES = { ULTRA_GREEN_NM, GREEN_NM, REGULAR_NM, VETERAN_NM, ELITE_NM };
 
     //combat skills
     public static final String S_PILOT_MECH  = "Piloting/Mech";
@@ -90,9 +81,9 @@ public class SkillType implements Serializable {
     public static final String S_LEADER        = "Leadership";
     public static final String S_SCROUNGE      = "Scrounge";
     public static final String S_STRATEGY      = "Strategy";
-    
+
     public static final int NUM_LEVELS = 11;
-    
+
     public static final String[] skillList = {S_PILOT_MECH,S_GUN_MECH,S_PILOT_AERO,S_GUN_AERO,
                                               S_PILOT_GVEE,S_PILOT_VTOL,S_PILOT_NVEE,S_GUN_VEE,
                                               S_PILOT_JET,S_GUN_JET,S_PILOT_SPACE,S_GUN_SPACE,S_ARTILLERY,
@@ -102,40 +93,48 @@ public class SkillType implements Serializable {
                                               S_ADMIN,
                                               S_TACTICS,S_STRATEGY,
                                               S_NEG,S_LEADER,S_SCROUNGE};
-    
-    public static Hashtable<String, SkillType> lookupHash;    
+
+    public static Hashtable<String, SkillType> lookupHash;
 
     public static final int SKILL_NONE = 0;
-    
+
     public static final int EXP_ULTRA_GREEN = 0;
     public static final int EXP_GREEN = 1;
     public static final int EXP_REGULAR = 2;
     public static final int EXP_VETERAN = 3;
     public static final int EXP_ELITE = 4;
-    
+
     private String name;
     private int target;
     private boolean countUp;
     private int greenLvl;
     private int regLvl;
     private int vetLvl;
-    private int eliteLvl;    
+    private int eliteLvl;
     private Integer[] costs;
-    
+
     public static void setSkillTypes(Hashtable<String, SkillType> skills) {
         //we are going to cycle through all skills in case ones have been added since this hash
         //was created
-        for(String name : skillList) {
-            if(null != skills.get(name)) {
+        for (String name : skillList) {
+            if (null != skills.get(name)) {
                 lookupHash.put(name, skills.get(name));
             }
         }
     }
-    
+
+    public static Hashtable<String, SkillType> getSkillHash() {
+        return lookupHash;
+    }
+
+    public static void setSkillHash(final Hashtable<String, SkillType> hash) {
+        lookupHash = hash;
+    }
+
     public static String[] getSkillList() {
         return skillList;
-    }    
-    
+    }
+
     /** Creates new SkillType */
     public SkillType() {
         greenLvl = 1;
@@ -144,134 +143,129 @@ public class SkillType implements Serializable {
         eliteLvl = 5;
         costs = new Integer[]{0,0,0,0,0,0,0,0,0,0,0};
     }
-    
+
     public String getName() {
         return name;
     }
-    
+
     public int getTarget() {
         return target;
     }
-    
+
     public void setTarget(int t) {
         target = t;
     }
-    
+
     public boolean countUp() {
         return countUp;
     }
-    
+
     public int getLevelFromExperience(int expLvl) {
-        switch(expLvl) {
-        case(EXP_REGULAR):
-            return regLvl;
-        case(EXP_VETERAN):
-            return vetLvl;
-        case(EXP_ELITE):
-            return eliteLvl;
-        case(EXP_GREEN):
-            return greenLvl;
-        default:
-            //for ultra-green we take the midpoint between green and 0, rounding down. 
-            //If the user has set green as zero, then this will be the same
-            return (int)Math.floor(greenLvl/2.0);
+        switch (expLvl) {
+            case EXP_REGULAR:
+                return regLvl;
+            case EXP_VETERAN:
+                return vetLvl;
+            case EXP_ELITE:
+                return eliteLvl;
+            case EXP_GREEN:
+                return greenLvl;
+            default:
+                //for ultra-green we take the midpoint between green and 0, rounding down.
+                //If the user has set green as zero, then this will be the same
+                return (int) Math.floor(greenLvl / 2.0);
         }
     }
-    
+
     public int getGreenLevel() {
         return greenLvl;
     }
-    
+
     public void setGreenLevel(int l) {
         greenLvl = l;
     }
-    
+
     public int getRegularLevel() {
         return regLvl;
     }
-    
+
     public void setRegularLevel(int l) {
         regLvl = l;
     }
-    
+
     public int getVeteranLevel() {
         return vetLvl;
     }
-    
+
     public void setVeteranLevel(int l) {
         vetLvl = l;
     }
-    
+
     public int getEliteLevel() {
         return eliteLvl;
     }
-    
+
     public void setEliteLevel(int l) {
         eliteLvl = l;
     }
-    
+
     public int getCost(int lvl) {
-        if(lvl > 10 || lvl < 0) {
+        if ((lvl > 10) || (lvl < 0)) {
             return -1;
+        } else {
+            return costs[lvl];
         }
-        return costs[lvl];
     }
-    
+
     /** @return the maximum level of that skill (the last one not set to cost = -1, or 10) */
     public int getMaxLevel() {
-        for(int lvl = 0; lvl < costs.length; ++ lvl) {
-            if(costs[lvl] < 0) {
+        for (int lvl = 0; lvl < costs.length; ++ lvl) {
+            if (costs[lvl] < 0) {
                 return lvl - 1;
             }
         }
+
         return costs.length - 1;
     }
-    
+
     public static void setCost(String name, int cost, int lvl) {
         SkillType type = lookupHash.get(name);
-        if(null != name && lvl < 11) {
+        if ((name != null) && (lvl < 11)) {
             type.costs[lvl] = cost;
         }
     }
-    
+
     public boolean isPiloting() {
         return name.equals(S_PILOT_MECH) || name.equals(S_PILOT_AERO)
                     || name.equals(S_PILOT_GVEE) || name.equals(S_PILOT_VTOL)
                     || name.equals(S_PILOT_NVEE) || name.equals(S_PILOT_JET)
                     || name.equals(S_PILOT_SPACE);
     }
-    
+
     public boolean isGunnery() {
         return name.equals(S_GUN_MECH) || name.equals(S_GUN_AERO)
                     || name.equals(S_GUN_VEE) || name.equals(S_GUN_BA)
                     || name.equals(S_SMALL_ARMS) || name.equals(S_GUN_JET)
-                    || name.equals(S_GUN_SPACE) || name.equals(S_GUN_PROTO) 
+                    || name.equals(S_GUN_SPACE) || name.equals(S_GUN_PROTO)
                     || name.equals(S_ARTILLERY);
     }
-    
+
     public int getExperienceLevel(int lvl) {
-        if(lvl >= eliteLvl) {
+        if (lvl >= eliteLvl) {
             return EXP_ELITE;
-        }
-        else if(lvl >= vetLvl) {
+        } else if (lvl >= vetLvl) {
             return EXP_VETERAN;
-        }
-        else if(lvl >= regLvl) {
+        } else if (lvl >= regLvl) {
             return EXP_REGULAR;
-        }
-        else if(lvl >= greenLvl) {
+        } else if (lvl >= greenLvl) {
             return EXP_GREEN;
+        } else {
+            return EXP_ULTRA_GREEN;
         }
-        return EXP_ULTRA_GREEN;
     }
-    
-    public int getExperienceLevelFromTarget(int tgt) {
-        int level = target - tgt;
-        return getExperienceLevel(level);
-    }
-    
+
     public static void initializeTypes() {
-        lookupHash = new Hashtable<String, SkillType>();
+        lookupHash = new Hashtable<>();
         lookupHash.put(S_PILOT_MECH, createPilotingMech());
         lookupHash.put(S_GUN_MECH, createGunneryMech());
         lookupHash.put(S_PILOT_AERO, createPilotingAero());
@@ -304,178 +298,103 @@ public class SkillType implements Serializable {
         lookupHash.put(S_LEADER, createLeadership());
         lookupHash.put(S_NEG, createNegotiation());
         lookupHash.put(S_SCROUNGE, createScrounge());
-
-        /*
-        abilityCosts = new HashMap<String, Integer>();
-        abilityCosts.put("hot_dog", 4);
-        abilityCosts.put("jumping_jack", 12);
-        abilityCosts.put("melee_master", 12);
-        abilityCosts.put("multi_tasker", 4);
-        abilityCosts.put("oblique_attacker", 4);
-        abilityCosts.put("pain_resistance", 4);
-        abilityCosts.put("sniper", 12);
-        abilityCosts.put("weapon_specialist", 1);
-        abilityCosts.put("specialist", 4);
-        abilityCosts.put("tactical_genius", 12);
-        abilityCosts.put("aptitude_gunnery", 40);
-        abilityCosts.put("gunnery_laser", 4);
-        abilityCosts.put("gunnery_ballistic", 4);
-        abilityCosts.put("gunnery_missile", 4);
-        abilityCosts.put("ei_implant", 0);
-        abilityCosts.put("clan_pilot_training", 0);
-        */
     }
-    
+
     public static SkillType getType(String t) {
         //legacy check for typo in earlier version
-        if(t.equalsIgnoreCase("administation")) {
+        if (t.equalsIgnoreCase("administation")) {
             return lookupHash.get(S_ADMIN);
         }
         return lookupHash.get(t);
     }
-    
+
     public static String getExperienceLevelName(int level) {
-        switch(level) {
-        case EXP_ULTRA_GREEN:
-            return ULTRA_GREEN_NM;
-        case EXP_GREEN:
-            return GREEN_NM;
-        case EXP_REGULAR:
-            return REGULAR_NM;
-        case EXP_VETERAN:
-            return VETERAN_NM;
-        case EXP_ELITE:
-            return ELITE_NM;
-        case -1:
-            return "Unknown";
-        default:
-            return "Impossible";
+        switch (level) {
+            case EXP_ULTRA_GREEN:
+                return ULTRA_GREEN_NM;
+            case EXP_GREEN:
+                return GREEN_NM;
+            case EXP_REGULAR:
+                return REGULAR_NM;
+            case EXP_VETERAN:
+                return VETERAN_NM;
+            case EXP_ELITE:
+                return ELITE_NM;
+            case -1:
+                return "Unknown";
+            default:
+                return "Impossible";
         }
     }
 
     public static String getDrivingSkillFor(Entity en) {
-        if(en instanceof Tank) {
+        if (en instanceof Tank) {
             switch (en.getMovementMode()) {
-            case VTOL:
-                return S_PILOT_VTOL;
-            case NAVAL:
-            case HYDROFOIL:
-            case SUBMARINE:
-                return S_PILOT_NVEE;
-            default:
-                return S_PILOT_GVEE;
+                case VTOL:
+                    return S_PILOT_VTOL;
+                case NAVAL:
+                case HYDROFOIL:
+                case SUBMARINE:
+                    return S_PILOT_NVEE;
+                default:
+                    return S_PILOT_GVEE;
             }
-            /*
-            if(en instanceof VTOL) {
-                return S_PILOT_VTOL;
-            }
-            //TODO: identify naval vessel
-            return S_PILOT_GVEE;
-            */
-        }
-        else if(en instanceof SmallCraft || en instanceof Jumpship) {
+        } else if ((en instanceof SmallCraft) || (en instanceof Jumpship)) {
             return S_PILOT_SPACE;
-        }
-        else if(en instanceof ConvFighter) {
+        } else if (en instanceof ConvFighter) {
             return S_PILOT_JET;
-        }
-        else if(en instanceof Aero) {
+        } else if (en instanceof Aero) {
             return S_PILOT_AERO;
-        }
-        else if(en instanceof Infantry) {
+        } else if (en instanceof Infantry) {
             return S_ANTI_MECH;
-        }
-        else if(en instanceof Protomech) {
+        } else if (en instanceof Protomech) {
             return S_GUN_PROTO;
+        } else {
+            return S_PILOT_MECH;
         }
-        return S_PILOT_MECH;
     }
-    
+
     public static String getGunnerySkillFor(Entity en) {
-        if(en instanceof Tank) {
+        if (en instanceof Tank) {
             return S_GUN_VEE;
-        }
-        else if(en instanceof SmallCraft || en instanceof Jumpship) {
+        } else if ((en instanceof SmallCraft) || (en instanceof Jumpship)) {
             return S_GUN_SPACE;
-        }
-        else if(en instanceof ConvFighter) {
+        } else if (en instanceof ConvFighter) {
             return S_GUN_JET;
-        }
-        else if(en instanceof Aero) {
+        } else if (en instanceof Aero) {
             return S_GUN_AERO;
-        }
-        else if(en instanceof Infantry) {
-            if(en instanceof BattleArmor) {
+        } else if (en instanceof Infantry) {
+            if (en instanceof BattleArmor) {
                 return S_GUN_BA;
+            } else {
+                return S_SMALL_ARMS;
             }
-            return S_SMALL_ARMS;
-        }
-        else if(en instanceof Protomech) {
+        } else if (en instanceof Protomech) {
             return S_GUN_PROTO;
+        } else {
+            return S_GUN_MECH;
         }
-        return S_GUN_MECH;
     }
 
-    public static String[][] getSkillCostsArray() {
-        String[][] array = new String[skillList.length][11];
-        int i = 0;
-        for(String name : skillList) {
-            SkillType type = lookupHash.get(name);
-            for(int j = 0; j< 11; j++) {
-                array[i][j] = Integer.toString(type.getCost(j));
-            }
-            i++;
-        }
-        return array;
-    }
-    
     public void writeToXml(PrintWriter pw1, int indent) {
-        pw1.println(MekHqXmlUtil.indentStr(indent) + "<skillType>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<name>"
-                +name
-                +"</name>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<target>"
-                +target
-                +"</target>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<countUp>"
-                +countUp
-                +"</countUp>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<greenLvl>"
-                +greenLvl
-                +"</greenLvl>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<regLvl>"
-                +regLvl
-                +"</regLvl>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<vetLvl>"
-                +vetLvl
-                +"</vetLvl>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<eliteLvl>"
-                +eliteLvl
-                +"</eliteLvl>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<costs>"
-                +printCosts()
-                +"</costs>");
-        pw1.println(MekHqXmlUtil.indentStr(indent) + "</skillType>");    
+        MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent++, "skillType");
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "name", name);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "target", target);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "countUp", countUp);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "greenLvl", greenLvl);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "regLvl", regLvl);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "vetLvl", vetLvl);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "eliteLvl", eliteLvl);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "costs", StringUtils.join(costs, ','));
+        MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, --indent, "skillType");
     }
-    
+
     public static void generateInstanceFromXML(Node wn, Version version) {
-        final String METHOD_NAME = "generateInstanceFromXML(Node,Version)"; //$NON-NLS-1$
-
-        SkillType retVal = null;
-            
-        try {        
-            retVal = new SkillType();
+        try {
+            SkillType retVal = new SkillType();
             NodeList nl = wn.getChildNodes();
-                
-            for (int x=0; x<nl.getLength(); x++) {
+
+            for (int x = 0; x < nl.getLength(); x++) {
                 Node wn2 = nl.item(x);
                 if (wn2.getNodeName().equalsIgnoreCase("name")) {
                     retVal.name = wn2.getTextContent();
@@ -490,45 +409,27 @@ public class SkillType implements Serializable {
                 } else if (wn2.getNodeName().equalsIgnoreCase("eliteLvl")) {
                     retVal.eliteLvl = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("countUp")) {
-                    if(wn2.getTextContent().equalsIgnoreCase(("true"))) {
-                        retVal.countUp = true;
-                    } else {
-                        retVal.countUp = false;
-                    }
+                    retVal.countUp = Boolean.parseBoolean(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("costs")) {
                     String[] values = wn2.getTextContent().split(",");
-                    for(int i = 0; i < values.length; i++) {
+                    for (int i = 0; i < values.length; i++) {
                         retVal.costs[i] = Integer.parseInt(values[i]);
                     }
-                } 
-            }        
-        } catch (Exception ex) {
-            // Errrr, apparently either the class name was invalid...
-            // Or the listed name doesn't exist.
-            // Doh!
-            MekHQ.getLogger().error(SkillType.class, METHOD_NAME, ex);
-        }
-        if(version.getMinorVersion() < 3) {
-            //need to change negotiation and scrounge to be countUp=false with
-            //TNs of 10
-            if(retVal.name.equals(SkillType.S_NEG) || retVal.name.equals(SkillType.S_SCROUNGE)) {
-                retVal.countUp = false;
-                retVal.target = 10;
+                }
             }
+
+            lookupHash.put(retVal.name, retVal);
+        } catch (Exception ex) {
+            LogManager.getLogger().error(ex);
         }
-        lookupHash.put(retVal.name, retVal);
     }
-    
+
     public static void generateSeparateInstanceFromXML(Node wn, Hashtable<String, SkillType> hash) {
-        final String METHOD_NAME = "generateSeparateInstanceFromXML(Node,Hashtable<String, SkillType>)"; //$NON-NLS-1$
-
-        SkillType retVal = null;
-            
-        try {        
-            retVal = new SkillType();
+        try {
+            SkillType retVal = new SkillType();
             NodeList nl = wn.getChildNodes();
-                
-            for (int x=0; x<nl.getLength(); x++) {
+
+            for (int x = 0; x < nl.getLength(); x++) {
                 Node wn2 = nl.item(x);
                 if (wn2.getNodeName().equalsIgnoreCase("name")) {
                     retVal.name = wn2.getTextContent();
@@ -543,38 +444,21 @@ public class SkillType implements Serializable {
                 } else if (wn2.getNodeName().equalsIgnoreCase("eliteLvl")) {
                     retVal.eliteLvl = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("countUp")) {
-                    if(wn2.getTextContent().equalsIgnoreCase(("true"))) {
-                        retVal.countUp = true;
-                    } else {
-                        retVal.countUp = false;
-                    }
+                    retVal.countUp = Boolean.parseBoolean(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("costs")) {
                     String[] values = wn2.getTextContent().split(",");
-                    for(int i = 0; i < values.length; i++) {
+                    for (int i = 0; i < values.length; i++) {
                         retVal.costs[i] = Integer.parseInt(values[i]);
                     }
-                } 
-            }        
-        } catch (Exception ex) {
-            // Errrr, apparently either the class name was invalid...
-            // Or the listed name doesn't exist.
-            // Doh!
-            MekHQ.getLogger().error(SkillType.class, METHOD_NAME, ex);
-        }
-        hash.put(retVal.name, retVal);
-    }
-    
-    private String printCosts() {
-        String values = "";
-        for(int i = 0; i < costs.length; i++) {
-            values += Integer.toString(costs[i]);
-            if(i < 10) {
-                values += ",";
+                }
             }
+
+            hash.put(retVal.name, retVal);
+        } catch (Exception ex) {
+            LogManager.getLogger().error(ex);
         }
-        return values;
     }
-    
+
     public static SkillType createPilotingMech() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_MECH;
@@ -582,10 +466,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-        
+
         return skill;
     }
-    
+
     public static SkillType createGunneryMech() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_MECH;
@@ -593,10 +477,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingAero() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_AERO;
@@ -607,7 +491,7 @@ public class SkillType implements Serializable {
 
         return skill;
     }
-    
+
     public static SkillType createGunneryAero() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_AERO;
@@ -615,10 +499,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingJet() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_JET;
@@ -626,10 +510,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createGunneryJet() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_JET;
@@ -637,10 +521,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingSpace() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_SPACE;
@@ -648,10 +532,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createGunnerySpace() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_SPACE;
@@ -659,10 +543,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingGroundVee() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_GVEE;
@@ -670,10 +554,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingNavalVee() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_NVEE;
@@ -681,10 +565,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createPilotingVTOL() {
         SkillType skill = new SkillType();
         skill.name = S_PILOT_VTOL;
@@ -692,10 +576,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createGunneryVehicle() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_VEE;
@@ -703,10 +587,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createArtillery() {
         SkillType skill = new SkillType();
         skill.name = S_ARTILLERY;
@@ -714,10 +598,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createGunneryBA() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_BA;
@@ -725,10 +609,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createGunneryProto() {
         SkillType skill = new SkillType();
         skill.name = S_GUN_PROTO;
@@ -736,10 +620,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,8,8,8,8,8,8,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createSmallArms() {
         SkillType skill = new SkillType();
         skill.name = S_SMALL_ARMS;
@@ -747,10 +631,10 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createAntiMech() {
         SkillType skill = new SkillType();
         skill.name = S_ANTI_MECH;
@@ -758,67 +642,67 @@ public class SkillType implements Serializable {
         skill.greenLvl = 2;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,6,6,6,6,6,6,6,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTechMech() {
         SkillType skill = new SkillType();
         skill.name = S_TECH_MECH;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,0,6,6,6,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTechMechanic() {
         SkillType skill = new SkillType();
         skill.name = S_TECH_MECHANIC;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,0,6,6,6,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTechAero() {
         SkillType skill = new SkillType();
         skill.name = S_TECH_AERO;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,0,6,6,6,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTechBA() {
         SkillType skill = new SkillType();
         skill.name = S_TECH_BA;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,0,6,6,6,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTechVessel() {
         SkillType skill = new SkillType();
         skill.name = S_TECH_VESSEL;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,6,0,6,6,6,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createAstech() {
         SkillType skill = new SkillType();
         skill.name = S_ASTECH;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{12,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
 
@@ -828,87 +712,87 @@ public class SkillType implements Serializable {
         skill.target = 11;
         skill.countUp = false;
         skill.costs = new Integer[]{16,8,0,8,8,8,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createMedtech() {
         SkillType skill = new SkillType();
         skill.name = S_MEDTECH;
         skill.target = 11;
         skill.countUp = false;
         skill.costs = new Integer[]{16,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createNav() {
         SkillType skill = new SkillType();
         skill.name = S_NAV;
         skill.target = 8;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createTactics() {
         SkillType skill = new SkillType();
         skill.name = S_TACTICS;
         skill.target = 0;
         skill.countUp = true;
         skill.costs = new Integer[]{12,6,6,6,6,6,6,6,6,6,6};
-     
+
         return skill;
     }
-    
+
     public static SkillType createStrategy() {
         SkillType skill = new SkillType();
         skill.name = S_STRATEGY;
         skill.target = 0;
         skill.countUp = true;
         skill.costs = new Integer[]{12,6,6,6,6,6,6,6,6,6,6};
-     
+
         return skill;
     }
-    
+
     public static SkillType createAdmin() {
         SkillType skill = new SkillType();
         skill.name = S_ADMIN;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,0,4,4,4,-1,-1,-1,-1,-1};
-     
+
         return skill;
     }
-    
+
     public static SkillType createLeadership() {
         SkillType skill = new SkillType();
         skill.name = S_LEADER;
         skill.target = 0;
         skill.countUp = true;
         skill.costs = new Integer[]{12,6,6,6,6,6,6,6,6,6,6};
-     
+
         return skill;
     }
-    
+
     public static SkillType createNegotiation() {
         SkillType skill = new SkillType();
         skill.name = S_NEG;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,4,4};
-     
+
         return skill;
     }
-    
+
     public static SkillType createScrounge() {
         SkillType skill = new SkillType();
         skill.name = S_SCROUNGE;
         skill.target = 10;
         skill.countUp = false;
         skill.costs = new Integer[]{8,4,4,4,4,4,4,4,4,4,4};
-     
+
         return skill;
     }
 }

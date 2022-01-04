@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -42,7 +42,7 @@ cargobay:1.0:1:2
 1stclassquarters:0.0:0
 crewquarters:0.0:0
 steeragequarters:20.0:0
-battlearmorbay:3.0:1:1
+battlearmorbay:3.0:1:6
 </transporters>
 
 <SafeThrust>
@@ -108,6 +108,9 @@ ISERMediumLaser
 ISERMediumLaser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 9
 </structural_integrity>
@@ -159,4 +162,3 @@ TRO 3145 Draconis Combine - Late Republic
 <escape_pod>
 0
 </escape_pod>
-

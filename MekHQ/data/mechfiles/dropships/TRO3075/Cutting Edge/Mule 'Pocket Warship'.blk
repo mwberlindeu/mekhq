@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -40,7 +40,7 @@ Spheroid
 asfbay:6.0:1:1
 1stclassquarters:40.0:0
 crewquarters:126.0:0
-cargobay:371.5:1:2
+cargobay:371.5:1:4
 </transporters>
 
 <SafeThrust>
@@ -127,6 +127,9 @@ Medium Laser
 Medium Laser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 10
 </structural_integrity>
@@ -178,4 +181,3 @@ TRO 3075 - Jihad
 <escape_pod>
 2
 </escape_pod>
-

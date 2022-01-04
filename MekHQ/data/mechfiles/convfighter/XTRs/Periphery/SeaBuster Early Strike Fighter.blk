@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -80,7 +80,6 @@ Aerodyne
 
 <Nose Equipment>
 ISImprovedHeavyGaussRifle
-ISImprovedHeavyGauss Ammo
 ISReconCamera
 </Nose Equipment>
 
@@ -93,6 +92,13 @@ ISReconCamera
 <Aft Equipment>
 </Aft Equipment>
 
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+ISImprovedHeavyGauss Ammo
+</Fuselage Equipment>
+
 <source>
 XTRO Periphery - Jihad
 </source>
@@ -100,4 +106,3 @@ XTRO Periphery - Jihad
 <tonnage>
 50.0
 </tonnage>
-

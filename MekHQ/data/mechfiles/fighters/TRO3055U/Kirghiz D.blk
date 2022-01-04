@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -88,40 +88,35 @@ CLMediumPulseLaser:OMNI
 <Left Wing Equipment>
 CLATM12:OMNI
 CLATM12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-CLCASE
-CLCASE
-CLCASE
-CLCASE
-CLCASE
-CLCASE
 </Left Wing Equipment>
 
 <Right Wing Equipment>
 CLATM12:OMNI
 CLATM12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-Clan Ammo ATM-12:OMNI
-CLCASE
-CLCASE
-CLCASE
-CLCASE
-CLCASE
-CLCASE
 </Right Wing Equipment>
 
 <Aft Equipment>
 CLERSmallLaser:OMNI
 </Aft Equipment>
+
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+Clan Ammo ATM-12:OMNI
+CLCASE
+</Fuselage Equipment>
 
 <source>
 TRO 3055u - Civil War
@@ -130,4 +125,3 @@ TRO 3055u - Civil War
 <tonnage>
 100.0
 </tonnage>
-

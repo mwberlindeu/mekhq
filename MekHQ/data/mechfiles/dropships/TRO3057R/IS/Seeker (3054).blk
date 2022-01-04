@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -81,7 +81,6 @@ crewquarters:112.0:0
 </armor>
 
 <Nose Equipment>
-MASH core component
 </Nose Equipment>
 
 <Left Side Equipment>
@@ -109,6 +108,10 @@ MASH core component
 Medium Laser
 Medium Laser
 </Aft Equipment>
+
+<Hull Equipment>
+MASH Core Component
+</Hull Equipment>
 
 <structural_integrity>
 10
@@ -161,4 +164,3 @@ TRO 3057R - Clan Invasion
 <escape_pod>
 8
 </escape_pod>
-

@@ -1,7 +1,11 @@
 /*
  * MothballUnitAction.java
  *
+<<<<<<< HEAD
  * Copyright (c) 2019 Megamek Team. All rights reserved.
+=======
+ * Copyright (c) 2019 - The MegaMek Team. All Rights Reserved.
+>>>>>>> origin/master
  *
  * This file is part of MekHQ.
  *
@@ -12,6 +16,7 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
+<<<<<<< HEAD
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
@@ -25,18 +30,36 @@ import java.util.UUID;
 
 import megamek.common.annotations.Nullable;
 import mekhq.campaign.Campaign;
+=======
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
+ */
+package mekhq.campaign.unit.actions;
+
+import megamek.common.annotations.Nullable;
+import mekhq.campaign.Campaign;
+import mekhq.campaign.personnel.Person;
+>>>>>>> origin/master
 import mekhq.campaign.unit.Unit;
 
 /**
  * Mothballs a unit.
  */
 public class MothballUnitAction implements IUnitAction {
+<<<<<<< HEAD
 
     private final UUID techId;
+=======
+    private final Person tech;
+>>>>>>> origin/master
     private final boolean isGM;
 
     /**
      * Initializes a new instance of the MothballUnitAction class.
+<<<<<<< HEAD
      * @param techId The ID of the technician performing the work, or null
      *               if noone is needed to perform the work (self crewed or GM).
      * @param isGM A boolean value indicating whether or not GM mode should be used
@@ -44,10 +67,20 @@ public class MothballUnitAction implements IUnitAction {
      */
     public MothballUnitAction(@Nullable UUID techId, boolean isGM) {
         this.techId = techId;
+=======
+     * @param tech The ID of the technician performing the work, or null
+     *             if noone is needed to perform the work (self crewed or GM).
+     * @param isGM A boolean value indicating whether or not GM mode should be used
+     *             to complete the action.
+     */
+    public MothballUnitAction(@Nullable Person tech, boolean isGM) {
+        this.tech = tech;
+>>>>>>> origin/master
         this.isGM = isGM;
     }
 
     @Override
+<<<<<<< HEAD
     public void Execute(Campaign campaign, Unit unit) {
         if (isGM) {
             unit.startMothballing(null, true);
@@ -58,6 +91,17 @@ public class MothballUnitAction implements IUnitAction {
             }
 
             unit.startMothballing(techId);
+=======
+    public void execute(Campaign campaign, Unit unit) {
+        if (isGM) {
+            unit.startMothballing(null, true);
+        } else {
+            if (!unit.isSelfCrewed() && (null == tech)) {
+                return;
+            }
+
+            unit.startMothballing(tech);
+>>>>>>> origin/master
         }
     }
 }

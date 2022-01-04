@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -25,7 +25,7 @@ Excalibur
 </year>
 
 <originalBuildYear>
-0
+3056
 </originalBuildYear>
 
 <type>
@@ -124,6 +124,9 @@ ISMediumPulseLaser
 ISMediumPulseLaser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 14
 </structural_integrity>
@@ -175,4 +178,3 @@ TRO 3057R - Clan Invasion
 <escape_pod>
 25
 </escape_pod>
-

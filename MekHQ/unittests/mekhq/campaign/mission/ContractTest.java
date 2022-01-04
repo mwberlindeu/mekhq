@@ -12,26 +12,26 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.mission;
 
 import mekhq.campaign.Campaign;
 import mekhq.campaign.CampaignOptions;
 import mekhq.campaign.JumpPath;
+import mekhq.campaign.finances.Accountant;
 import mekhq.campaign.finances.Money;
-import mekhq.campaign.universe.Planet;
+import mekhq.campaign.universe.PlanetarySystem;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import java.util.Calendar;
-import java.util.GregorianCalendar;
+import java.time.LocalDate;
 
 import static org.mockito.Mockito.spy;
 
@@ -93,13 +93,13 @@ public class ContractTest {
     }
 
     @Test
-    public void testGetTotalAmountPlusFees(){
+    public void testGetTotalAmountPlusFees() {
         initializeTest();
         Assert.assertEquals(Money.of(190), contract.getTotalAmountPlusFees());
     }
 
     @Test
-    public void testGetAdvanceAmount(){
+    public void testGetAdvanceAmount() {
         initializeTest();
         Assert.assertEquals(Money.of(19), contract.getAdvanceAmount());
     }
@@ -111,7 +111,7 @@ public class ContractTest {
     }
 
     @Test
-    public void testGetMonthlyPayout(){
+    public void testGetMonthlyPayout() {
         initializeTest();
         Assert.assertEquals(Money.of(17.10), contract.getMonthlyPayOut());
     }
@@ -122,7 +122,7 @@ public class ContractTest {
         contract.calculateContract(mockCampaign);
     }
 
-    private void initContract(){
+    private void initContract() {
         contract = spy(new Contract());
 
         contract.setOverheadComp(2); // Full overhead compensation
@@ -137,7 +137,7 @@ public class ContractTest {
         contract.setMRBCFee(true);
         contract.setAdvancePct(10);
 
-        Mockito.when(contract.getPlanet()).thenReturn(new Planet());
+        Mockito.when(contract.getSystem()).thenReturn(new PlanetarySystem());
     }
 
     private void initCampaign() {
@@ -155,13 +155,16 @@ public class ContractTest {
         Money overHeadExpenses = Money.of(1);
         Money peacetimeCost = Money.of(1);
 
-        Mockito.when(mockCampaign.calculateJumpPath(Mockito.nullable(Planet.class), Mockito.nullable(Planet.class))).thenReturn(mockJumpPath);
+        Accountant mockAccountant = Mockito.mock(Accountant.class);
+        Mockito.when(mockAccountant.getOverheadExpenses()).thenReturn(overHeadExpenses);
+        Mockito.when(mockAccountant.getContractBase()).thenReturn(contractBase);
+        Mockito.when(mockAccountant.getPeacetimeCost()).thenReturn(peacetimeCost);
+
+        Mockito.when(mockCampaign.calculateJumpPath(Mockito.nullable(PlanetarySystem.class), Mockito.nullable(PlanetarySystem.class))).thenReturn(mockJumpPath);
         Mockito.when(mockCampaign.calculateCostPerJump(Mockito.anyBoolean(), Mockito.anyBoolean())).thenReturn(jumpCost);
         Mockito.when(mockCampaign.getUnitRatingMod()).thenReturn(10);
-        Mockito.when(mockCampaign.getOverheadExpenses()).thenReturn(overHeadExpenses);
-        Mockito.when(mockCampaign.getContractBase()).thenReturn(contractBase);
+        Mockito.when(mockCampaign.getAccountant()).thenReturn(mockAccountant);
         Mockito.when(mockCampaign.getCampaignOptions()).thenReturn(mockCampaignOptions);
-        Mockito.when(mockCampaign.getPeacetimeCost()).thenReturn(peacetimeCost);
-        Mockito.when(mockCampaign.getCalendar()).thenReturn(new GregorianCalendar(3067, Calendar.JANUARY, 1));
+        Mockito.when(mockCampaign.getLocalDate()).thenReturn(LocalDate.of(3067, 1, 1));
     }
 }

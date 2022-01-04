@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -74,11 +74,6 @@ Aerodyne
 CLHeavyMediumLaser
 CLHeavyMediumLaser
 CLStreakSRM6
-Clan Streak SRM 6 Ammo
-Clan Streak SRM 6 Ammo
-CLCASE
-CLCASE
-CLCASE
 </Nose Equipment>
 
 <Left Wing Equipment>
@@ -95,6 +90,15 @@ CLMediumPulseLaser
 CLERSmallLaser
 </Aft Equipment>
 
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+Clan Streak SRM 6 Ammo
+Clan Streak SRM 6 Ammo
+CLCASE
+</Fuselage Equipment>
+
 <source>
 RS Unique Fighters - Civil War
 </source>
@@ -102,4 +106,3 @@ RS Unique Fighters - Civil War
 <tonnage>
 55.0
 </tonnage>
-

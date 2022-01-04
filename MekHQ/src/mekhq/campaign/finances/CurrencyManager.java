@@ -12,27 +12,25 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.finances;
 
-import megamek.common.logging.LogLevel;
-import mekhq.MekHQ;
 import mekhq.MekHqXmlUtil;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.mission.AtBContract;
 import mekhq.campaign.mission.Contract;
 import mekhq.campaign.universe.Faction;
-import mekhq.campaign.universe.Planet;
+import mekhq.campaign.universe.Factions;
+import mekhq.campaign.universe.PlanetarySystem;
+import org.apache.logging.log4j.LogManager;
 import org.joda.money.CurrencyUnitDataProvider;
 import org.joda.money.format.MoneyFormatter;
 import org.joda.money.format.MoneyFormatterBuilder;
-import org.joda.time.DateTime;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -40,9 +38,8 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Set;
+import java.time.LocalDate;
+import java.util.*;
 
 /**
  * Main class used to handle all money and currency information.
@@ -51,15 +48,31 @@ import java.util.Set;
  * There should be only one instance of this class.
  *
  * @author Vicente Cartas Espinel <vicente.cartas at outlook.com>
- *
  */
 public class CurrencyManager extends CurrencyUnitDataProvider {
     private static final CurrencyManager instance = new CurrencyManager();
 
+    /** The last time the default currency was checked. */
+    private LocalDate lastChecked;
+
+    /**
+     * The last planetary system the campaign was on
+     * when the default currency was checked.
+     */
+    private PlanetarySystem lastSystem;
+
+    /**
+     * A cached default currency. This should be refreshed
+     * any time the date changes or the current location
+     * changes.
+     */
+    private Currency defaultCurrency;
+
     private Campaign campaign;
-    private ArrayList<Currency> currencies;
-    private HashMap<String, String> currencyCodeToNameMap;
-    private HashMap<String, String> currencyCodeToSymbolMap;
+
+    private List<Currency> currencies;
+    private Map<String, String> currencyCodeToNameMap;
+    private Map<String, String> currencyCodeToSymbolMap;
     private Currency backupCurrency;
 
     private MoneyFormatter xmlMoneyFormatter;
@@ -115,17 +128,32 @@ public class CurrencyManager extends CurrencyUnitDataProvider {
         return this.uiAmountAndNamePrinter;
     }
 
-    Currency getDefaultCurrency() {
-        if (campaign != null) {
-            HashMap<String, Currency> possibleCurrencies = new HashMap<>();
+    synchronized Currency getDefaultCurrency() {
+        if (this.campaign == null) {
+            return this.backupCurrency;
+        }
+
+        // Check if we need to update the default currency
+        // by comparing the campaign's current date and
+        // planetary system against our cached date and systems
+        LocalDate date = campaign.getLocalDate();
+        PlanetarySystem currentSystem = this.campaign.getCurrentSystem();
+        if ((lastChecked == null)
+                || this.lastChecked.isBefore(date)
+                || !Objects.equals(this.lastSystem, currentSystem)) {
+            this.lastChecked = date;
+            this.lastSystem = currentSystem;
+            this.defaultCurrency = this.backupCurrency;
+
+            Map<String, Currency> possibleCurrencies = new HashMap<>();
 
             // Use the default currency in this time period, if it exists
+            int year = date.getYear();
             for (Currency currency : this.currencies) {
-                if ((this.campaign.getGameYear() >= currency.getStartYear()) &&
-                        (this.campaign.getGameYear() <= currency.getEndYear())) {
+                if ((year >= currency.getStartYear()) && (year <= currency.getEndYear())) {
 
                     if (currency.getIsDefault()) {
-                        return currency;
+                        return defaultCurrency = currency;
                     }
 
                     possibleCurrencies.put(currency.getCode(), currency);
@@ -136,48 +164,40 @@ public class CurrencyManager extends CurrencyUnitDataProvider {
             for (Contract contract : this.campaign.getActiveContracts()) {
                 if (contract instanceof AtBContract) {
                     Currency currency = possibleCurrencies.getOrDefault(
-                            Faction.getFaction(((AtBContract)contract).getEmployerCode()).getCurrencyCode(),
+                            Factions.getInstance().getFaction(((AtBContract)contract).getEmployerCode()).getCurrencyCode(),
                             null);
 
                     if (currency != null) {
-                        return currency;
+                        return defaultCurrency = currency;
                     }
                 }
             }
 
             // Use the currency of one of the factions in the planet where the unit is deployed, if it exists
-            Planet planet = campaign.getCurrentPlanet();
-            if (planet != null) {
-                Set<Faction> factions = planet.getFactionSet(new DateTime(campaign.getDate()));
+            if (currentSystem != null) {
+                Set<Faction> factions = currentSystem.getFactionSet(date);
                 for (Faction faction : factions) {
                     Currency currency = possibleCurrencies.getOrDefault(faction.getCurrencyCode(), null);
                     if (currency != null) {
-                        return currency;
+                        return defaultCurrency = currency;
                     }
                 }
             }
         }
 
-        // No currency found, return the backup
-        return this.backupCurrency;
+        return defaultCurrency;
     }
 
     @Override
     protected void registerCurrencies() {
-        final String METHOD_NAME = "registerCurrencies()"; //$NON-NLS-1$
-
-        MekHQ.getLogger().log(
-                CurrencyManager.class,
-                METHOD_NAME,
-                LogLevel.INFO,
-                "Starting load currency information from XML..."); //$NON-NLS-1$
+        LogManager.getLogger().info("Starting load currency information from XML...");
 
         try {
             // Using factory get an instance of document builder
             DocumentBuilder db = MekHqXmlUtil.newSafeDocumentBuilder();
 
             // Parse using builder to get DOM representation of the XML file
-            try (FileInputStream xmlFile = new FileInputStream("data/universe/currencies.xml")){
+            try (FileInputStream xmlFile = new FileInputStream("data/universe/currencies.xml")) { // TODO : Remove inline file path
                 Document xmlDoc = db.parse(xmlFile);
 
                 Element root = xmlDoc.getDocumentElement();
@@ -227,7 +247,7 @@ public class CurrencyManager extends CurrencyUnitDataProvider {
 
                     // Adjust the currency start and end dates if needed by the
                     // start/end dates of the factions that use it
-                    for (Faction faction : Faction.getFactions()) {
+                    for (Faction faction : Factions.getInstance().getFactions()) {
                         if (faction.getCurrencyCode().equals(code)) {
                             if (faction.getStartYear() < startYear) {
                                 startYear = faction.getStartYear();
@@ -265,13 +285,9 @@ public class CurrencyManager extends CurrencyUnitDataProvider {
                 }
             }
 
-            MekHQ.getLogger().log(
-                    CurrencyManager.class,
-                    METHOD_NAME,
-                    LogLevel.INFO,
-                    "Load of currency information complete!"); //$NON-NLS-1$
+            LogManager.getLogger().info("Load of currency information complete!");
         } catch (Exception ex) {
-            MekHQ.getLogger().error(CurrencyManager.class, METHOD_NAME, ex);
+            LogManager.getLogger().error(ex);
         }
     }
 

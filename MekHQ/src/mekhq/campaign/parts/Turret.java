@@ -1,43 +1,37 @@
 /*
  * Turret.java
- * 
+ *
  * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.parts;
 
-import java.io.PrintWriter;
-
+import megamek.common.*;
+import mekhq.MekHqXmlUtil;
+import mekhq.campaign.Campaign;
 import mekhq.campaign.finances.Money;
+import mekhq.campaign.unit.Unit;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import megamek.common.CriticalSlot;
-import megamek.common.IArmorState;
-import megamek.common.Mounted;
-import megamek.common.Tank;
-import megamek.common.WeaponType;
-import mekhq.MekHqXmlUtil;
-import mekhq.campaign.Campaign;
-import mekhq.campaign.unit.Unit;
+import java.io.PrintWriter;
 
 /**
- *
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class Turret extends TankLocation {
@@ -47,13 +41,14 @@ public class Turret extends TankLocation {
     public Turret() {
         this(0, 0, null);
     }
-    
+
     public Turret(int loc, int tonnage, Campaign c) {
         super(loc, tonnage, c);
         weight = 0;
         this.name = "Turret";
     }
-    
+
+    @Override
     public Turret clone() {
         Turret clone = new Turret(0, getUnitTonnage(), weight, campaign);
         clone.copyBaseData(this);
@@ -62,13 +57,13 @@ public class Turret extends TankLocation {
         clone.breached = this.breached;
         return clone;
     }
-    
+
     public Turret(int loc, int tonnage, double weight, Campaign c) {
         super(loc, tonnage, c);
         this.weight = weight;
         this.name = "Turret";
     }
-    
+
     @Override
     public void setUnit(Unit u) {
         super.setUnit(u);
@@ -86,9 +81,9 @@ public class Turret extends TankLocation {
 
     @Override
     public boolean isSamePartType(Part part) {
-        return part instanceof Turret 
+        return part instanceof Turret
                 && getLoc() == ((Turret)part).getLoc()
-                && getTonnage() == ((Turret)part).getTonnage();
+                && getTonnage() == part.getTonnage();
     }
 
     @Override
@@ -113,15 +108,19 @@ public class Turret extends TankLocation {
     protected void loadFieldsFromXmlNode(Node wn) {
         NodeList nl = wn.getChildNodes();
 
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
 
-            if (wn2.getNodeName().equalsIgnoreCase("weight")) {
-                weight = Double.parseDouble(wn2.getTextContent());
-            } else if (wn2.getNodeName().equalsIgnoreCase("loc")) {
-                loc = Integer.parseInt(wn2.getTextContent());
-            } else if (wn2.getNodeName().equalsIgnoreCase("damage")) {
-                damage = Integer.parseInt(wn2.getTextContent());
+            try {
+                if (wn2.getNodeName().equalsIgnoreCase("weight")) {
+                    weight = Double.parseDouble(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("loc")) {
+                    loc = Integer.parseInt(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("damage")) {
+                    damage = Integer.parseInt(wn2.getTextContent());
+                }
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
             }
         }
     }
@@ -135,17 +134,17 @@ public class Turret extends TankLocation {
     public void remove(boolean salvage) {
         if(null != unit) {
             unit.getEntity().setInternal(IArmorState.ARMOR_DESTROYED, loc);
-            Part spare = campaign.checkForExistingSparePart(this);
+            Part spare = campaign.getWarehouse().checkForExistingSparePart(this);
             if(!salvage) {
-                campaign.removePart(this);
+                campaign.getWarehouse().removePart(this);
             } else if(null != spare) {
                 spare.incrementQuantity();
-                campaign.removePart(this);
+                campaign.getWarehouse().removePart(this);
             }
             unit.removePart(this);
             Part missing = getMissingPart();
             unit.addPart(missing);
-            campaign.addPart(missing, 0);
+            campaign.getQuartermaster().addPart(missing, 0);
             ((Tank)unit.getEntity()).unlockTurret();
         }
         setUnit(null);
@@ -214,7 +213,7 @@ public class Turret extends TankLocation {
             }
             if (slot.isRepairable()) {
                 return "You must scrap all equipment in the turret first";
-            } 
+            }
         }
         return null;
     }
@@ -226,7 +225,16 @@ public class Turret extends TankLocation {
 
     @Override
     public String getDetails() {
-        return weight + " tons, " + damage + " point(s) of damage";
+        return getDetails(true);
+    }
+
+    @Override
+    public String getDetails(boolean includeRepairDetails) {
+        String details = weight + " tons";
+        if (includeRepairDetails) {
+            details += ", " + damage + " point(s) of damage";
+        }
+        return details;
     }
 
     @Override

@@ -1,7 +1,7 @@
 /*
  * NewAtBContractDialog.java
  *
- * Copyright (c) 2014 Carl Spain. All rights reserved.
+ * Copyright (c) 2014 - Carl Spain. All rights reserved.
  *
  * This file is part of MekHQ.
  *
@@ -12,163 +12,154 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.gui.dialog;
 
-import java.awt.Dimension;
-import java.awt.GridBagConstraints;
+import megamek.client.ui.baseComponents.MMComboBox;
+import megamek.client.ui.preferences.JWindowPreference;
+import megamek.client.ui.preferences.PreferencesNode;
+import megamek.common.enums.SkillLevel;
+import mekhq.MekHQ;
+import mekhq.campaign.Campaign;
+import mekhq.campaign.finances.enums.TransactionType;
+import mekhq.campaign.mission.AtBContract;
+import mekhq.campaign.mission.enums.AtBContractType;
+import mekhq.campaign.rating.IUnitRating;
+import mekhq.campaign.stratcon.StratconContractDefinition;
+import mekhq.campaign.stratcon.StratconContractInitializer;
+import mekhq.campaign.universe.PlanetarySystem;
+import mekhq.campaign.universe.RandomFactionGenerator;
+import mekhq.campaign.universe.Systems;
+import mekhq.gui.FactionComboBox;
+import mekhq.gui.baseComponents.SortedComboBoxModel;
+import mekhq.gui.utilities.JSuggestField;
+import mekhq.gui.utilities.MarkdownEditorPanel;
+import org.apache.logging.log4j.LogManager;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.HashSet;
 import java.util.ResourceBundle;
 import java.util.Set;
 
-import javax.swing.BorderFactory;
-import javax.swing.JCheckBox;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JSpinner;
-import javax.swing.SpinnerNumberModel;
-
-import mekhq.MekHQ;
-import mekhq.Utilities;
-import mekhq.campaign.Campaign;
-import mekhq.campaign.finances.Transaction;
-import mekhq.campaign.mission.AtBContract;
-import mekhq.campaign.rating.IUnitRating;
-import mekhq.campaign.universe.Planet;
-import mekhq.campaign.universe.Planets;
-import mekhq.campaign.universe.RandomFactionGenerator;
-import mekhq.gui.FactionComboBox;
-import mekhq.gui.model.SortedComboBoxModel;
-import mekhq.gui.preferences.JWindowPreference;
-import mekhq.gui.utilities.JSuggestField;
-import mekhq.preferences.PreferencesNode;
-
 /**
  * @author Neoancient
- *
  */
-
 public class NewAtBContractDialog extends NewContractDialog {
+    private static final long serialVersionUID = 7965491540448120578L;
 
-    /**
-	 * 
-	 */
-	private static final long serialVersionUID = 7965491540448120578L;
-	
-	protected FactionComboBox cbEmployer;
-	protected FactionComboBox cbEnemy;
-	protected JCheckBox chkShowAllFactions;
-	protected JComboBox<String> cbPlanets;
-	protected JCheckBox chkShowAllPlanets;
-	protected JComboBox<String> cbMissionType;
-	protected JComboBox<String> cbAllySkill;
-	protected JComboBox<String> cbAllyQuality;
-	protected JComboBox<String> cbEnemySkill;
-	protected JComboBox<String> cbEnemyQuality;
-	protected JSpinner spnShares;
-	protected JLabel lblRequiredLances;
-	
-	Set<String> currentFactions;
-	Set<String> employerSet;
-	
-	int dragoonRating;
+    protected FactionComboBox cbEmployer;
+    protected FactionComboBox cbEnemy;
+    protected JCheckBox chkShowAllFactions;
+    protected JComboBox<String> cbPlanets;
+    protected JCheckBox chkShowAllPlanets;
+    protected MMComboBox<AtBContractType> comboContractType;
+    protected MMComboBox<SkillLevel> comboAllySkill;
+    protected JComboBox<String> cbAllyQuality;
+    protected MMComboBox<SkillLevel> comboEnemySkill;
+    protected JComboBox<String> cbEnemyQuality;
+    protected JSpinner spnShares;
+    protected JLabel lblRequiredLances;
 
-	public NewAtBContractDialog(java.awt.Frame parent, boolean modal, Campaign c) {
-		super(parent, modal, c);
-		setUserPreferences();
-	}
+    Set<String> currentFactions;
+    Set<String> employerSet;
+
+    int dragoonRating;
+
+    public NewAtBContractDialog(JFrame parent, boolean modal, Campaign c) {
+        super(parent, modal, c);
+        setUserPreferences();
+    }
 
     private void setUserPreferences() {
-        PreferencesNode preferences = MekHQ.getPreferences().forClass(NewAtBContractDialog.class);
-
-        this.setName("dialog");
+        PreferencesNode preferences = MekHQ.getPreferences().forClass(getClass());
+        setName("NewAtBContractDialog");
         preferences.manage(new JWindowPreference(this));
     }
 
-	@Override
-	protected void initComponents() {
-		currentFactions = RandomFactionGenerator.getInstance().getCurrentFactions();
-		employerSet = RandomFactionGenerator.getInstance().getEmployerSet();
-    	contract = new AtBContract("New Contract");
+    @Override
+    protected void initComponents() {
+        currentFactions = RandomFactionGenerator.getInstance().getCurrentFactions();
+        employerSet = RandomFactionGenerator.getInstance().getEmployerSet();
+        contract = new AtBContract("New Contract");
         contract.calculateContract(campaign);
-        ((AtBContract)contract).initContractDetails(campaign);
-    	IUnitRating rating = campaign.getUnitRating();
-    	dragoonRating = rating.getUnitRatingAsInteger();
-    	super.initComponents();
-        
+        ((AtBContract) contract).initContractDetails(campaign);
+        IUnitRating rating = campaign.getUnitRating();
+        dragoonRating = rating.getUnitRatingAsInteger();
+        super.initComponents();
+
         updateEnemies();
         updatePlanets();
 
         if (getCurrentEmployerCode() != null) {
-        	((AtBContract)contract).setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
+            ((AtBContract)contract).setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
         }
-        
+
         if (getCurrentEnemyCode() != null) {
-        	((AtBContract)contract).setEnemyCode(getCurrentEnemyCode());
+            ((AtBContract)contract).setEnemyCode(getCurrentEnemyCode());
         }
-        
-        
-        if(cbPlanets.getSelectedItem() != null) {
-            ((AtBContract) contract).setPlanetId((Planets.getInstance().getPlanetByName((String) cbPlanets.getSelectedItem(),
-                    Utilities.getDateTimeDay(campaign.getCalendar()))).getId());
+
+
+        if (cbPlanets.getSelectedItem() != null) {
+            contract.setSystemId((Systems.getInstance().getSystemByName((String) cbPlanets.getSelectedItem(),
+                    campaign.getLocalDate())).getId());
         }
-        
-        
+
         spnMultiplier.setModel(new SpinnerNumberModel(contract.getMultiplier(), 0.1, 10.0, 0.1));
         updatePaymentMultiplier();
         contract.calculateContract(campaign);
         this.doUpdateContract(cbPlanets);
-        
+
         addAllListeners();
-	}
-	
-	@Override
-	protected void initDescPanel(ResourceBundle resourceMap, JPanel descPanel) {
-		AtBContract contract = (AtBContract)(this.contract);
-		
-		java.awt.GridBagConstraints gbc;
-		txtName = new javax.swing.JTextField();
+    }
+
+    @Override
+    protected void initDescPanel(ResourceBundle resourceMap, JPanel descPanel) {
+        AtBContract contract = (AtBContract)(this.contract);
+
+        java.awt.GridBagConstraints gbc;
+        txtName = new JTextField();
         JLabel lblName = new JLabel();
         cbEmployer = new FactionComboBox();
         cbEmployer.addFactionEntries(employerSet, campaign.getGameYear());
         JLabel lblEmployer = new JLabel();
-		cbEnemy = new FactionComboBox();
+        cbEnemy = new FactionComboBox();
         JLabel lblEnemy = new JLabel();
-    	chkShowAllFactions = new JCheckBox();
-    	cbPlanets = new JComboBox<String>();
-    	cbPlanets.setModel(new SortedComboBoxModel<String>());
-    	chkShowAllPlanets = new JCheckBox();
-    	cbMissionType = new JComboBox<String>(AtBContract.missionTypeNames);
+        chkShowAllFactions = new JCheckBox();
+        cbPlanets = new JComboBox<>();
+        cbPlanets.setModel(new SortedComboBoxModel<>());
+        chkShowAllPlanets = new JCheckBox();
         JLabel lblType = new JLabel();
-        btnOK = new javax.swing.JButton();
-        btnClose = new javax.swing.JButton();
-        JScrollPane scrDesc = new JScrollPane();
-        txtDesc = new javax.swing.JTextArea();
+        btnOK = new JButton();
+        btnClose = new JButton();
+        txtDesc = new MarkdownEditorPanel();
         JLabel lblPlanetName = new JLabel();
-        String[] skillNames = {"Green", "Regular", "Veteran", "Elite"};
+        // TODO : Switch me to use IUnitRating
         String[] ratingNames = {"F", "D", "C", "B", "A"};
-    	cbAllySkill = new JComboBox<String>(skillNames);
-    	cbAllyQuality = new JComboBox<String>(ratingNames);
+
+        final DefaultComboBoxModel<SkillLevel> allySkillModel = new DefaultComboBoxModel<>();
+        allySkillModel.addAll(SkillLevel.getGeneratableValues());
+        comboAllySkill = new MMComboBox<>("comboAllySkill", allySkillModel);
+        cbAllyQuality = new JComboBox<>(ratingNames);
         JLabel lblAllyRating = new JLabel();
-    	cbEnemySkill = new JComboBox<String>(skillNames);
-    	cbEnemyQuality = new JComboBox<String>(ratingNames);;
+        final DefaultComboBoxModel<SkillLevel> enemySkillModel = new DefaultComboBoxModel<>();
+        enemySkillModel.addAll(SkillLevel.getGeneratableValues());
+        comboEnemySkill = new MMComboBox<>("comboEnemySkill", enemySkillModel);
+        cbEnemyQuality = new JComboBox<>(ratingNames);
         JLabel lblEnemyRating = new JLabel();
         JLabel lblShares = new JLabel();
         spnShares = new JSpinner(new SpinnerNumberModel(20, 20, 50, 10));
-    	lblRequiredLances = new JLabel();
-   	
-    	int y = 0;
-          
+        lblRequiredLances = new JLabel();
+
+        int y = 0;
+
         lblName.setText(resourceMap.getString("lblName.text")); // NOI18N
         lblName.setName("lblName"); // NOI18N
         gbc = new GridBagConstraints();
@@ -178,10 +169,10 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblName, gbc);
-        
+
         txtName.setText(contract.getName());
         txtName.setName("txtName"); // NOI18N
-        
+
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
@@ -189,30 +180,29 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(txtName, gbc);
-        
-        if (campaign.getFactionCode().equals("MERC")) {
-        	lblEmployer.setText(resourceMap.getString("lblEmployer.text")); // NOI18N
-        	lblEmployer.setName("lblEmployer"); // NOI18N
-        	gbc.gridx = 0;
-        	gbc.gridy = y;
-        	gbc.gridwidth = 1;
-        	gbc.anchor = java.awt.GridBagConstraints.WEST;
-        	gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        	descPanel.add(lblEmployer, gbc);
 
-//        	cbEmployer.setSelectedIndex(0);
-        	gbc.gridx = 1;
-        	gbc.gridy = y++;
-        	gbc.gridwidth = 2;
-        	gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
-        	gbc.anchor = java.awt.GridBagConstraints.WEST;
-        	gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        	descPanel.add(cbEmployer, gbc);
+        if (campaign.getFactionCode().equals("MERC")) {
+            lblEmployer.setText(resourceMap.getString("lblEmployer.text"));
+            lblEmployer.setName("lblEmployer");
+            gbc.gridx = 0;
+            gbc.gridy = y;
+            gbc.gridwidth = 1;
+            gbc.anchor = java.awt.GridBagConstraints.WEST;
+            gbc.insets = new java.awt.Insets(5, 5, 5, 5);
+            descPanel.add(lblEmployer, gbc);
+
+            gbc.gridx = 1;
+            gbc.gridy = y++;
+            gbc.gridwidth = 2;
+            gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
+            gbc.anchor = java.awt.GridBagConstraints.WEST;
+            gbc.insets = new java.awt.Insets(5, 5, 5, 5);
+            descPanel.add(cbEmployer, gbc);
         }
 
-        lblEnemy.setText(resourceMap.getString("lblEnemy.text")); // NOI18N
-        lblEnemy.setName("lblEnemy"); // NOI18N
-        
+        lblEnemy.setText(resourceMap.getString("lblEnemy.text"));
+        lblEnemy.setName("lblEnemy");
+
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 1;
@@ -220,7 +210,7 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblEnemy, gbc);
 
-        
+
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
@@ -228,11 +218,11 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(cbEnemy, gbc);
- 
+
         chkShowAllFactions.setText(resourceMap.getString("chkShowAllFactions.text"));
         chkShowAllFactions.setName("chkShowAllFactions");
         chkShowAllFactions.setSelected(false);
-        
+
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
@@ -241,22 +231,22 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(chkShowAllFactions, gbc);
         chkShowAllFactions.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				showAllFactions(chkShowAllFactions.isSelected());
-			}
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                showAllFactions(chkShowAllFactions.isSelected());
+            }
         });
- 
+
         lblPlanetName.setText(resourceMap.getString("lblPlanetName.text")); // NOI18N
-        lblPlanetName.setName("lblPlanetName"); // NOI18N        
+        lblPlanetName.setName("lblPlanetName"); // NOI18N
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 1;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblPlanetName, gbc);
-        
-        suggestPlanet = new JSuggestField(this, campaign.getPlanetNames());       
+
+        suggestPlanet = new JSuggestField(this, campaign.getSystemNames());
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
@@ -266,11 +256,11 @@ public class NewAtBContractDialog extends NewContractDialog {
         descPanel.add(suggestPlanet, gbc);
         descPanel.add(cbPlanets, gbc);
         suggestPlanet.setVisible(false);
-        
+
         chkShowAllPlanets.setText(resourceMap.getString("chkShowAllPlanets.text"));
         chkShowAllPlanets.setName("chkShowAllPlanets");
         chkShowAllPlanets.setSelected(false);
-        
+
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
@@ -279,45 +269,57 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(chkShowAllPlanets, gbc);
         chkShowAllPlanets.addActionListener(new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent arg0) {
-				showAllPlanets(chkShowAllPlanets.isSelected());
-			}
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                showAllPlanets(chkShowAllPlanets.isSelected());
+            }
         });
 
         lblType.setText(resourceMap.getString("lblType.text")); // NOI18N
         lblType.setName("lblType"); // NOI18N
-        
+
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 1;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblType, gbc);
-        
-        cbMissionType.setSelectedItem(contract.getMissionTypeName());
-        cbMissionType.setName("cbMissionType"); // NOI18N
-        
+
+        comboContractType = new MMComboBox<>("comboContractType", AtBContractType.values());
+        comboContractType.setSelectedItem(contract.getContractType());
+        comboContractType.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(final JList<?> list, final Object value,
+                                                          final int index, final boolean isSelected,
+                                                          final boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                if (value instanceof AtBContractType) {
+                    list.setToolTipText(((AtBContractType) value).getToolTipText());
+                }
+                return this;
+            }
+        });
+
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 2;
         gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        descPanel.add(cbMissionType, gbc);
-         
+        descPanel.add(comboContractType, gbc);
+
         lblAllyRating.setText(resourceMap.getString("lblAllyRating.text")); // NOI18N
         lblEnemy.setName("lblAllyRating"); // NOI18N
-        
+
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 1;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblAllyRating, gbc);
-        
-		cbAllySkill.setSelectedIndex(contract.getAllySkill());
-        
+
+        comboAllySkill.setSelectedItem(contract.getAllySkill());
+
         gbc.gridx = 1;
         gbc.gridy = y;
         gbc.gridwidth = 1;
@@ -325,9 +327,9 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        descPanel.add(cbAllySkill, gbc);
+        descPanel.add(comboAllySkill, gbc);
 
-		cbAllyQuality.setSelectedIndex(contract.getAllyQuality());        
+        cbAllyQuality.setSelectedIndex(contract.getAllyQuality());
         gbc.gridx = 2;
         gbc.gridy = y++;
         gbc.gridwidth = 1;
@@ -337,15 +339,15 @@ public class NewAtBContractDialog extends NewContractDialog {
         descPanel.add(cbAllyQuality, gbc);
 
         lblEnemyRating.setText(resourceMap.getString("lblEnemyRating.text")); // NOI18N
-        lblEnemyRating.setName("lblAllyRating"); // NOI18N        
+        lblEnemyRating.setName("lblAllyRating"); // NOI18N
         gbc.gridx = 0;
         gbc.gridy = y;
         gbc.gridwidth = 1;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblEnemyRating, gbc);
-        
-		cbEnemySkill.setSelectedIndex(contract.getEnemySkill());        
+
+        comboEnemySkill.setSelectedItem(contract.getEnemySkill());
         gbc.gridx = 1;
         gbc.gridy = y;
         gbc.gridwidth = 1;
@@ -353,9 +355,9 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.fill = java.awt.GridBagConstraints.HORIZONTAL;
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
-        descPanel.add(cbEnemySkill, gbc);
+        descPanel.add(comboEnemySkill, gbc);
 
-		cbEnemyQuality.setSelectedIndex(contract.getEnemyQuality());        
+        cbEnemyQuality.setSelectedIndex(contract.getEnemyQuality());
         gbc.gridx = 2;
         gbc.gridy = y++;
         gbc.gridwidth = 1;
@@ -372,8 +374,8 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(lblShares, gbc);
-        
-        spnShares.setName("spnShares"); // NOI18N        
+
+        spnShares.setName("spnShares"); // NOI18N
         gbc.gridx = 1;
         gbc.gridy = y++;
         gbc.gridwidth = 1;
@@ -381,19 +383,10 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.anchor = java.awt.GridBagConstraints.WEST;
         gbc.insets = new java.awt.Insets(5, 5, 5, 5);
         descPanel.add(spnShares, gbc);
-         
-        txtDesc.setText(contract.getDescription());
-        txtDesc.setName("txtDesc");
-        txtDesc.setEditable(true);
-        txtDesc.setLineWrap(true);
-        txtDesc.setWrapStyleWord(true);
-        txtDesc.setBorder(BorderFactory.createCompoundBorder(
-	   			 BorderFactory.createTitledBorder(resourceMap.getString("txtDesc.title")),
-	   			 BorderFactory.createEmptyBorder(5,5,5,5)));
-        scrDesc.setViewportView(txtDesc);
-        scrDesc.setPreferredSize(new Dimension(400, 200));
-        scrDesc.setMinimumSize(new Dimension(400, 200));
-        
+
+        txtDesc.setText(contract.getDescription());;;
+        txtDesc.setPreferredSize(new Dimension(400, 200));
+        txtDesc.setMinimumSize(new Dimension(400, 200));
         gbc.gridx = 0;
         gbc.gridy = y++;
         gbc.gridwidth = 3;
@@ -401,211 +394,220 @@ public class NewAtBContractDialog extends NewContractDialog {
         gbc.weighty = 1.0;
         gbc.fill = java.awt.GridBagConstraints.BOTH;
         gbc.anchor = java.awt.GridBagConstraints.NORTHWEST;
-        gbc.insets = new java.awt.Insets(5, 5, 0, 0);
-        descPanel.add(scrDesc, gbc);
-	}
-	
-	private void addAllListeners() {
+        gbc.insets = new java.awt.Insets(5, 5, 5, 5);
+        descPanel.add(txtDesc, gbc);
+    }
+
+    private void addAllListeners() {
         cbPlanets.addActionListener(contractUpdateActionListener);
-		cbMissionType.addActionListener(contractUpdateActionListener);
+        comboContractType.addActionListener(contractUpdateActionListener);
         cbEmployer.addActionListener(contractUpdateActionListener);
-	    cbEnemy.addActionListener(contractUpdateActionListener);
-        cbAllySkill.addActionListener(contractUpdateActionListener);
+        cbEnemy.addActionListener(contractUpdateActionListener);
+        comboAllySkill.addActionListener(contractUpdateActionListener);
         cbAllyQuality.addActionListener(contractUpdateActionListener);
-        cbEnemySkill.addActionListener(contractUpdateActionListener);
+        comboEnemySkill.addActionListener(contractUpdateActionListener);
         cbEnemyQuality.addActionListener(contractUpdateActionListener);
         suggestPlanet.addFocusListener(contractUpdateFocusListener);
         suggestPlanet.addActionListener(contractUpdateActionListener);
-	}
-	
-	private void removeAllListeners() {
+    }
+
+    private void removeAllListeners() {
         cbPlanets.removeActionListener(contractUpdateActionListener);
-		cbMissionType.removeActionListener(contractUpdateActionListener);
+        comboContractType.removeActionListener(contractUpdateActionListener);
         cbEmployer.removeActionListener(contractUpdateActionListener);
-	    cbEnemy.removeActionListener(contractUpdateActionListener);
-        cbAllySkill.removeActionListener(contractUpdateActionListener);
+        cbEnemy.removeActionListener(contractUpdateActionListener);
+        comboAllySkill.removeActionListener(contractUpdateActionListener);
         cbAllyQuality.removeActionListener(contractUpdateActionListener);
-        cbEnemySkill.removeActionListener(contractUpdateActionListener);
+        comboEnemySkill.removeActionListener(contractUpdateActionListener);
         cbEnemyQuality.removeActionListener(contractUpdateActionListener);
         suggestPlanet.removeFocusListener(contractUpdateFocusListener);
         suggestPlanet.removeActionListener(contractUpdateActionListener);
-	}
-	
-	private String getCurrentEmployerCode() {
-		if (campaign.getFactionCode().equals("MERC")) {
-			return cbEmployer.getSelectedItemKey();
-		} else {
-			return campaign.getFactionCode();
-		}
-	}
-	
-	private String getCurrentEnemyCode() {
-		return cbEnemy.getSelectedItemKey();
-	}
-	
-	private void updateEnemies() {
-		if (chkShowAllFactions.isSelected()) {
-			return;
-		}
-		cbEnemy.removeAllItems();
-		if (getCurrentEmployerCode() == null) {
-			return;
-		}
-		cbEnemy.addFactionEntries(RandomFactionGenerator.getInstance().
-				getEnemyList(getCurrentEmployerCode()), campaign.getGameYear());
-		cbEnemy.setSelectedItemByKey(((AtBContract)contract).getEnemyCode());
-	}
-	
-	private void showAllFactions(boolean show) {
-		removeAllListeners();
-		
-		if (show) {
-			cbEmployer.removeAllItems();
-			cbEnemy.removeAllItems();
-			cbEmployer.addFactionEntries(currentFactions, campaign.getGameYear());
-			cbEnemy.addFactionEntries(currentFactions, campaign.getGameYear());
-			cbEmployer.setSelectedItemByKey(((AtBContract)contract).getEmployerCode());
-			cbEnemy.setSelectedItemByKey(((AtBContract)contract).getEnemyCode());
-		} else {
-			cbEmployer.removeAllItems();
-			cbEmployer.addFactionEntries(employerSet, campaign.getGameYear());
-			cbEmployer.setSelectedItemByKey(((AtBContract)contract).getEmployerCode());
-			updateEnemies();
-		}
-		addAllListeners();
-	}
-	
-	private void showAllPlanets(boolean show) {
-		removeAllListeners();
-		updatePlanets();
-		suggestPlanet.setVisible(show);
-		cbPlanets.setVisible(!show);		
-		addAllListeners();
-	}
-	
-	private void updatePlanets() {
-		if (chkShowAllPlanets.isSelected() ||
-				getCurrentEmployerCode() == null ||
-				getCurrentEnemyCode()== null) {
-			return;
-		}
-		AtBContract contract = (AtBContract)this.contract;
-		HashSet<String> planets = new HashSet<String>();
-		if (contract.getMissionType() >= AtBContract.MT_PLANETARYASSAULT ||
-				getCurrentEnemyCode().equals("REB") ||
-				getCurrentEnemyCode().equals("PIR")) {
-			for (Planet p : RandomFactionGenerator.getInstance().
-					getMissionTargetList(getCurrentEmployerCode(), getCurrentEnemyCode())) {
-				planets.add(p.getName(Utilities.getDateTimeDay(campaign.getCalendar())));
-			}
-		}
-		if ((contract.getMissionType() < AtBContract.MT_PLANETARYASSAULT ||
-				contract.getMissionType() == AtBContract.MT_RELIEFDUTY) &&
-				!contract.getEnemyCode().equals("REB")) {
-			for (Planet p : RandomFactionGenerator.getInstance().
-					getMissionTargetList(getCurrentEnemyCode(), getCurrentEmployerCode())) {
-				planets.add(p.getName(Utilities.getDateTimeDay(campaign.getCalendar())));
-			}
-		}
-		cbPlanets.removeAllItems();
-		for (String planet : planets) {
-			cbPlanets.addItem(planet);
-		}
-	}
+    }
 
-	protected void updatePaymentMultiplier() {
-    	if (((AtBContract)contract).getEmployerCode() != null &&
-    			((AtBContract)contract).getEnemyCode() != null) {
-    		((AtBContract)contract).calculatePaymentMultiplier(campaign);
-    		spnMultiplier.setValue(contract.getMultiplier());
-    	}
-	}
+    private String getCurrentEmployerCode() {
+        if (campaign.getFactionCode().equals("MERC")) {
+            return cbEmployer.getSelectedItemKey();
+        } else {
+            return campaign.getFactionCode();
+        }
+    }
 
-	@Override
-	protected void btnOKActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnHireActionPerformed
+    private String getCurrentEnemyCode() {
+        return cbEnemy.getSelectedItemKey();
+    }
+
+    private void updateEnemies() {
+        if (chkShowAllFactions.isSelected()) {
+            return;
+        }
+        cbEnemy.removeAllItems();
+        if (getCurrentEmployerCode() == null) {
+            return;
+        }
+        cbEnemy.addFactionEntries(RandomFactionGenerator.getInstance().
+                getEnemyList(getCurrentEmployerCode()), campaign.getGameYear());
+        cbEnemy.setSelectedItemByKey(((AtBContract) contract).getEnemyCode());
+    }
+
+    private void showAllFactions(boolean show) {
+        removeAllListeners();
+
+        if (show) {
+            cbEmployer.removeAllItems();
+            cbEnemy.removeAllItems();
+            cbEmployer.addFactionEntries(currentFactions, campaign.getGameYear());
+            cbEnemy.addFactionEntries(currentFactions, campaign.getGameYear());
+            cbEmployer.setSelectedItemByKey(((AtBContract) contract).getEmployerCode());
+            cbEnemy.setSelectedItemByKey(((AtBContract) contract).getEnemyCode());
+        } else {
+            cbEmployer.removeAllItems();
+            cbEmployer.addFactionEntries(employerSet, campaign.getGameYear());
+            cbEmployer.setSelectedItemByKey(((AtBContract) contract).getEmployerCode());
+            updateEnemies();
+        }
+        addAllListeners();
+    }
+
+    private void showAllPlanets(boolean show) {
+        removeAllListeners();
+        updatePlanets();
+        suggestPlanet.setVisible(show);
+        cbPlanets.setVisible(!show);
+        addAllListeners();
+    }
+
+    private void updatePlanets() {
+        if (chkShowAllPlanets.isSelected() ||
+                getCurrentEmployerCode() == null ||
+                getCurrentEnemyCode()== null) {
+            return;
+        }
+        AtBContract contract = (AtBContract) this.contract;
+        HashSet<String> systems = new HashSet<>();
+        if (!contract.getContractType().isGarrisonType()
+                || getCurrentEnemyCode().equals("REB") || getCurrentEnemyCode().equals("PIR")) {
+            for (PlanetarySystem p : RandomFactionGenerator.getInstance().
+                    getMissionTargetList(getCurrentEmployerCode(), getCurrentEnemyCode())) {
+                systems.add(p.getName(campaign.getLocalDate()));
+            }
+        }
+
+        if ((contract.getContractType().isGarrisonType() || contract.getContractType().isReliefDuty())
+                && !contract.getEnemyCode().equals("REB")) {
+            for (PlanetarySystem p : RandomFactionGenerator.getInstance().
+                    getMissionTargetList(getCurrentEnemyCode(), getCurrentEmployerCode())) {
+                systems.add(p.getName(campaign.getLocalDate()));
+            }
+        }
+
+        cbPlanets.removeAllItems();
+        for (String system : systems) {
+            cbPlanets.addItem(system);
+        }
+    }
+
+    protected void updatePaymentMultiplier() {
+        if (((AtBContract)contract).getEmployerCode() != null &&
+                ((AtBContract)contract).getEnemyCode() != null) {
+            ((AtBContract)contract).calculatePaymentMultiplier(campaign);
+            spnMultiplier.setValue(contract.getMultiplier());
+        }
+    }
+
+    @Override
+    protected void btnOKActionPerformed(ActionEvent evt) {//GEN-FIRST:event_btnHireActionPerformed
         if (!btnOK.equals(evt.getSource())) {
             return;
         }
-        
+
         AtBContract contract = (AtBContract)this.contract;
 
-    	contract.setName(txtName.getText());
-		if (chkShowAllPlanets.isSelected()) {
-	    	//contract.setPlanetName(suggestPlanet.getText());
-		} else {
-            contract.setPlanetId((Planets.getInstance().getPlanetByName((String) cbPlanets.getSelectedItem(),
-                    Utilities.getDateTimeDay(campaign.getCalendar()))).getId());
-		}
-    	contract.setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
-    	contract.setMissionType(cbMissionType.getSelectedIndex());
-    	contract.setDesc(txtDesc.getText());
-    	contract.setCommandRights(choiceCommand.getSelectedIndex());
-    	
-    	contract.setEnemyCode(getCurrentEnemyCode());
-    	contract.setAllySkill(cbAllySkill.getSelectedIndex());
-    	contract.setAllyQuality(cbAllyQuality.getSelectedIndex());
-    	contract.setEnemySkill(cbEnemySkill.getSelectedIndex());
-    	contract.setEnemyQuality(cbEnemyQuality.getSelectedIndex());
-    	contract.setAllyBotName(contract.getEmployerName(campaign.getGameYear()));
-    	contract.setEnemyBotName(contract.getEnemyName(campaign.getGameYear()));
-    	contract.setSharesPct((Integer)spnShares.getValue());
-    	
-    	contract.calculatePartsAvailabilityLevel(campaign);
-   	
-    	campaign.getFinances().credit(contract.getTotalAdvanceAmount(), Transaction.C_CONTRACT, "Advance monies for " + contract.getName(), campaign.getCalendar().getTime());
-    	campaign.addMission(contract);
-    	this.setVisible(false);
+        contract.setName(txtName.getText());
+        if (chkShowAllPlanets.isSelected()) {
+            //contract.setPlanetName(suggestPlanet.getText());
+        } else {
+            contract.setSystemId((Systems.getInstance().getSystemByName((String) cbPlanets.getSelectedItem(),
+                    campaign.getLocalDate())).getId());
+        }
+        contract.setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
+        contract.setContractType(comboContractType.getSelectedItem());
+        contract.setDesc(txtDesc.getText());
+        contract.setCommandRights(choiceCommand.getSelectedItem());
+
+        contract.setEnemyCode(getCurrentEnemyCode());
+        contract.setAllySkill(comboAllySkill.getSelectedItem());
+        contract.setAllyQuality(cbAllyQuality.getSelectedIndex());
+        contract.setEnemySkill(comboEnemySkill.getSelectedItem());
+        contract.setEnemyQuality(cbEnemyQuality.getSelectedIndex());
+        contract.setAllyBotName(contract.getEmployerName(campaign.getGameYear()));
+        contract.setEnemyBotName(contract.getEnemyName(campaign.getGameYear()));
+        contract.setSharesPct((Integer)spnShares.getValue());
+
+        contract.setPartsAvailabilityLevel(contract.getContractType().calculatePartsAvailabilityLevel());
+
+        campaign.getFinances().credit(TransactionType.CONTRACT_PAYMENT, campaign.getLocalDate(),
+                contract.getTotalAdvanceAmount(), "Advance funds for " + contract.getName());
+        campaign.addMission(contract);
+
+        // note that the contract must be initialized after the mission is added to the campaign
+        // to ensure presence of mission ID
+        if (campaign.getCampaignOptions().getUseStratCon()) {
+            StratconContractInitializer.initializeCampaignState(contract, campaign,
+                    StratconContractDefinition.getContractDefinition(contract.getContractType()));
+        }
+
+        setVisible(false);
     }
-    
+
     @Override
     protected void doUpdateContract(Object source) {
-		removeAllListeners();
-		
-		boolean needUpdatePayment = false;
-    	AtBContract contract = (AtBContract)this.contract;
+        removeAllListeners();
+
+        boolean needUpdatePayment = false;
+        AtBContract contract = (AtBContract) this.contract;
         if (cbPlanets.equals(source) && null != cbPlanets.getSelectedItem()) {
-            contract.setPlanetId((Planets.getInstance().getPlanetByName((String) cbPlanets.getSelectedItem(),
-                    Utilities.getDateTimeDay(campaign.getCalendar()))).getId());
+            contract.setSystemId((Systems.getInstance().getSystemByName((String) cbPlanets.getSelectedItem(),
+                    campaign.getLocalDate())).getId());
             //reset the start date as null so we recalculate travel time
             contract.setStartDate(null);
             needUpdatePayment = true;
         } else if (source.equals(cbEmployer)) {
-        	System.out.println("Setting employer code to " + getCurrentEmployerCode());
-        	long time = System.currentTimeMillis();
-    		contract.setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
-    		System.out.println("to set employer code: " + (System.currentTimeMillis() - time));
-        	time = System.currentTimeMillis();
-    		updateEnemies();
-    		System.out.println("to update enemies: " + (System.currentTimeMillis() - time));
-        	time = System.currentTimeMillis();
-    		updatePlanets();
-    		System.out.println("to update planets: " + (System.currentTimeMillis() - time));
-    		needUpdatePayment = true;
-     	} else if (source.equals(cbEnemy)) {
-    		contract.setEnemyCode(getCurrentEnemyCode());
-    		updatePlanets();
-    		needUpdatePayment = true;
-    	} else if (source.equals(cbMissionType)) {
-    		contract.setMissionType(cbMissionType.getSelectedIndex());
-    		contract.calculateLength(campaign.getCampaignOptions().getVariableContractLength());
-    		spnLength.setValue(contract.getLength());
-    		updatePlanets();
-    		needUpdatePayment = true;
-    	} else if (source.equals(cbAllySkill)) {
-    		contract.setAllySkill(cbAllySkill.getSelectedIndex());
-    	} else if (source.equals(cbAllyQuality)) {
-    		contract.setAllyQuality(cbAllyQuality.getSelectedIndex());
-    	} else if (source.equals(cbEnemySkill)) {
-    		contract.setEnemySkill(cbEnemySkill.getSelectedIndex());
-    	} else if (source.equals(cbEnemyQuality)) {
-    		contract.setEnemyQuality(cbEnemyQuality.getSelectedIndex());
-    	}
-    	
-    	if (needUpdatePayment) {
+            LogManager.getLogger().info("Setting employer code to " + getCurrentEmployerCode());
+            long time = System.currentTimeMillis();
+            contract.setEmployerCode(getCurrentEmployerCode(), campaign.getGameYear());
+            LogManager.getLogger().info("to set employer code: " + (System.currentTimeMillis() - time));
+            time = System.currentTimeMillis();
+            updateEnemies();
+            LogManager.getLogger().info("to update enemies: " + (System.currentTimeMillis() - time));
+            time = System.currentTimeMillis();
+            updatePlanets();
+            LogManager.getLogger().info("to update planets: " + (System.currentTimeMillis() - time));
+            needUpdatePayment = true;
+        } else if (source.equals(cbEnemy)) {
+            contract.setEnemyCode(getCurrentEnemyCode());
+            updatePlanets();
+            needUpdatePayment = true;
+        } else if (source.equals(comboContractType)) {
+            contract.setContractType(comboContractType.getSelectedItem());
+            contract.calculateLength(campaign.getCampaignOptions().getVariableContractLength());
+            spnLength.setValue(contract.getLength());
+            updatePlanets();
+            needUpdatePayment = true;
+        } else if (source.equals(comboAllySkill)) {
+            contract.setAllySkill(comboAllySkill.getSelectedItem());
+        } else if (source.equals(cbAllyQuality)) {
+            contract.setAllyQuality(cbAllyQuality.getSelectedIndex());
+        } else if (source.equals(comboEnemySkill)) {
+            contract.setEnemySkill(comboEnemySkill.getSelectedItem());
+        } else if (source.equals(cbEnemyQuality)) {
+            contract.setEnemyQuality(cbEnemyQuality.getSelectedIndex());
+        }
+
+        if (needUpdatePayment) {
             updatePaymentMultiplier();
         }
-    	super.doUpdateContract(source);
-    	
-    	addAllListeners();
+        super.doUpdateContract(source);
+
+        addAllListeners();
    }
 }

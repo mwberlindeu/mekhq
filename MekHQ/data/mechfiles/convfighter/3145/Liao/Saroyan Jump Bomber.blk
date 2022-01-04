@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -90,8 +90,16 @@ ISTAG
 
 <Aft Equipment>
 IS Vehicular Stealth
+IS Vehicular Stealth
+IS Vehicular Stealth
 ISGuardianECMSuite
 </Aft Equipment>
+
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+</Fuselage Equipment>
 
 <source>
 TRO 3145 Capellan Confederation - Early Republic
@@ -100,4 +108,3 @@ TRO 3145 Capellan Confederation - Early Republic
 <tonnage>
 25.0
 </tonnage>
-

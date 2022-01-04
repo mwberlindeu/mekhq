@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -172,6 +172,9 @@ ISERMediumLaser
 ISERMediumLaser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 15
 </structural_integrity>
@@ -183,6 +186,10 @@ TRO 3145 Lyran Commonwealth - Late Republic
 <tonnage>
 6000.0
 </tonnage>
+
+<designtype>
+1
+</designtype>
 
 <crew>
 90
@@ -219,4 +226,3 @@ TRO 3145 Lyran Commonwealth - Late Republic
 <escape_pod>
 5
 </escape_pod>
-

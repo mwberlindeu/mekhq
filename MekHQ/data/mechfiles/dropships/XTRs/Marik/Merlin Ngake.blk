@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -41,7 +41,7 @@ cargobay:150.0:2:1
 1stclassquarters:30.0:0
 2ndclassquarters:0.0:0
 crewquarters:84.0:0
-cargobay:147.0:3:2
+cargobay:147.0:3:5
 </transporters>
 
 <SafeThrust>
@@ -123,6 +123,9 @@ ISLargeXPulseLaser
 ISLaserAntiMissileSystem
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 20
 </structural_integrity>
@@ -174,4 +177,3 @@ XTRO Marik - Jihad
 <escape_pod>
 2
 </escape_pod>
-

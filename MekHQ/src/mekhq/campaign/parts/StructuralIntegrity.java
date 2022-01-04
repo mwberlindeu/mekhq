@@ -1,51 +1,39 @@
 /*
  * StructuralIntegrity.java
- * 
+ *
  * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.parts;
 
-import java.io.PrintWriter;
-
+import megamek.common.*;
+import mekhq.MekHqXmlUtil;
+import mekhq.campaign.Campaign;
 import mekhq.campaign.finances.Money;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import megamek.common.Aero;
-import megamek.common.ConvFighter;
-import megamek.common.Dropship;
-import megamek.common.Entity;
-import megamek.common.SimpleTechLevel;
-import megamek.common.SmallCraft;
-import megamek.common.TechAdvancement;
-import mekhq.MekHqXmlUtil;
-import mekhq.campaign.Campaign;
+import java.io.PrintWriter;
 
 /**
- *
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class StructuralIntegrity extends Part {
-
-    /**
-     *
-     */
     private static final long serialVersionUID = 7723466837496688673L;
 
     // Slight variations for ASFs, CFs, and SC/DS
@@ -76,6 +64,7 @@ public class StructuralIntegrity extends Part {
         this.name = "Structural Integrity";
     }
 
+    @Override
     public StructuralIntegrity clone() {
         StructuralIntegrity clone = new StructuralIntegrity(getUnitTonnage(), campaign);
         clone.copyBaseData(this);
@@ -86,14 +75,13 @@ public class StructuralIntegrity extends Part {
 
     @Override
     public Money getStickerPrice() {
-        if(null != unit && unit.getEntity() instanceof Aero) {
-            if(unit.getEntity() instanceof Dropship || unit.getEntity() instanceof SmallCraft) {
-                return Money.of(((Aero)unit.getEntity()).get0SI() * 100000);
-            }
-            else if(unit.getEntity() instanceof ConvFighter) {
-                return Money.of(((Aero)unit.getEntity()).get0SI() * 4000);
+        if (null != unit && unit.getEntity() instanceof Aero) {
+            if (unit.getEntity() instanceof Dropship || unit.getEntity() instanceof SmallCraft) {
+                return Money.of(((Aero) unit.getEntity()).get0SI() * 100000);
+            } else if (unit.getEntity() instanceof ConvFighter) {
+                return Money.of(((Aero) unit.getEntity()).get0SI() * 4000);
             } else {
-                return Money.of(((Aero)unit.getEntity()).get0SI() * 50000);
+                return Money.of(((Aero) unit.getEntity()).get0SI() * 50000);
             }
         }
         return Money.zero();
@@ -107,19 +95,23 @@ public class StructuralIntegrity extends Part {
 
     @Override
     public boolean isSamePartType(Part part) {
-        //can't be salvaged or scrapped, so ignore
-        return false;
+        return (part instanceof StructuralIntegrity) &&
+                (getUnitTonnage() == part.getUnitTonnage());
     }
 
     @Override
     protected void loadFieldsFromXmlNode(Node wn) {
         NodeList nl = wn.getChildNodes();
 
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
 
-            if (wn2.getNodeName().equalsIgnoreCase("pointsNeeded")) {
-                pointsNeeded = Integer.parseInt(wn2.getTextContent());
+            try {
+                if (wn2.getNodeName().equalsIgnoreCase("pointsNeeded")) {
+                    pointsNeeded = Integer.parseInt(wn2.getTextContent());
+                }
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
             }
         }
     }
@@ -141,7 +133,12 @@ public class StructuralIntegrity extends Part {
 
     @Override
     public String getDetails() {
-        if(null != unit) {
+        return getDetails(true);
+    }
+
+    @Override
+    public String getDetails(boolean includeRepairDetails) {
+        if (null != unit) {
             return pointsNeeded + " points destroyed";
         }
         return "SI not on unit? Wazz up with dat?";
@@ -152,8 +149,8 @@ public class StructuralIntegrity extends Part {
     public void fix() {
         super.fix();
         pointsNeeded = 0;
-        if(null != unit && unit.getEntity() instanceof Aero) {
-            ((Aero)unit.getEntity()).setSI(((Aero)unit.getEntity()).get0SI());
+        if (null != unit && unit.getEntity() instanceof Aero) {
+            ((Aero) unit.getEntity()).setSI(((Aero) unit.getEntity()).get0SI());
         }
     }
 
@@ -185,8 +182,8 @@ public class StructuralIntegrity extends Part {
 
     @Override
     public void updateConditionFromEntity(boolean checkForDestruction) {
-        if(null != unit && unit.getEntity() instanceof Aero) {
-            pointsNeeded = ((Aero)unit.getEntity()).get0SI() - ((Aero)unit.getEntity()).getSI();
+        if (null != unit && unit.getEntity() instanceof Aero) {
+            pointsNeeded = ((Aero) unit.getEntity()).get0SI() - ((Aero) unit.getEntity()).getSI();
         }
 
     }
@@ -203,7 +200,7 @@ public class StructuralIntegrity extends Part {
 
     @Override
     public void updateConditionFromPart() {
-        //you can't replace this part, so don't do anything here
+        ((Aero) unit.getEntity()).setSI(((Aero) unit.getEntity()).get0SI() - pointsNeeded);
     }
 
     @Override
@@ -211,6 +208,7 @@ public class StructuralIntegrity extends Part {
         return pointsNeeded > 0;
     }
 
+    @Override
     public void doMaintenanceDamage(int d) {
         int points = ((Aero)unit.getEntity()).getSI();
         points = Math.max(points - d, 1);
@@ -233,7 +231,7 @@ public class StructuralIntegrity extends Part {
         }
         return Entity.LOC_NONE;
     }
-    
+
     @Override
     public TechAdvancement getTechAdvancement() {
         if (null == getUnit()) {

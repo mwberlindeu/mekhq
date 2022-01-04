@@ -2,6 +2,7 @@
  * Force.java
  *
  * Copyright (c) 2011 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
+ * Copyright (c) 2020 - The MegaMek Team. All Rights Reserved.
  *
  * This file is part of MekHQ.
  *
@@ -12,38 +13,34 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.force;
 
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
-import java.util.Vector;
-
+import megamek.Version;
+import megamek.common.annotations.Nullable;
+import megamek.common.icons.AbstractIcon;
+import megamek.common.icons.Camouflage;
+import mekhq.MekHqXmlUtil;
+import mekhq.campaign.Campaign;
+import mekhq.campaign.io.Migration.CamouflageMigrator;
+import mekhq.campaign.log.ServiceLogger;
+import mekhq.campaign.mission.Scenario;
+import mekhq.campaign.personnel.Person;
+import mekhq.campaign.unit.Unit;
+import mekhq.gui.enums.LayeredForceIcon;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import megamek.common.logging.LogLevel;
-import mekhq.MekHQ;
-import mekhq.MekHqXmlUtil;
-import mekhq.Version;
-import mekhq.campaign.Campaign;
-import mekhq.campaign.mission.Scenario;
-import mekhq.campaign.unit.Unit;
+import java.io.PrintWriter;
+import java.io.Serializable;
+import java.util.*;
 
 /**
  * This is a hierarchical object to define forces for TO&E. Each Force
@@ -59,20 +56,19 @@ public class Force implements Serializable {
     private static final long serialVersionUID = -3018542172119419401L;
 
     // pathway to force icon
-    public static final String ROOT_ICON = "-- General --";
     public static final String ROOT_LAYERED = "Layered";
-    public static final String ICON_NONE = "None";
     public static final int FORCE_NONE = -1;
-    private String iconCategory = ROOT_ICON;
-    private String iconFileName = ICON_NONE;
-    private LinkedHashMap<String, Vector<String>> iconMap = new LinkedHashMap<String, Vector<String>>();
+    private String iconCategory = ROOT_LAYERED;
+    private String iconFileName = AbstractIcon.DEFAULT_ICON_FILENAME;
+    private LinkedHashMap<String, Vector<String>> iconMap = new LinkedHashMap<>();
 
     private String name;
+    private Camouflage camouflage;
     private String desc;
+    private boolean combatForce;
     private Force parentForce;
     private Vector<Force> subForces;
     private Vector<UUID> units;
-    private Vector<Integer> oldUnits;
     private int scenarioId;
 
     protected UUID techId;
@@ -80,19 +76,20 @@ public class Force implements Serializable {
     //an ID so that forces can be tracked in Campaign hash
     private int id;
 
-    public Force(String n) {
-        this.name = n;
-        this.desc = "";
+    public Force(String name) {
+        setName(name);
+        setCamouflage(new Camouflage());
+        setDescription("");
+        this.combatForce = true;
         this.parentForce = null;
-        this.subForces = new Vector<Force>();
-        this.units = new Vector<UUID>();
-        this.oldUnits = new Vector<Integer>();
+        this.subForces = new Vector<>();
+        this.units = new Vector<>();
         this.scenarioId = -1;
-    }
 
-    public Force(String n, int id, Force parent) {
-        this(n);
-        this.parentForce = parent;
+        // Initialize the Force Icon
+        Vector<String> frame = new Vector<>();
+        frame.add("Frame.png");
+        iconMap.put(LayeredForceIcon.FRAME.getLayerPath(), frame);
     }
 
     public String getName() {
@@ -103,6 +100,20 @@ public class Force implements Serializable {
         this.name = n;
     }
 
+    public Camouflage getCamouflage() {
+        return camouflage;
+    }
+
+    public Camouflage getCamouflageOrElse(final Camouflage camouflage) {
+        return getCamouflage().hasDefaultCategory()
+                ? ((getParentForce() == null ) ? camouflage : getParentForce().getCamouflageOrElse(camouflage))
+                : getCamouflage();
+    }
+
+    public void setCamouflage(Camouflage camouflage) {
+        this.camouflage = camouflage;
+    }
+
     public String getDescription() {
         return desc;
     }
@@ -111,13 +122,26 @@ public class Force implements Serializable {
         this.desc = d;
     }
 
+    public boolean isCombatForce() {
+        return combatForce;
+    }
+
+    public void setCombatForce(boolean combatForce, boolean setForSubForces) {
+        this.combatForce = combatForce;
+        if (setForSubForces) {
+            for (Force force : subForces) {
+                force.setCombatForce(combatForce, true);
+            }
+        }
+    }
+
     public int getScenarioId() {
         return scenarioId;
     }
 
     public void setScenarioId(int i) {
         this.scenarioId = i;
-        for(Force sub : getSubForces()) {
+        for (Force sub : getSubForces()) {
             sub.setScenarioId(i);
         }
     }
@@ -132,17 +156,17 @@ public class Force implements Serializable {
 
     public boolean isDeployed() {
         //forces are deployed if their parent force is
-        if(null != parentForce && parentForce.isDeployed()) {
+        if ((null != parentForce) && parentForce.isDeployed()) {
             return true;
         }
         return scenarioId != -1;
     }
 
-    public Force getParentForce() {
+    public @Nullable Force getParentForce() {
         return parentForce;
     }
 
-    public void setParentForce(Force parent) {
+    public void setParentForce(final @Nullable Force parent) {
         this.parentForce = parent;
     }
 
@@ -151,27 +175,51 @@ public class Force implements Serializable {
     }
 
     public boolean isAncestorOf(Force otherForce) {
-        boolean isAncestor = false;
         Force pForce = otherForce.getParentForce();
-        while(!isAncestor && pForce != null) {
-            if(pForce.getId() == getId()) {
+        while (pForce != null) {
+            if (pForce.getId() == getId()) {
                 return true;
             }
             pForce = pForce.getParentForce();
         }
-        return isAncestor;
+        return false;
     }
 
     /**
-     * This returns the full hierarchical name of the force, including all parents
-     * @return
+     * @return the full hierarchical name of the force, including all parents
      */
     public String getFullName() {
         String toReturn = getName();
-        if(null != parentForce) {
+        if (null != parentForce) {
             toReturn += ", " + parentForce.getFullName();
         }
         return toReturn;
+    }
+
+    /**
+     * @return A String representation of the full hierarchical force including ID for MM export
+     */
+    public String getFullMMName() {
+        var ancestors = new ArrayList<Force>();
+        ancestors.add(this);
+        var p = parentForce;
+        while (p != null) {
+            ancestors.add(p);
+            p = p.parentForce;
+        }
+
+        StringBuilder result = new StringBuilder();
+        int id = 0;
+        for (int i = ancestors.size() - 1; i >= 0; i--) {
+            Force ancestor = ancestors.get(i);
+            id = 17 * id + ancestor.id + 1;
+            result.append(ancestor.getName()).append("|").append(id);
+            if (!ancestor.getCamouflage().isDefault()) {
+                result.append("|").append(ancestor.getCamouflage().getCategory()).append("|").append(ancestor.getCamouflage().getFilename());
+            }
+            result.append("||");
+        }
+        return result.toString();
     }
 
     /**
@@ -181,10 +229,15 @@ public class Force implements Serializable {
      * instead
      * The boolean assignParent here is set to false when assigning forces from the
      * TOE to a scenario, because we don't want to switch this forces real parent
-     * @param sub
+     * @param sub the subforce to add, which may be null from a load failure. This returns without
+     *            adding in that case
      */
-    public void addSubForce(Force sub, boolean assignParent) {
-        if(assignParent) {
+    public void addSubForce(final @Nullable Force sub, boolean assignParent) {
+        if (sub == null) {
+            return;
+        }
+
+        if (assignParent) {
             sub.setParentForce(this);
         }
         subForces.add(sub);
@@ -195,16 +248,19 @@ public class Force implements Serializable {
     }
 
     /**
-     * This returns all the unit ids in this force and all of its subforces
-     * @return
+     * @param combatForcesOnly to only include combat forces or to also include non-combat forces
+     * @return all the unit ids in this force and all of its subforces
      */
-    public Vector<UUID> getAllUnits() {
-        Vector<UUID> allUnits = new Vector<UUID>();
-        for(UUID uid : units) {
-            allUnits.add(uid);
+    public Vector<UUID> getAllUnits(boolean combatForcesOnly) {
+        Vector<UUID> allUnits;
+        if (combatForcesOnly && !isCombatForce()) {
+            allUnits = new Vector<>();
+        } else {
+            allUnits = new Vector<>(units);
         }
-        for(Force f : subForces) {
-            allUnits.addAll(f.getAllUnits());
+
+        for (Force f : subForces) {
+            allUnits.addAll(f.getAllUnits(combatForcesOnly));
         }
         return allUnits;
     }
@@ -217,45 +273,73 @@ public class Force implements Serializable {
      * @param uid
      */
     public void addUnit(UUID uid) {
+        addUnit(null, uid, false, null);
+    }
+
+    public void addUnit(Campaign campaign, UUID uid, boolean useTransfers, Force oldForce) {
         units.add(uid);
+
+        if (campaign == null) {
+            return;
+        }
+
+        Unit unit = campaign.getUnit(uid);
+        if (unit != null) {
+            for (Person person : unit.getCrew()) {
+                if (useTransfers) {
+                    ServiceLogger.reassignedTOEForce(campaign, person, campaign.getLocalDate(), oldForce, this);
+                } else {
+                    ServiceLogger.addedToTOEForce(campaign, person, campaign.getLocalDate(), this);
+                }
+            }
+        }
     }
 
     /**
-     * This should not be directly called except by {@link Campaign#RemoveUnitFromForce(mekhq.campaign.unit.Unit)}
+     * This should not be directly called except by {@link Campaign#removeUnitFromForce(mekhq.campaign.unit.Unit)}
      * instead
      * @param id
      */
-    public void removeUnit(UUID id) {
+    public void removeUnit(Campaign campaign, UUID id, boolean log) {
         int idx = 0;
         boolean found = false;
-        for(UUID uid : getUnits()) {
-            if(uid.equals(id)) {
+        for (UUID uid : getUnits()) {
+            if (uid.equals(id)) {
                 found = true;
                 break;
             }
             idx++;
         }
-        if(found) {
+        if (found) {
             units.remove(idx);
+
+            if (log) {
+                Unit unit = campaign.getUnit(id);
+                if (unit != null) {
+                    for (Person person : unit.getCrew()) {
+                        ServiceLogger.removedFromTOEForce(campaign, person, campaign.getLocalDate(), this);
+                    }
+                }
+            }
         }
     }
 
     public boolean removeUnitFromAllForces(UUID id) {
         int idx = 0;
         boolean found = false;
-        for(UUID uid : getUnits()) {
-            if(uid.equals(id)) {
+        for (UUID uid : getUnits()) {
+            if (uid.equals(id)) {
                 found = true;
                 break;
             }
             idx++;
         }
-        if(found) {
+        if (found) {
             units.remove(idx);
         } else {
-            for(Force sub : getSubForces()) {
+            for (Force sub : getSubForces()) {
                 found = sub.removeUnitFromAllForces(id);
-                if(found) {
+                if (found) {
                     break;
                 }
             }
@@ -269,14 +353,14 @@ public class Force implements Serializable {
 
     public void clearScenarioIds(Campaign c, boolean killSub) {
         if (killSub) {
-            for(UUID uid : getUnits()) {
+            for (UUID uid : getUnits()) {
                 Unit u = c.getUnit(uid);
-                if(null != u) {
+                if (null != u) {
                     u.undeploy();
                 }
             }
             // We only need to clear the subForces if we're killing everything.
-            for(Force sub : getSubForces()) {
+            for (Force sub : getSubForces()) {
                 Scenario s = c.getScenario(sub.getScenarioId());
                 if (s != null) {
                     s.removeForce(sub.getId());
@@ -286,7 +370,7 @@ public class Force implements Serializable {
         } else {
             // If we're not killing the units from the scenario, then we need to assign them with the
             // scenario ID and add them to the scenario.
-            for(UUID uid : getUnits()) {
+            for (UUID uid : getUnits()) {
                 c.getUnit(uid).setScenarioId(getScenarioId());
                 c.getScenario(getScenarioId()).addUnit(uid);
             }
@@ -294,6 +378,7 @@ public class Force implements Serializable {
         setScenarioId(-1);
     }
 
+    @Override
     public String toString() {
         return name;
     }
@@ -309,14 +394,14 @@ public class Force implements Serializable {
     public void removeSubForce(int id) {
         int idx = 0;
         boolean found = false;
-        for(Force sforce : getSubForces()) {
-            if(sforce.getId() == id) {
+        for (Force sforce : getSubForces()) {
+            if (sforce.getId() == id) {
                 found = true;
                 break;
             }
             idx++;
         }
-        if(found) {
+        if (found) {
             subForces.remove(idx);
         }
     }
@@ -346,101 +431,76 @@ public class Force implements Serializable {
     }
 
     public void writeToXml(PrintWriter pw1, int indent) {
-        pw1.println(MekHqXmlUtil.indentStr(indent) + "<force id=\""
-                +id
-                +"\" type=\""
-                +this.getClass().getName()
-                +"\">");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<name>"
-                +MekHqXmlUtil.escape(name)
-                +"</name>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<desc>"
-                +MekHqXmlUtil.escape(desc)
-                +"</desc>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<iconCategory>"
-                +MekHqXmlUtil.escape(iconCategory)
-                +"</iconCategory>");
+        pw1.println(MekHqXmlUtil.indentStr(indent++) + "<force id=\"" + id + "\" type=\"" + this.getClass().getName() + "\">");
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "name", name);
+        getCamouflage().writeToXML(pw1, indent);
+        if (!getDescription().isBlank()) {
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "desc", desc);
+        }
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "combatForce", combatForce);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "iconCategory", iconCategory);
+
         if (iconCategory.equals(Force.ROOT_LAYERED)) {
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"<iconHashMap>");
+            MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent, "iconHashMap");
             for (Map.Entry<String, Vector<String>> entry : iconMap.entrySet()) {
-                if (null != entry.getValue() && !entry.getValue().isEmpty()) {
-                    pw1.println(MekHqXmlUtil.indentStr(indent+2)
-                            +"<iconentry key=\""
-                            +MekHqXmlUtil.escape(entry.getKey())
-                            +"\">");
+                if ((entry.getValue() != null) && !entry.getValue().isEmpty()) {
+                    pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<iconentry key=\"" + MekHqXmlUtil.escape(entry.getKey()) + "\">");
                     for (String value : entry.getValue()) {
-                        pw1.println(MekHqXmlUtil.indentStr(indent+3)
-                                +"<value name=\""
-                                +MekHqXmlUtil.escape(value)
-                                +"\"/>");
+                        pw1.println(MekHqXmlUtil.indentStr(indent + 2) +"<value name=\"" + MekHqXmlUtil.escape(value) + "\"/>");
                     }
-                    pw1.println(MekHqXmlUtil.indentStr(indent+2)
-                            +"</iconentry>");
+                    MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "iconentry");
                 }
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"</iconHashMap>");
+            MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent, "iconHashMap");
         }
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<iconFileName>"
-                +MekHqXmlUtil.escape(iconFileName)
-                +"</iconFileName>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<scenarioId>"
-                +scenarioId
-                +"</scenarioId>");
-        if (techId != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"<techId>"
-                    +techId.toString()
-                    +"</techId>");
-        }
-        if(units.size() > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"<units>");
-            for(UUID uid : units) {
-                pw1.println(MekHqXmlUtil.indentStr(indent+2)
-                        +"<unit id=\"" + uid + "\"/>");
-            }
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"</units>");
-        }
-        if(subForces.size() > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"<subforces>");
-            for(Force sub : subForces) {
-                sub.writeToXml(pw1, indent+2);
-            }
-            pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                    +"</subforces>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent) + "</force>");
 
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "iconFileName", iconFileName);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "scenarioId", scenarioId);
+
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "techId", techId);
+
+        if (units.size() > 0) {
+            MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent, "units");
+            for (UUID uid : units) {
+                pw1.println(MekHqXmlUtil.indentStr(indent + 1) +"<unit id=\"" + uid + "\"/>");
+            }
+            MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent, "units");
+        }
+
+        if (subForces.size() > 0) {
+            MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent, "subforces");
+            for (Force sub : subForces) {
+                sub.writeToXml(pw1, indent + 1);
+            }
+            MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent, "subforces");
+        }
+        MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, --indent, "force");
     }
 
-    public static Force generateInstanceFromXML(Node wn, Campaign c, Version version) {
-        final String METHOD_NAME = "generateInstanceFromXML(Node,Campaign,Version)"; //$NON-NLS-1$
-
-        Force retVal = null;
+    public static @Nullable Force generateInstanceFromXML(Node wn, Campaign c, Version version) {
+        Force retVal = new Force("");
         NamedNodeMap attrs = wn.getAttributes();
         Node idNameNode = attrs.getNamedItem("id");
         String idString = idNameNode.getTextContent();
 
         try {
-            retVal = new Force("");
             NodeList nl = wn.getChildNodes();
             retVal.id = Integer.parseInt(idString);
 
-            for (int x=0; x<nl.getLength(); x++) {
+            for (int x = 0; x < nl.getLength(); x++) {
                 Node wn2 = nl.item(x);
                 if (wn2.getNodeName().equalsIgnoreCase("name")) {
-                    retVal.name = wn2.getTextContent();
+                    retVal.setName(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase(Camouflage.XML_TAG)) {
+                    retVal.setCamouflage(Camouflage.parseFromXML(wn2));
+                } else if (wn2.getNodeName().equalsIgnoreCase("camouflageCategory")) { // Legacy - 0.49.3 removal
+                    retVal.getCamouflage().setCategory(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("camouflageFilename")) { // Legacy - 0.49.3 removal
+                    retVal.getCamouflage().setFilename(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("desc")) {
-                    retVal.desc = wn2.getTextContent();
+                    retVal.setDescription(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("combatForce")) {
+                    retVal.setCombatForce(Boolean.parseBoolean(wn2.getTextContent().trim()), false);
                 } else if (wn2.getNodeName().equalsIgnoreCase("iconCategory")) {
                     retVal.iconCategory = wn2.getTextContent();
                 } else if (wn2.getNodeName().equalsIgnoreCase("iconHashMap")) {
@@ -455,17 +515,17 @@ public class Force implements Serializable {
                     processUnitNodes(retVal, wn2, version);
                 } else if (wn2.getNodeName().equalsIgnoreCase("subforces")) {
                     NodeList nl2 = wn2.getChildNodes();
-                    for (int y=0; y<nl2.getLength(); y++) {
+                    for (int y = 0; y < nl2.getLength(); y++) {
                         Node wn3 = nl2.item(y);
                         // If it's not an element node, we ignore it.
-                        if (wn3.getNodeType() != Node.ELEMENT_NODE)
+                        if (wn3.getNodeType() != Node.ELEMENT_NODE) {
                             continue;
+                        }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("force")) {
                             // Error condition of sorts!
                             // Errr, what should we do here?
-                            MekHQ.getLogger().log(Force.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in Forces nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in Forces nodes: " + wn3.getNodeName());
                             continue;
                         }
 
@@ -475,36 +535,34 @@ public class Force implements Serializable {
             }
             c.importForce(retVal);
         } catch (Exception ex) {
-            // Errrr, apparently either the class name was invalid...
-            // Or the listed name doesn't exist.
-            // Doh!
-            MekHQ.getLogger().error(Force.class, METHOD_NAME, ex);
+            LogManager.getLogger().error(ex);
+            return null;
+        }
+
+        if (version.isLowerThan("0.49.3")) {
+            CamouflageMigrator.migrateCamouflage(version, retVal.getCamouflage());
         }
 
         return retVal;
     }
 
     private static void processUnitNodes(Force retVal, Node wn, Version version) {
-
         NodeList nl = wn.getChildNodes();
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
-            if (wn2.getNodeType() != Node.ELEMENT_NODE)
+            if (wn2.getNodeType() != Node.ELEMENT_NODE) {
                 continue;
+            }
             NamedNodeMap attrs = wn2.getAttributes();
             Node classNameNode = attrs.getNamedItem("id");
             String idString = classNameNode.getTextContent();
-            if(version.getMajorVersion() == 0 && version.getMinorVersion() < 2 && version.getSnapshot() < 14) {
-                retVal.oldUnits.add(Integer.parseInt(idString));
-            } else {
-                retVal.addUnit(UUID.fromString(idString));
-            }
+            retVal.addUnit(UUID.fromString(idString));
         }
     }
 
     private static void processIconMapNodes(Force retVal, Node wn, Version version) {
         NodeList nl = wn.getChildNodes();
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
 
             // If it's not an element node, we ignore it.
@@ -524,9 +582,9 @@ public class Force implements Serializable {
     }
 
     private static Vector<String> processIconMapSubNodes(Node wn, Version version) {
-        Vector<String> values = new Vector<String>();
+        Vector<String> values = new Vector<>();
         NodeList nl = wn.getChildNodes();
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
 
             // If it's not an element node, we ignore it.
@@ -537,7 +595,7 @@ public class Force implements Serializable {
             NamedNodeMap attrs = wn2.getAttributes();
             Node keyNode = attrs.getNamedItem("name");
             String key = keyNode.getTextContent();
-            if (null != key && !key.isEmpty()) {
+            if ((null != key) && !key.isEmpty()) {
                 values.add(key);
             }
         }
@@ -545,28 +603,24 @@ public class Force implements Serializable {
     }
 
     public Vector<Object> getAllChildren(Campaign campaign) {
-        Vector<Object> children = new Vector<Object>();
-        children.addAll(subForces);
+        Vector<Object> children = new Vector<>(subForces);
         //add any units
         Enumeration<UUID> uids = getUnits().elements();
         //put them into a temporary array so I can sort it by rank
-        ArrayList<Unit> units = new ArrayList<Unit>();
-        ArrayList<Unit> unmannedUnits = new ArrayList<Unit>();
-        while(uids.hasMoreElements()) {
+        List<Unit> units = new ArrayList<>();
+        List<Unit> unmannedUnits = new ArrayList<>();
+        while (uids.hasMoreElements()) {
             Unit u = campaign.getUnit(uids.nextElement());
-            if(null != u) {
-                if(null == u.getCommander()) {
+            if (null != u) {
+                if (null == u.getCommander()) {
                     unmannedUnits.add(u);
                 } else {
                     units.add(u);
                 }
             }
         }
-        Collections.sort(units, new Comparator<Unit>(){
-            public int compare(final Unit u1, final Unit u2) {
-                return ((Comparable<Integer>)u2.getCommander().getRankNumeric()).compareTo(u1.getCommander().getRankNumeric());
-            }
-        });
+        units.sort((u1, u2) -> ((Comparable<Integer>) u2.getCommander().getRankNumeric())
+                .compareTo(u1.getCommander().getRankNumeric()));
 
         children.addAll(units);
         children.addAll(unmannedUnits);
@@ -575,7 +629,7 @@ public class Force implements Serializable {
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof Force && ((Force)o).getId() == id && ((Force)o).getFullName().equals(getFullName());
+        return (o instanceof Force) && (((Force) o).getId() == id) && ((Force) o).getFullName().equals(getFullName());
     }
 
     @Override
@@ -583,28 +637,21 @@ public class Force implements Serializable {
         return Objects.hash(getId(), getFullName());
     }
 
-    public void fixIdReferences(Map<Integer, UUID> uHash) {
-        for(int oid : oldUnits) {
-            UUID nid = uHash.get(oid);
-            if(null != nid) {
-                units.add(nid);
-            }
-        }
-        for(Force sub : subForces) {
-            sub.fixIdReferences(uHash);
-        }
-    }
-
+    /**
+     * Calculates the force's total BV, including sub forces.
+     * @param c The working campaign.
+     * @return Total BV
+     */
     public int getTotalBV(Campaign c) {
         int bvTotal = 0;
 
-        for(Force sforce : getSubForces()) {
+        for (Force sforce : getSubForces()) {
             bvTotal += sforce.getTotalBV(c);
         }
 
-        for(UUID id : getUnits()) {
+        for (UUID id : getUnits()) {
             // no idea how this would happen, but some times a unit in a forces unit ID list has an invalid ID?
-            if(c.getUnit(id) == null) {
+            if (c.getUnit(id) == null) {
                 continue;
             }
 
@@ -612,5 +659,30 @@ public class Force implements Serializable {
         }
 
         return bvTotal;
+    }
+
+    /**
+     * Calculates the unit type most represented in this force
+     * and all subforces.
+     * @param c Working campaign
+     * @return Majority unit type.
+     */
+    public int getPrimaryUnitType(Campaign c) {
+        Map<Integer, Integer> unitTypeBuckets = new TreeMap<>();
+        int biggestBucketID = -1;
+        int biggestBucketCount = 0;
+
+        for (UUID id : getUnits()) {
+            int unitType = c.getUnit(id).getEntity().getUnitType();
+
+            unitTypeBuckets.merge(unitType, 1, Integer::sum);
+
+            if (unitTypeBuckets.get(unitType) > biggestBucketCount) {
+                biggestBucketCount = unitTypeBuckets.get(unitType);
+                biggestBucketID = unitType;
+            }
+        }
+
+        return biggestBucketID;
     }
 }

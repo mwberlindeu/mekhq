@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -118,6 +118,9 @@ Medium Laser
 Medium Laser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 14
 </structural_integrity>
@@ -169,4 +172,3 @@ TRO 3057R - Early Succession War
 <escape_pod>
 25
 </escape_pod>
-

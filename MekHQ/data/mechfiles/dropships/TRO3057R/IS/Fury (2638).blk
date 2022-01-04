@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -25,7 +25,7 @@ Fury
 </year>
 
 <originalBuildYear>
-0
+2638
 </originalBuildYear>
 
 <type>
@@ -106,6 +106,9 @@ Medium Laser
 IS Ammo AC/10:20
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 7
 </structural_integrity>
@@ -157,4 +160,3 @@ TRO 3057R - Star League
 <escape_pod>
 8
 </escape_pod>
-

@@ -5,21 +5,29 @@ plugins {
 allprojects {
     apply plugin: 'java'
     
-    sourceCompatibility = 1.8
-    targetCompatibility = 1.8
+    sourceCompatibility = 11
+    targetCompatibility = 11
     
     repositories {
         mavenLocal()
         maven {
             url 'https://github.com/MegaMek/mavenrepo/raw/master'
         }
-        jcenter()
+        mavenCentral()
+        maven {
+            url 'https://jitpack.io'
+        }
+		jcenter()
     }
 }
 
 subprojects {
     group = 'org.megamek'
+<<<<<<< HEAD
     version = '0.46.1-SNAPSHOT'
+=======
+    version = '0.49.6-SNAPSHOT'
+>>>>>>> origin/master
 }
 
 ext {
@@ -29,7 +37,7 @@ ext {
     // Work on MML or MHQ sometimes requires changes in MM as well. The maven publishing tasks use
     // these properties to append the branch name to the artifact id if the repo is not in the master
     // branch, making it available separately to the child project. 
-    hqBranch = grgit.branch.current.name
+    hqBranch = grgit.branch.current().name
     hqBranchTag = hqBranch.equals('master')? '' : '-' + hqBranch
     
     // Allows setting a dependency on a different MM branch.

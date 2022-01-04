@@ -1,38 +1,46 @@
+/*
+ * Copyright (c) 2013-2020 - The MegaMek Team. All Rights Reserved.
+ *
+ * This file is part of MekHQ.
+ *
+ * MekHQ is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MekHQ is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
+ */
 package mekhq.gui.model;
 
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Image;
-import java.util.ArrayList;
-
-import javax.swing.JTable;
-import javax.swing.SwingConstants;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.TableCellRenderer;
-
-import megamek.common.Entity;
-import megamek.common.Infantry;
-import megamek.common.Jumpship;
-import megamek.common.SmallCraft;
-import megamek.common.TechConstants;
-import megamek.common.UnitType;
-import mekhq.IconPackage;
+import megamek.common.*;
+import mekhq.MekHQ;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.force.Force;
 import mekhq.campaign.personnel.Person;
 import mekhq.campaign.unit.Unit;
 import mekhq.gui.BasicInfo;
+import mekhq.gui.utilities.MekHqTableCellRenderer;
+
+import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellRenderer;
+import java.awt.*;
+import java.util.ArrayList;
 
 /**
  * A table Model for displaying information about units
  * @author Jay lawson
  */
 public class UnitTableModel extends DataTableModel {
-
+    //region Variable Declarations
     private static final long serialVersionUID = -5207167419079014157L;
 
-    private Campaign campaign;
-    
     public final static int COL_NAME    =    0;
     public final static int COL_TYPE    =    1;
     public final static int COL_WCLASS    =  2;
@@ -54,11 +62,15 @@ public class UnitTableModel extends DataTableModel {
     public final static int COL_RSTATUS   =  18;
     public final static int N_COL =          19;
 
+    private Campaign campaign;
+    //endregion Variable Declarations
+
     public UnitTableModel(Campaign c) {
         data = new ArrayList<Unit>();
         campaign = c;
     }
-    
+
+    @Override
     public int getRowCount() {
         return data.size();
     }
@@ -70,102 +82,99 @@ public class UnitTableModel extends DataTableModel {
 
     @Override
     public String getColumnName(int column) {
-        switch(column) {
-        case COL_NAME:
-            return "Name";
-        case COL_TYPE:
-            return "Type";
-        case COL_WEIGHT:
-            return "Weight";
-        case COL_WCLASS:
-            return "Class";
-        case COL_COST:
-            return "Value";
-        case COL_TECH:
-            return "Tech";
-        case COL_QUALITY:
-            return "Quality";
-        case COL_STATUS:
-            return "Status";
-        case COL_PILOT:
-            return "Assigned to";
-        case COL_FORCE:
-            return "Force";
-        case COL_TECH_CRW:
-            return "Tech Crew";
-        case COL_CREW:
-            return "Crew";
-        case COL_BV:
-            return "BV";
-        case COL_REPAIR:
-            return "# Repairs";
-        case COL_PARTS:
-            return "# Parts";
-        case COL_QUIRKS:
-            return "Quirks";
-        case COL_MAINTAIN:
-            return "Maintenance Costs";
-        case COL_SITE:
-            return "Site";
-        case COL_RSTATUS:
-        	return "Repair Status";
-        default:
-            return "?";
+        switch (column) {
+            case COL_NAME:
+                return "Name";
+            case COL_TYPE:
+                return "Type";
+            case COL_WEIGHT:
+                return "Weight";
+            case COL_WCLASS:
+                return "Class";
+            case COL_COST:
+                return "Value";
+            case COL_TECH:
+                return "Tech";
+            case COL_QUALITY:
+                return "Quality";
+            case COL_STATUS:
+                return "Status";
+            case COL_PILOT:
+                return "Assigned to";
+            case COL_FORCE:
+                return "Force";
+            case COL_TECH_CRW:
+                return "Tech Crew";
+            case COL_CREW:
+                return "Crew";
+            case COL_BV:
+                return "BV";
+            case COL_REPAIR:
+                return "# Repairs";
+            case COL_PARTS:
+                return "# Parts";
+            case COL_QUIRKS:
+                return "Quirks";
+            case COL_MAINTAIN:
+                return "Maintenance Costs";
+            case COL_SITE:
+                return "Site";
+            case COL_RSTATUS:
+                return "Repair Status";
+            default:
+                return "?";
         }
     }
 
     public int getColumnWidth(int c) {
-        switch(c) {
-        case COL_WCLASS:
-        case COL_TYPE:
-        case COL_SITE:
-            return 50;
-        case COL_COST:
-        case COL_STATUS:
-        case COL_RSTATUS:
-            return 80;
-        case COL_PILOT:
-        case COL_FORCE:
-        case COL_TECH:
-        case COL_NAME:
-        case COL_TECH_CRW:
-            return 150;
-        default:
-            return 20;
+        switch (c) {
+            case COL_WCLASS:
+            case COL_TYPE:
+            case COL_SITE:
+                return 50;
+            case COL_COST:
+            case COL_STATUS:
+            case COL_RSTATUS:
+                return 80;
+            case COL_PILOT:
+            case COL_FORCE:
+            case COL_TECH:
+            case COL_NAME:
+            case COL_TECH_CRW:
+                return 150;
+            default:
+                return 20;
         }
     }
 
     public int getAlignment(int col) {
-        switch(col) {
-        case COL_QUALITY:
-        case COL_QUIRKS:
-        case COL_CREW:
-        case COL_RSTATUS:
-            return SwingConstants.CENTER;
-        case COL_WEIGHT:
-        case COL_COST:
-        case COL_MAINTAIN:
-        case COL_REPAIR:
-        case COL_PARTS:
-        case COL_BV:
-            return SwingConstants.RIGHT;
-        default:
-            return SwingConstants.LEFT;
+        switch (col) {
+            case COL_QUALITY:
+            case COL_QUIRKS:
+            case COL_CREW:
+            case COL_RSTATUS:
+                return SwingConstants.CENTER;
+            case COL_WEIGHT:
+            case COL_COST:
+            case COL_MAINTAIN:
+            case COL_REPAIR:
+            case COL_PARTS:
+            case COL_BV:
+                return SwingConstants.RIGHT;
+            default:
+                return SwingConstants.LEFT;
         }
     }
 
     public String getTooltip(int row, int col) {
         Unit u = getUnit(row);
-        switch(col) {
-        case COL_STATUS:
-            if(u.isRefitting()) {
-                return u.getRefit().getDesc();
-            }
-            return null;
-        case COL_QUIRKS:
-            return u.getQuirksList();
-        default:
-            return null;
+        switch (col) {
+            case COL_STATUS:
+                return u.isRefitting() ? u.getRefit().getDesc() : null;
+            case COL_QUIRKS:
+                return u.getQuirksList();
+            default:
+                return null;
         }
     }
 
@@ -180,125 +189,82 @@ public class UnitTableModel extends DataTableModel {
     }
 
     public Unit getUnit(int i) {
-        if(i >= data.size()) {
-            return null;
-        }
-        return (Unit)data.get(i);
+        return (i < data.size()) ? (Unit) data.get(i) : null;
     }
 
+    @Override
     public Object getValueAt(int row, int col) {
         Unit u;
-        if(data.isEmpty() || (row < 0) || row >= data.size()) {
+        if (data.isEmpty() || (row < 0) || (row >= data.size())) {
             return "";
         } else {
             u = getUnit(row);
         }
         Entity e = u.getEntity();
-        //PilotPerson pp = u.getPilot();
-        if(null == e) {
+        if (e == null) {
             return "?";
         }
-        if(col == COL_NAME) {
-            return u.getName();
+
+        switch (col) {
+            case COL_NAME:
+                return u.getName();
+            case COL_TYPE:
+                return UnitType.getTypeDisplayableName(e.getUnitType());
+            case COL_WCLASS:
+                return e.getWeightClassName();
+            case COL_TECH:
+                return TechConstants.getLevelDisplayableName(e.getTechLevel());
+            case COL_WEIGHT:
+                return e.getWeight();
+            case COL_COST:
+                return u.getSellValue().toAmountAndSymbolString();
+            case COL_STATUS:
+                return u.getStatus();
+            case COL_QUALITY:
+                return u.getQualityName();
+            case COL_PILOT:
+                return (u.getCommander() != null) ? u.getCommander().getHTMLTitle() : "-";
+            case COL_FORCE:
+                Force force = u.getCampaign().getForce(u.getForceId());
+                return (force != null) ? force.getFullName() : "-";
+            case COL_CREW:
+                return u.getActiveCrew().size() + "/" + u.getFullCrewSize();
+            case COL_TECH_CRW:
+                return (u.getTech() != null) ? u.getTech().getHTMLTitle() : "-";
+            case COL_MAINTAIN:
+                return u.getMaintenanceCost();
+            case COL_BV:
+                return e.calculateBattleValue(true, u.getEntity().getCrew() == null);
+            case COL_REPAIR:
+                return u.getPartsNeedingFixing().size();
+            case COL_PARTS:
+                return u.getPartsNeeded().size();
+            case COL_SITE:
+                return Unit.getSiteName(u.getSite());
+            case COL_QUIRKS:
+                return e.countQuirks();
+            case COL_RSTATUS:
+                return u.isSalvage() ? "Salvage" : "Repair";
+            default:
+                return "?";
         }
-        if(col == COL_TYPE) {
-            return UnitType.getTypeDisplayableName(e.getUnitType());
-        }
-        if(col == COL_WEIGHT) {
-            return e.getWeight();
-        }
-        if(col == COL_WCLASS) {
-            return e.getWeightClassName();
-        }
-        if(col == COL_COST) {
-            return u.getSellValue().toAmountAndSymbolString();
-        }
-        if(col == COL_MAINTAIN) {
-            return u.getMaintenanceCost();
-        }
-        if(col == COL_TECH) {
-            return TechConstants.getLevelDisplayableName(e.getTechLevel());
-        }
-        if(col == COL_QUALITY) {
-            return u.getQualityName();
-        }
-        if(col == COL_STATUS) {
-            return u.getStatus();
-        }
-        if(col == COL_TECH_CRW) {
-            if(null != u.getTech()) {
-                return u.getTech().getFullTitle();
-            } else {
-                return "-";
-            }
-        }
-        if(col == COL_PILOT) {
-            if(null == u.getCommander()) {
-                return "-";
-            } else {
-                return u.getCommander().getFullTitle();
-            }
-        }
-        if(col == COL_FORCE) {
-            Force force = u.getCampaign().getForce(u.getForceId());
-            if(null == force) {
-                return "-";
-            } else {
-                return force.getFullName();
-            }
-        }
-        if(col == COL_BV) {
-            if(null == u.getEntity().getCrew()) {
-                return e.calculateBattleValue(true, true);
-            } else {
-                return e.calculateBattleValue(true, false);
-            }
-        }
-        if(col == COL_REPAIR) {
-            return u.getPartsNeedingFixing().size();
-        }
-        if(col == COL_PARTS) {
-            return u.getPartsNeeded().size();
-        }
-        if(col == COL_QUIRKS) {
-            return e.countQuirks();
-        }
-        if(col == COL_CREW) {
-            return u.getActiveCrew().size() + "/" + u.getFullCrewSize();
-        }
-        if(col == COL_SITE) {
-            return Unit.getSiteName(u.getSite());
-        }
-        if (col == COL_RSTATUS) {
-        	return u.isSalvage() ? "Salvage" : "Repair";
-        }
-        return "?";
     }
-    
+
     public Campaign getCampaign() {
         return campaign;
     }
-    
-    public void refreshData() {
-        setData(getCampaign().getCopyOfUnits());
-    }
 
-    public TableCellRenderer getRenderer(boolean graphic, IconPackage icons) {
-        if(graphic) {
-            return new UnitTableModel.VisualRenderer(icons);
-        }
-        return new UnitTableModel.Renderer();
+    public TableCellRenderer getRenderer(boolean graphic) {
+        return (graphic) ? new UnitTableModel.VisualRenderer() : new UnitTableModel.Renderer();
     }
 
     public class Renderer extends DefaultTableCellRenderer {
-
         private static final long serialVersionUID = 9054581142945717303L;
 
-        public Component getTableCellRendererComponent(JTable table,
-                Object value, boolean isSelected, boolean hasFocus,
-                int row, int column) {
-            super.getTableCellRendererComponent(table, value, isSelected,
-                    hasFocus, row, column);
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                       boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             setOpaque(true);
             int actualCol = table.convertColumnIndexToModel(column);
             int actualRow = table.convertRowIndexToModel(row);
@@ -306,120 +272,130 @@ public class UnitTableModel extends DataTableModel {
             setToolTipText(getTooltip(actualRow, actualCol));
             Unit u = getUnit(actualRow);
 
-            setForeground(Color.BLACK);
-            if (isSelected) {
-                setBackground(Color.DARK_GRAY);
-                setForeground(Color.WHITE);
-            } else {
-
+            if (!isSelected) {
                 if (u.isDeployed()) {
-                    setBackground(Color.LIGHT_GRAY);
-                }
-                else if(!u.isPresent()) {
-                    setBackground(Color.ORANGE);
-                }
-                else if(u.isRefitting()) {
-                    setBackground(Color.CYAN);
-                }
-                else if ((null != u)
-                        && (u.isMothballing())) {
-                    setBackground(new Color(153,153,255));
-                } 
-                else if ((null != u)
-                        && (u.isMothballed())) {
-                    setBackground(new Color(204, 204, 255));
-                } 
-                else if (null != u && !u.isRepairable()) {
-                    setBackground(new Color(190, 150, 55));
-                } else if ((null != u) && !u.isFunctional()) {
-                    setBackground(new Color(205, 92, 92));
-                } else if ((null != u)
-                        && u.hasPartsNeedingFixing()) {
-                    setBackground(new Color(238, 238, 0));
-                } else if (u.getEntity() instanceof Infantry
-                        && u.getActiveCrew().size() < u.getFullCrewSize()) {
-                    setBackground(Color.RED);
-                }
-                else {
-                    setBackground(Color.WHITE);
+                    setForeground(MekHQ.getMekHQOptions().getDeployedForeground());
+                    setBackground(MekHQ.getMekHQOptions().getDeployedBackground());
+                } else if (!u.isPresent()) {
+                    setForeground(MekHQ.getMekHQOptions().getInTransitForeground());
+                    setBackground(MekHQ.getMekHQOptions().getInTransitBackground());
+                } else if (u.isRefitting()) {
+                    setForeground(MekHQ.getMekHQOptions().getRefittingForeground());
+                    setBackground(MekHQ.getMekHQOptions().getRefittingBackground());
+                } else if (u.isMothballing()) {
+                    setForeground(MekHQ.getMekHQOptions().getMothballingForeground());
+                    setBackground(MekHQ.getMekHQOptions().getMothballingBackground());
+                } else if (u.isMothballed()) {
+                    setForeground(MekHQ.getMekHQOptions().getMothballedForeground());
+                    setBackground(MekHQ.getMekHQOptions().getMothballedBackground());
+                } else if (getCampaign().getCampaignOptions().checkMaintenance() && u.isUnmaintained()) {
+                    setForeground(MekHQ.getMekHQOptions().getUnmaintainedForeground());
+                    setBackground(MekHQ.getMekHQOptions().getUnmaintainedBackground());
+                } else if (!u.isRepairable()) {
+                    setForeground(MekHQ.getMekHQOptions().getNotRepairableForeground());
+                    setBackground(MekHQ.getMekHQOptions().getNotRepairableBackground());
+                } else if (!u.isFunctional()) {
+                    setForeground(MekHQ.getMekHQOptions().getNonFunctionalForeground());
+                    setBackground(MekHQ.getMekHQOptions().getNonFunctionalBackground());
+                } else if (u.hasPartsNeedingFixing()) {
+                    setForeground(MekHQ.getMekHQOptions().getNeedsPartsFixedForeground());
+                    setBackground(MekHQ.getMekHQOptions().getNeedsPartsFixedBackground());
+                } else if (u.getActiveCrew().size() < u.getFullCrewSize()) {
+                    setForeground(MekHQ.getMekHQOptions().getUncrewedForeground());
+                    setBackground(MekHQ.getMekHQOptions().getUncrewedBackground());
+                } else {
+                    setForeground(UIManager.getColor("Table.foreground"));
+                    setBackground(UIManager.getColor("Table.background"));
                 }
             }
             return this;
         }
-
     }
 
     public class VisualRenderer extends BasicInfo implements TableCellRenderer {
-
         private static final long serialVersionUID = -9154596036677641620L;
 
-        public VisualRenderer(IconPackage icons) {
-            super(icons);
+        public VisualRenderer() {
+            super();
         }
 
-        public Component getTableCellRendererComponent(JTable table,
-                Object value, boolean isSelected, boolean hasFocus,
-                int row, int column) {
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
+                                                       boolean hasFocus, int row, int column) {
             Component c = this;
             int actualCol = table.convertColumnIndexToModel(column);
             int actualRow = table.convertRowIndexToModel(row);
-            String color = "black";
-            if(isSelected) {
-                color = "white";
-            }
-            setText(getValueAt(actualRow, actualCol).toString(), color);
+
+            setText(getValueAt(actualRow, actualCol).toString());
+
             Unit u = getUnit(actualRow);
-            if (actualCol == COL_PILOT) {
-                Person p = u.getCommander();
-                if(null != p) {
-                    setPortrait(p);
-                    setText(p.getFullDesc(false), color);
-                } else {
-                    clearImage();
-                }
-            }
-            if (actualCol == COL_TECH_CRW) {
-                Person p = u.getTech();
-                if(null != p) {
-                    setPortrait(p);
-                    setText(p.getFullDesc(false), color);
-                } else {
-                    clearImage();
-                }
-            }
-            if(actualCol == COL_WCLASS) {
-                if(null != u) {
+            switch (actualCol) {
+                case COL_WCLASS: {
                     String desc = "<html><b>" + u.getName() + "</b><br>";
                     desc += u.getEntity().getWeightClassName();
-                    if(!(u.getEntity() instanceof SmallCraft || u.getEntity() instanceof Jumpship)) {
+                    if (!((u.getEntity() instanceof SmallCraft) || (u.getEntity() instanceof Jumpship))) {
                         desc += " " + UnitType.getTypeDisplayableName(u.getEntity().getUnitType());
                     }
                     desc += "<br>" + u.getStatus() + "</html>";
-                    setText(desc, color);
-                    Image mekImage = getImageFor(u);
-                    if(null != mekImage) {
+                    setHtmlText(desc);
+                    Image mekImage = u.getImage(this);
+                    if (mekImage != null) {
                         setImage(mekImage);
                     } else {
                         clearImage();
                     }
-                } else {
-                    clearImage();
+                    break;
+                }
+                case COL_PILOT: {
+                    Person p = u.getCommander();
+                    if (p != null) {
+                        setPortrait(p);
+                        setText(p.getFullDesc());
+                    } else {
+                        clearImage();
+                    }
+                    break;
+                }
+                case COL_FORCE: {
+                    Force force = getCampaign().getForceFor(u);
+                    if (force != null) {
+                        StringBuilder desc = new StringBuilder("<html><b>").append(force.getName())
+                                .append("</b>");
+                        Force parent = force.getParentForce();
+                        //cut off after three lines and don't include the top level
+                        int lines = 1;
+                        while ((parent != null) && (parent.getParentForce() != null) && (lines < 4)) {
+                            desc.append("<br>").append(parent.getName());
+                            lines++;
+                            parent = parent.getParentForce();
+                        }
+                        desc.append("</html>");
+                        setHtmlText(desc.toString());
+                        Image forceImage = getImageFor(force);
+                        if (forceImage != null) {
+                            setImage(forceImage);
+                        } else {
+                            clearImage();
+                        }
+                    } else {
+                        clearImage();
+                    }
+                    break;
+                }
+                case COL_TECH_CRW: {
+                    Person p = u.getTech();
+                    if (p != null) {
+                        setPortrait(p);
+                        setText(p.getFullDesc());
+                    } else {
+                        clearImage();
+                    }
+                    break;
                 }
             }
 
-            if (isSelected) {
-                c.setBackground(Color.DARK_GRAY);
-            } else {
-                // tiger stripes
-                if ((row % 2) == 0) {
-                    c.setBackground(new Color(220, 220, 220));
-                } else {
-                    c.setBackground(Color.WHITE);
-
-                }
-            }
+            MekHqTableCellRenderer.setupTableColors(c, table, isSelected, hasFocus, row);
             return c;
         }
     }
-
 }

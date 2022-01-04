@@ -1,5 +1,24 @@
+/*
+ * Copyright (c) 2013, 2020 - The MegaMek Team. All rights reserved.
+ *
+ * This file is part of MekHQ.
+ *
+ * MekHQ is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MekHQ is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
+ */
 package mekhq.gui.dialog;
 
+<<<<<<< HEAD
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -25,24 +44,38 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 
+=======
+import megamek.client.ui.baseComponents.MMComboBox;
+import megamek.client.ui.preferences.JWindowPreference;
+import megamek.client.ui.preferences.PreferencesNode;
+>>>>>>> origin/master
 import megamek.common.util.EncodeControl;
 import mekhq.MekHQ;
-import mekhq.campaign.finances.Money;
 import mekhq.campaign.finances.Transaction;
+<<<<<<< HEAD
 import mekhq.gui.preferences.JWindowPreference;
 import mekhq.gui.utilities.JMoneyTextField;
 import mekhq.preferences.PreferencesNode;
+=======
+import mekhq.campaign.finances.enums.TransactionType;
+import mekhq.gui.utilities.JMoneyTextField;
+>>>>>>> origin/master
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ResourceBundle;
 
 public class EditTransactionDialog extends JDialog implements ActionListener, FocusListener, MouseListener {
-
-    /**
-     * 
-     */
     private static final long serialVersionUID = -8742160448355293487L;
 
+<<<<<<< HEAD
     private final DateFormat LONG_DATE = DateFormat.getDateInstance(DateFormat.LONG);
 
     private ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.EditTransactionDialog", new EncodeControl()); //$NON-NLS-1$
+=======
+    private ResourceBundle resourceMap = ResourceBundle.getBundle("mekhq.resources.EditTransactionDialog", new EncodeControl());
+>>>>>>> origin/master
 
     private Transaction oldTransaction;
     private Transaction newTransaction;
@@ -51,12 +84,12 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     private JMoneyTextField amountField;
     private JTextField descriptionField;
     private JButton dateButton;
-    private JComboBox<String> categoryCombo;
+    private MMComboBox<TransactionType> categoryCombo;
 
     private JButton saveButton;
     private JButton cancelButton;
 
-    public EditTransactionDialog(Transaction transaction, JFrame parent, boolean modal) {
+    public EditTransactionDialog(JFrame parent, Transaction transaction, boolean modal) {
         super(parent, modal);
         //we need to make a copy of the object since objects are referenced by passing it to the dialog
         oldTransaction = new Transaction(transaction);
@@ -71,13 +104,9 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     }
 
     private void initGUI() {
-        try {
-            setLayout(new BorderLayout());
-            add(buildMainPanel(), BorderLayout.CENTER);
-            add(buildButtonPanel(), BorderLayout.SOUTH);
-        } catch (ParseException e) {
-            MekHQ.getLogger().error(getClass(), "initGUI()", e);
-        }
+        setLayout(new BorderLayout());
+        add(buildMainPanel(), BorderLayout.CENTER);
+        add(buildButtonPanel(), BorderLayout.SOUTH);
     }
 
     private void setUserPreferences() {
@@ -87,7 +116,7 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
         preferences.manage(new JWindowPreference(this));
     }
 
-    private JPanel buildMainPanel() throws ParseException {
+    private JPanel buildMainPanel() {
         JPanel panel = new JPanel();
 
         GridBagConstraints c = new GridBagConstraints();
@@ -135,14 +164,14 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
         panel.add(amountField);
 
         c.gridx++;
-        dateButton = new JButton(LONG_DATE.format(newTransaction.getDate()));
+        dateButton = new JButton(MekHQ.getMekHQOptions().getDisplayFormattedDate(newTransaction.getDate()));
         dateButton.addActionListener(this);
         l.setConstraints(dateButton, c);
         panel.add(dateButton);
 
         c.gridx++;
-        categoryCombo = new JComboBox<>(Transaction.getCategoryList());
-        categoryCombo.setSelectedItem(Transaction.getCategoryName(newTransaction.getCategory()));
+        categoryCombo = new MMComboBox<>("categoryCombo", TransactionType.values());
+        categoryCombo.setSelectedItem(newTransaction.getType());
         categoryCombo.setToolTipText("Category of the transaction");
         categoryCombo.setName("categoryCombo");
         l.setConstraints(categoryCombo, c);
@@ -188,23 +217,21 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     public void actionPerformed(ActionEvent e) {
         if (saveButton.equals(e.getSource())) {
             newTransaction.setAmount(amountField.getMoney());
+<<<<<<< HEAD
             newTransaction.setCategory(Transaction.getCategoryIndex((String) categoryCombo.getSelectedItem()));
+=======
+            newTransaction.setType(categoryCombo.getSelectedItem());
+>>>>>>> origin/master
             newTransaction.setDescription(descriptionField.getText());
-            try {
-                newTransaction.setDate(LONG_DATE.parse(dateButton.getText()));
-            } catch (ParseException e1) {
-                e1.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-            }
+            newTransaction.setDate(MekHQ.getMekHQOptions().parseDisplayFormattedDate(dateButton.getText()));
             setVisible(false);
         } else if (cancelButton.equals(e.getSource())) {
             setVisible(false);
         } else if (dateButton.equals(e.getSource())) {
-            GregorianCalendar calendar = new GregorianCalendar();
-            calendar.setTime(newTransaction.getDate());
-            DateChooser chooser = new DateChooser(parent, calendar);
-            chooser.showDateChooser();
-            dateButton.setText(LONG_DATE.format(chooser.getDate().getTime()));
-            chooser.dispose();
+            DateChooser chooser = new DateChooser(parent, newTransaction.getDate());
+            if (chooser.showDateChooser() == DateChooser.OK_OPTION) {
+                dateButton.setText(MekHQ.getMekHQOptions().getDisplayFormattedDate(chooser.getDate()));
+            }
         }
     }
 
@@ -218,7 +245,7 @@ public class EditTransactionDialog extends JDialog implements ActionListener, Fo
     }
 
     private void selectAllTextInField(final JTextField field) {
-        SwingUtilities.invokeLater(() -> field.selectAll());
+        SwingUtilities.invokeLater(field::selectAll);
     }
 
     @Override

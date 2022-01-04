@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -24,6 +24,10 @@ EGL-R4
 2492
 </year>
 
+<originalBuildYear>
+2492
+</originalBuildYear>
+
 <type>
 IS Level 4
 </type>
@@ -31,6 +35,9 @@ IS Level 4
 <motion_type>
 Aerodyne
 </motion_type>
+
+<transporters>
+</transporters>
 
 <SafeThrust>
 5
@@ -90,6 +97,12 @@ Medium Laser
 Medium Laser
 </Aft Equipment>
 
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+</Fuselage Equipment>
+
 <source>
 TRO 3075 - Age of War
 </source>
@@ -97,4 +110,3 @@ TRO 3075 - Age of War
 <tonnage>
 75.0
 </tonnage>
-

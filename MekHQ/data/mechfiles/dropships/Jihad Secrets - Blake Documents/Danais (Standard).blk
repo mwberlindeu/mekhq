@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -41,7 +41,7 @@ smallcraftbay:2.0:2:1
 1stclassquarters:10.0:0
 2ndclassquarters:70.0:0
 crewquarters:28.0:0
-cargobay:1693.0:2:2
+cargobay:1693.0:2:5
 </transporters>
 
 <SafeThrust>
@@ -90,6 +90,9 @@ cargobay:1693.0:2:2
 
 <Aft Equipment>
 </Aft Equipment>
+
+<Hull Equipment>
+</Hull Equipment>
 
 <structural_integrity>
 7
@@ -142,4 +145,3 @@ Jihad Secrets: The Blake Documents - Star League
 <escape_pod>
 4
 </escape_pod>
-

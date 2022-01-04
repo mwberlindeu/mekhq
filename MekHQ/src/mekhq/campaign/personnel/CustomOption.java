@@ -1,67 +1,78 @@
-/**
- * 
+/*
+ * Copyright (c) 2018, 2020 The MegaMek Team. All rights reserved.
+ *
+ * This file is part of MekHQ.
+ *
+ * MekHQ is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * MekHQ is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
  */
 package mekhq.campaign.personnel;
 
-import java.io.FileInputStream;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.xml.parsers.DocumentBuilder;
-
+import megamek.common.options.IOption;
+import mekhq.MekHqXmlUtil;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import megamek.common.logging.LogLevel;
-import megamek.common.options.IOption;
-import megamek.common.options.PilotOptions;
-import mekhq.MekHQ;
-import mekhq.MekHqXmlUtil;
+import javax.xml.parsers.DocumentBuilder;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Parses custom SPA file and passes data to the PersonnelOption constructor so the custom
  * abilities are included.
- * 
- * @author Neoancient
  *
+ * @author Neoancient
  */
 public class CustomOption {
-    
+
     private static List<CustomOption> customAbilities = null;
-    
+
     private String name;
     private String group;
     private int type;
     private Object defaultVal;
-    
+
     private CustomOption(String key) {
         this.name = key;
-        group = PilotOptions.LVL3_ADVANTAGES;
+        group = PersonnelOptions.LVL3_ADVANTAGES;
         type = IOption.BOOLEAN;
         defaultVal = Boolean.FALSE;
     }
-    
+
     public String getName() {
         return name;
     }
-    
+
     public String getGroup() {
         return group;
     }
-    
+
     public int getType() {
         return type;
     }
-    
+
     public Object getDefault() {
         return defaultVal;
     }
-    
+
     /**
      * Loads custom abilities from the data directory the first time it is called.
-     * 
+     *
      * @return The list of user-defined special abilities.
      */
     public static List<CustomOption> getCustomAbilities() {
@@ -70,23 +81,21 @@ public class CustomOption {
         }
         return customAbilities;
     }
-    
+
     private static void initCustomAbilities() {
-        final String METHOD_NAME = "initCustomAbilities()"; //$NON-NLS-1$
         customAbilities = new ArrayList<>();
 
-        Document xmlDoc = null;
+        Document xmlDoc;
 
-
-        try {
-            FileInputStream fis = new FileInputStream("data/universe/customspa.xml");
+        try (InputStream is = new FileInputStream("data/universe/customspa.xml")) { // TODO : Remove inline file path
             // Using factory get an instance of document builder
             DocumentBuilder db = MekHqXmlUtil.newUnsafeDocumentBuilder();
 
             // Parse using builder to get DOM representation of the XML file
-            xmlDoc = db.parse(fis);
+            xmlDoc = db.parse(is);
         } catch (Exception ex) {
-            MekHQ.getLogger().error(CustomOption.class, METHOD_NAME, ex);
+            LogManager.getLogger().error(ex);
+            return;
         }
 
         Element spaEle = xmlDoc.getDocumentElement();
@@ -100,7 +109,7 @@ public class CustomOption {
         for (int x = 0; x < nl.getLength(); x++) {
             Node wn = nl.item(x);
 
-            if (wn.getParentNode() != spaEle)
+            if (!wn.getParentNode().equals(spaEle))
                 continue;
 
             int xc = wn.getNodeType();
@@ -123,19 +132,14 @@ public class CustomOption {
     }
 
     public static CustomOption generateInstanceFromXML(Node wn) {
-        final String METHOD_NAME = "generateInstanceFromXML(Node)"; //$NON-NLS-1$
-
-        CustomOption retVal = null;
-
         String key = wn.getAttributes().getNamedItem("name").getTextContent();
         if (null == key) {
-            MekHQ.getLogger().log(CustomOption.class, METHOD_NAME, LogLevel.ERROR,
-                    "Custom ability does not have a 'name' attribute.");
+            LogManager.getLogger().error("Custom ability does not have a 'name' attribute.");
             return null;
         }
-        
+
+        CustomOption retVal = new CustomOption(key);
         try {
-            retVal = new CustomOption(key);
             NodeList nl = wn.getChildNodes();
 
             for (int x = 0; x < nl.getLength(); x++) {
@@ -152,10 +156,10 @@ public class CustomOption {
                     retVal.defaultVal = Boolean.FALSE;
                     break;
                 case IOption.INTEGER:
-                    retVal.defaultVal = Integer.valueOf(0);
+                    retVal.defaultVal = 0;
                     break;
                 case IOption.FLOAT:
-                    retVal.defaultVal = Float.valueOf(0.0f);
+                    retVal.defaultVal = 0.0f;
                     break;
                 case IOption.STRING:
                 case IOption.CHOICE:
@@ -164,13 +168,9 @@ public class CustomOption {
                     break;
             }
         } catch (Exception ex) {
-            MekHQ.getLogger().log(CustomOption.class, METHOD_NAME, LogLevel.ERROR,
-                    "Error parsing custom ability " + retVal.name);
+            LogManager.getLogger().error("Error parsing custom ability " + retVal.name, ex);
         }
-        
+
         return retVal;
     }
-
-    
-
 }

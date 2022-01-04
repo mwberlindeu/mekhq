@@ -4,22 +4,15 @@ package chat;
  * Code taken from http://introcs.cs.princeton.edu/java/84network/
  */
 
-import java.awt.BorderLayout;
-import java.awt.Color;
+import org.apache.logging.log4j.LogManager;
+
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.net.Socket;
 
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JTextField;
-
 public class ChatClient extends JPanel implements ActionListener {
-
-    /**
-	 * 
-	 */
 	private static final long serialVersionUID = -7447573101863923187L;
 
 	private String screenName;
@@ -42,8 +35,9 @@ public class ChatClient extends JPanel implements ActionListener {
             socket = new Socket(hostName, 4444);
             out    = new Out(socket);
             in     = new In(socket);
+        } catch (Exception e) {
+            LogManager.getLogger().error(e);
         }
-        catch (Exception ex) { ex.printStackTrace(); }
         this.screenName = screenName;
 
     /*    // close output stream  - this will cause listen() to stop and exit
@@ -53,7 +47,9 @@ public class ChatClient extends JPanel implements ActionListener {
                     out.close();
 //                    in.close();
 //                    try                   { socket.close();        }
-//                    catch (Exception ioe) { ioe.printStackTrace(); }
+//                    catch (Exception e) {
+//                        LogManager.getLogger().error(getClass(), "windowClosing", e);
+//                    }
                 }
             }
         );
@@ -77,6 +73,7 @@ public class ChatClient extends JPanel implements ActionListener {
     }
 
     // process TextField after user hits Enter
+    @Override
     public void actionPerformed(ActionEvent e) {
         out.println("[" + screenName + "]: " + typedText.getText());
         typedText.setText("");
@@ -92,8 +89,11 @@ public class ChatClient extends JPanel implements ActionListener {
         }
         out.close();
         in.close();
-        try                 { socket.close();      }
-        catch (Exception e) { e.printStackTrace(); }
-        System.err.println("Closed client socket");
+        try {
+            socket.close();
+        } catch (Exception e) {
+            LogManager.getLogger().error(e);
+        }
+        LogManager.getLogger().error("Closed client socket");
     }
 }

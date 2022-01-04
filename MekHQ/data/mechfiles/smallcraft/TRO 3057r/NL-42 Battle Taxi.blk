@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -99,6 +99,9 @@ ISMediumPulseLaser
 <Aft Equipment>
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 9
 </structural_integrity>
@@ -112,7 +115,7 @@ TRO 3057-Clan Invasion
 </tonnage>
 
 <designtype>
-0
+1
 </designtype>
 
 <crew>
@@ -150,4 +153,3 @@ TRO 3057-Clan Invasion
 <escape_pod>
 0
 </escape_pod>
-

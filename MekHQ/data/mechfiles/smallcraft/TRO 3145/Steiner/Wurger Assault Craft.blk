@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -92,7 +92,6 @@ ISAMS Ammo
 ISAMS Ammo
 ISAMS Ammo
 ISAMS Ammo
-BeagleActiveProbe
 </Nose Equipment>
 
 <Left Side Equipment>
@@ -120,8 +119,12 @@ ISERMediumLaser
 ISERMediumLaser
 ISERMediumLaser
 ISERMediumLaser
-ISGuardianECMSuite
 </Aft Equipment>
+
+<Hull Equipment>
+BeagleActiveProbe
+ISGuardianECMSuite
+</Hull Equipment>
 
 <structural_integrity>
 9
@@ -136,7 +139,7 @@ TRO 3145 Lyran Commonwealth - Early Republic
 </tonnage>
 
 <designtype>
-0
+1
 </designtype>
 
 <crew>
@@ -174,4 +177,3 @@ TRO 3145 Lyran Commonwealth - Early Republic
 <escape_pod>
 0
 </escape_pod>
-

@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -131,6 +131,9 @@ ISArtemisIV
 IS Streak SRM 4 Ammo:25
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 9
 </structural_integrity>
@@ -178,4 +181,3 @@ IS Streak SRM 4 Ammo:25
 <escape_pod>
 4
 </escape_pod>
-

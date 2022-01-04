@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -80,10 +80,6 @@ Aerodyne
 
 <Nose Equipment>
 ISUltraAC20
-IS Ultra AC/20 Ammo
-IS Ultra AC/20 Ammo
-IS Ultra AC/20 Ammo
-IS Ultra AC/20 Ammo
 ISReconCamera
 </Nose Equipment>
 
@@ -97,6 +93,16 @@ ISReconCamera
 ISFlotationHull
 </Aft Equipment>
 
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+IS Ultra AC/20 Ammo
+IS Ultra AC/20 Ammo
+IS Ultra AC/20 Ammo
+IS Ultra AC/20 Ammo
+</Fuselage Equipment>
+
 <source>
 TRO Prototypes - Jihad
 </source>
@@ -104,4 +110,3 @@ TRO Prototypes - Jihad
 <tonnage>
 50.0
 </tonnage>
-

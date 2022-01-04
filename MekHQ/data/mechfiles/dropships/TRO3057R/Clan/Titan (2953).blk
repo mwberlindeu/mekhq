@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -104,7 +104,6 @@ Clan Ammo LRM-20:30
 CLUltraAC20
 CLUltraAC20
 Clan Ultra AC/20 Ammo:60
-ISSmallNavalCommScannerSuite
 </Nose Equipment>
 
 <Left Side Equipment>
@@ -149,6 +148,10 @@ Clan Ultra AC/20 Ammo:20
 (B) CLMediumPulseLaser
 CLMediumPulseLaser
 </Aft Equipment>
+
+<Hull Equipment>
+ISSmallNavalCommScannerSuite
+</Hull Equipment>
 
 <structural_integrity>
 18
@@ -201,4 +204,3 @@ TRO 3057R - Late Succession War - Lostech
 <escape_pod>
 4
 </escape_pod>
-

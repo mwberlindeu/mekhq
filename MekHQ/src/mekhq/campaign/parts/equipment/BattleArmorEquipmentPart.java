@@ -12,28 +12,26 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.parts.equipment;
-
-import java.io.PrintWriter;
 
 import megamek.common.EquipmentType;
 import megamek.common.MiscType;
 import megamek.common.Mounted;
 import mekhq.MekHqXmlUtil;
 import mekhq.campaign.Campaign;
-import mekhq.campaign.parts.MissingPart;
 import mekhq.campaign.parts.Part;
 import mekhq.campaign.personnel.Person;
-
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+
+import java.io.PrintWriter;
 
 /**
  *
@@ -52,27 +50,25 @@ import org.w3c.dom.NodeList;
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class BattleArmorEquipmentPart extends EquipmentPart {
-
-    /**
-     *
-     */
     private static final long serialVersionUID = -5675111120455420391L;
 
     private int trooper;
 
     public BattleArmorEquipmentPart() {
-        this(0, null, -1, -1, null);
+        this(0, null, -1, 1.0, -1, null);
     }
 
-    public BattleArmorEquipmentPart(int tonnage, EquipmentType et, int equipNum, int trooper, Campaign c) {
-        super(tonnage, et, equipNum, c);
+    public BattleArmorEquipmentPart(int tonnage, EquipmentType et, int equipNum, double size, int trooper, Campaign c) {
+        super(tonnage, et, equipNum, size, c);
         this.trooper = trooper;
     }
 
+    @Override
     public EquipmentPart clone() {
-        BattleArmorEquipmentPart clone = new BattleArmorEquipmentPart(getUnitTonnage(), type, equipmentNum, trooper, campaign);
+        BattleArmorEquipmentPart clone = new BattleArmorEquipmentPart(getUnitTonnage(), type, equipmentNum, size,
+                trooper, campaign);
         clone.copyBaseData(this);
-        if(hasVariableTonnage(type)) {
+        if (hasVariableTonnage(type)) {
             clone.setEquipTonnage(equipTonnage);
         }
         return clone;
@@ -81,22 +77,11 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
     @Override
     public void writeToXml(PrintWriter pw1, int indent) {
         writeToXmlBegin(pw1, indent);
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<equipmentNum>"
-                +equipmentNum
-                +"</equipmentNum>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<typeName>"
-                +MekHqXmlUtil.escape(type.getInternalName())
-                +"</typeName>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<equipTonnage>"
-                +equipTonnage
-                +"</equipTonnage>");
-        pw1.println(MekHqXmlUtil.indentStr(indent+1)
-                +"<trooper>"
-                +trooper
-                +"</trooper>");
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "equipmentNum", equipmentNum);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "typeName", type.getInternalName());
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "size", size);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "equipTonnage", equipTonnage);
+        MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "trooper", trooper);
         writeToXmlEnd(pw1, indent);
     }
 
@@ -104,19 +89,22 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
     protected void loadFieldsFromXmlNode(Node wn) {
         NodeList nl = wn.getChildNodes();
 
-        for (int x=0; x<nl.getLength(); x++) {
+        for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
-            if (wn2.getNodeName().equalsIgnoreCase("equipmentNum")) {
-                equipmentNum = Integer.parseInt(wn2.getTextContent());
-            }
-            else if (wn2.getNodeName().equalsIgnoreCase("typeName")) {
-                typeName = wn2.getTextContent();
-            }
-            else if (wn2.getNodeName().equalsIgnoreCase("equipTonnage")) {
-                equipTonnage = Double.parseDouble(wn2.getTextContent());
-            }
-            else if (wn2.getNodeName().equalsIgnoreCase("trooper")) {
-                trooper = Integer.parseInt(wn2.getTextContent());
+            try {
+                if (wn2.getNodeName().equalsIgnoreCase("equipmentNum")) {
+                    equipmentNum = Integer.parseInt(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("typeName")) {
+                    typeName = wn2.getTextContent();
+                } else if (wn2.getNodeName().equalsIgnoreCase("equipTonnage")) {
+                    equipTonnage = Double.parseDouble(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("size")) {
+                    size = Double.parseDouble(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("trooper")) {
+                    trooper = Integer.parseInt(wn2.getTextContent());
+                }
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
             }
         }
         restore();
@@ -124,29 +112,29 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 
     @Override
     public void remove(boolean salvage) {
-    	if(null != unit) {
+    	if (null != unit) {
             unit.removePart(this);
             Part missing = getMissingPart();
             unit.addPart(missing);
-            campaign.addPart(missing, 0);
+            campaign.getQuartermaster().addPart(missing, 0);
             //need to record this as missing for trooper on entity
             Mounted mounted = unit.getEntity().getEquipment(equipmentNum);
-			if(null != mounted && isModular()) {
+			if (null != mounted && isModular()) {
 				mounted.setMissingForTrooper(trooper, true);
 			}
             //sorry dude, but you can't pilot a messed up BA suit
-            if(unit.getEntity().getInternal(trooper) > 0) {
+            if (unit.getEntity().getInternal(trooper) > 0) {
                 unit.getEntity().setInternal(0, trooper);
-                if(unit.getCrew().size() > 0) {
+                if (unit.getCrew().size() > 0) {
                     Person trooperToRemove = unit.getCrew().get(unit.getCrew().size()-1);
-                    if(null != trooperToRemove) {
+                    if (null != trooperToRemove) {
                     	unit.remove(trooperToRemove, true);
                     }
                 }
             }
         }
-    	if(!salvage) {
-    		campaign.removePart(this);
+    	if (!salvage) {
+    		campaign.getWarehouse().removePart(this);
     	}
         setUnit(null);
         equipmentNum = -1;
@@ -155,28 +143,28 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 
     @Override
     public void updateConditionFromEntity(boolean checkForDestruction) {
-    	if(null != unit && isModular()) {
+    	if (null != unit && isModular()) {
 			Mounted mounted = unit.getEntity().getEquipment(equipmentNum);
-			if(null != mounted) {
-				if(mounted.isMissingForTrooper(trooper)) {
+			if (null != mounted) {
+				if (mounted.isMissingForTrooper(trooper)) {
 					remove(false);
 					return;
 				}
 			}
 		}
     }
-    
-    @Override 
+
+    @Override
 	public int getBaseTime() {
-		if(isSalvaging()) {
+		if (isSalvaging()) {
 			return 30;
 		}
 		return super.getBaseTime();
 	}
-	
+
 	@Override
 	public int getDifficulty() {
-		if(isSalvaging()) {
+		if (isSalvaging()) {
 			return -2;
 		}
 		return super.getBaseTime();
@@ -190,7 +178,7 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 
     @Override
     public boolean isSalvaging() {
-    	if(isModular()) {
+    	if (isModular()) {
     		return super.isSalvaging();
     	}
         //guess what - you cant salvage this
@@ -199,9 +187,9 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 
     @Override
     public void updateConditionFromPart() {
-        if(isModular()) {
+        if (isModular()) {
         	Mounted mounted = unit.getEntity().getEquipment(equipmentNum);
-			if(null != mounted) {
+			if (null != mounted) {
 				mounted.setMissingForTrooper(trooper, false);
 			}
         }
@@ -209,10 +197,15 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 
     @Override
     public String getDetails() {
-        if(null != unit) {
+        return getDetails(true);
+    }
+
+    @Override
+    public String getDetails(boolean includeRepairDetails) {
+        if (null != unit) {
             return unit.getEntity().getLocationName(trooper);
         }
-        return super.getDetails();
+        return super.getDetails(includeRepairDetails);
     }
 
     public int getTrooper() {
@@ -229,21 +222,23 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
 	}
 
     @Override
-    public MissingPart getMissingPart() {
-        return new MissingBattleArmorEquipmentPart(getUnitTonnage(), type, equipmentNum, trooper, campaign, equipTonnage);
+    public MissingBattleArmorEquipmentPart getMissingPart() {
+        return new MissingBattleArmorEquipmentPart(getUnitTonnage(), type, equipmentNum, size, trooper,
+                campaign, equipTonnage);
     }
 
     @Override
     public boolean isSamePartType(Part part) {
-        return part instanceof BattleArmorEquipmentPart
-                && getType().equals(((BattleArmorEquipmentPart)part).getType())
+        return (getClass() == part.getClass())
+                && getType().equals(((BattleArmorEquipmentPart) part).getType())
+                && getSize() == ((BattleArmorEquipmentPart) part).getSize()
                 && getTonnage() == part.getTonnage();
     }
 
     public int getBaMountLocation() {
-    	if(null != unit) {
+    	if (null != unit) {
     		Mounted mounted = unit.getEntity().getEquipment(equipmentNum);
-			if(null != mounted) {
+			if (null != mounted) {
 				return mounted.getBaMountLoc();
 			}
     	}
@@ -251,7 +246,7 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
     }
 
     private boolean isModular() {
-    	if(null == unit) {
+    	if (null == unit) {
     		return false;
     	}
     	for (Mounted m : unit.getEntity().getMisc()){
@@ -269,10 +264,12 @@ public class BattleArmorEquipmentPart extends EquipmentPart {
     	return false;
     }
 
+    @Override
     public boolean needsMaintenance() {
         return false;
     }
-    
+
+    @Override
     public boolean canNeverScrap() {
     	return isModular();
 	}

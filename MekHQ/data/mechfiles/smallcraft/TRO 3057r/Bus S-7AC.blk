@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -91,6 +91,9 @@ steeragequarters:15.0:0
 <Aft Equipment>
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 5
 </structural_integrity>
@@ -104,7 +107,7 @@ TRO 3057R- Star League
 </tonnage>
 
 <designtype>
-0
+1
 </designtype>
 
 <crew>
@@ -142,4 +145,3 @@ TRO 3057R- Star League
 <escape_pod>
 0
 </escape_pod>
-

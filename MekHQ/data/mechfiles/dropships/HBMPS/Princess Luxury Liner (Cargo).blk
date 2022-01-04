@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -43,8 +43,8 @@ cargobay:2086.0:4:4
 2ndclassquarters:700.0:0
 1stclassquarters:100.0:0
 crewquarters:301.0:0
-cargobay:2263.0:0:3
-cargobay:446.0:0:5
+cargobay:2263.0:0:7
+cargobay:446.0:0:8
 </transporters>
 
 <SafeThrust>
@@ -118,6 +118,9 @@ Machine Gun
 IS Machine Gun Ammo - Half:100
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 10
 </structural_integrity>
@@ -169,4 +172,3 @@ HB:Major Periphery States - Succession Wars
 <escape_pod>
 15
 </escape_pod>
-

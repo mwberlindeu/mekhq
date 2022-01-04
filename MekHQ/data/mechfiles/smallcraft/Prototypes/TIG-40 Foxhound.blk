@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -104,6 +104,9 @@ ISImprovedHeavyGauss Ammo
 ISLaserAntiMissileSystem
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 9
 </structural_integrity>
@@ -113,7 +116,7 @@ ISLaserAntiMissileSystem
 </tonnage>
 
 <designtype>
-0
+1
 </designtype>
 
 <crew>
@@ -151,4 +154,3 @@ ISLaserAntiMissileSystem
 <escape_pod>
 0
 </escape_pod>
-

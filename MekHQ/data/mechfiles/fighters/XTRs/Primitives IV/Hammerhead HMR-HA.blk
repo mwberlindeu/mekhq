@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -21,8 +21,12 @@ HMR-HA
 </Model>
 
 <year>
-2402
+2407
 </year>
+
+<originalBuildYear>
+2407
+</originalBuildYear>
 
 <type>
 IS Level 4
@@ -31,6 +35,9 @@ IS Level 4
 <motion_type>
 Aerodyne
 </motion_type>
+
+<transporters>
+</transporters>
 
 <SafeThrust>
 6
@@ -85,6 +92,12 @@ Large Laser
 <Aft Equipment>
 </Aft Equipment>
 
+<Wings Equipment>
+</Wings Equipment>
+
+<Fuselage Equipment>
+</Fuselage Equipment>
+
 <source>
 XTRO Primitives IV - Age of War
 </source>
@@ -92,4 +105,3 @@ XTRO Primitives IV - Age of War
 <tonnage>
 75.0
 </tonnage>
-

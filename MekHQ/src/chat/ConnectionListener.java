@@ -1,5 +1,7 @@
 package chat;
 
+import org.apache.logging.log4j.LogManager;
+
 import java.util.Vector;
 
 /*
@@ -32,9 +34,11 @@ public class ConnectionListener extends Thread {
             }
 
             // don't monopolize processor
-            try                 { Thread.sleep(100);   }
-            catch (Exception e) { e.printStackTrace(); }
+            try {
+                Thread.sleep(100);
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
+            }
         }
     }
-
 }

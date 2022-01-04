@@ -12,20 +12,13 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.parts;
-
-import java.io.PrintWriter;
-
-import mekhq.campaign.finances.Money;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
 
 import megamek.common.Compute;
 import megamek.common.CriticalSlot;
@@ -33,10 +26,16 @@ import megamek.common.Mech;
 import megamek.common.TechAdvancement;
 import mekhq.MekHqXmlUtil;
 import mekhq.campaign.Campaign;
+import mekhq.campaign.finances.Money;
+import mekhq.campaign.parts.enums.PartRepairType;
 import mekhq.campaign.personnel.SkillType;
+import org.apache.logging.log4j.LogManager;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+
+import java.io.PrintWriter;
 
 /**
- *
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class MekGyro extends Part {
@@ -61,6 +60,7 @@ public class MekGyro extends Part {
         this.isClan = isClan;
     }
 
+    @Override
     public MekGyro clone() {
         MekGyro clone = new MekGyro(getUnitTonnage(), type, gyroTonnage, isClan, campaign);
         clone.copyBaseData(this);
@@ -109,7 +109,7 @@ public class MekGyro extends Part {
     @Override
     public boolean isSamePartType(Part part) {
         return part instanceof MekGyro && getType() == ((MekGyro) part).getType()
-                && getTonnage() == ((MekGyro) part).getTonnage();
+                && getTonnage() == part.getTonnage();
     }
 
     @Override
@@ -129,14 +129,18 @@ public class MekGyro extends Part {
         for (int x = 0; x < nl.getLength(); x++) {
             Node wn2 = nl.item(x);
 
-            if (wn2.getNodeName().equalsIgnoreCase("type")) {
-                type = Integer.parseInt(wn2.getTextContent());
-            } else if (wn2.getNodeName().equalsIgnoreCase("gyroTonnage")) {
-                gyroTonnage = Double.parseDouble(wn2.getTextContent());
-            } else if (wn2.getNodeName().equalsIgnoreCase("walkMP")) {
-                walkMP = Integer.parseInt(wn2.getTextContent());
-            } else if (wn2.getNodeName().equalsIgnoreCase("unitTonnage")) {
-                uTonnage = Integer.parseInt(wn2.getTextContent());
+            try {
+                if (wn2.getNodeName().equalsIgnoreCase("type")) {
+                    type = Integer.parseInt(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("gyroTonnage")) {
+                    gyroTonnage = Double.parseDouble(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("walkMP")) {
+                    walkMP = Integer.parseInt(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("unitTonnage")) {
+                    uTonnage = Integer.parseInt(wn2.getTextContent());
+                }
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
             }
         }
         if (gyroTonnage == 0) {
@@ -163,17 +167,17 @@ public class MekGyro extends Part {
     public void remove(boolean salvage) {
         if (null != unit) {
             unit.destroySystem(CriticalSlot.TYPE_SYSTEM, Mech.SYSTEM_GYRO, Mech.LOC_CT);
-            Part spare = campaign.checkForExistingSparePart(this);
+            Part spare = campaign.getWarehouse().checkForExistingSparePart(this);
             if (!salvage) {
-                campaign.removePart(this);
+                campaign.getWarehouse().removePart(this);
             } else if (null != spare) {
                 spare.incrementQuantity();
-                campaign.removePart(this);
+                campaign.getWarehouse().removePart(this);
             }
             unit.removePart(this);
             Part missing = getMissingPart();
             unit.addPart(missing);
-            campaign.addPart(missing, 0);
+            campaign.getQuartermaster().addPart(missing, 0);
         }
         setUnit(null);
         updateConditionFromEntity(false);
@@ -275,7 +279,7 @@ public class MekGyro extends Part {
     }
 
     @Override
-    public int getMassRepairOptionType() {
-        return Part.REPAIR_PART_TYPE.GYRO;
+    public PartRepairType getMassRepairOptionType() {
+        return PartRepairType.GYRO;
     }
 }

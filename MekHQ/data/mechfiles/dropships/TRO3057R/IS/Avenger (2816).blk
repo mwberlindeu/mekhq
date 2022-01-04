@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -25,7 +25,7 @@ Avenger
 </year>
 
 <originalBuildYear>
-0
+2816
 </originalBuildYear>
 
 <type>
@@ -123,6 +123,9 @@ IS Ammo LRM-20:18
 Medium Laser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 12
 </structural_integrity>
@@ -174,4 +177,3 @@ TRO 3057R - Early Succession War
 <escape_pod>
 2
 </escape_pod>
-

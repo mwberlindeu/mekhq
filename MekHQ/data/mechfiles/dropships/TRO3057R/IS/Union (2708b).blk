@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -42,7 +42,7 @@ mechbay:8.0:2
 1stclassquarters:30.0:0
 2ndclassquarters:0.0:0
 crewquarters:77.0:0
-cargobay:337.5:2:3
+cargobay:337.5:2:6
 </transporters>
 
 <SafeThrust>
@@ -130,6 +130,9 @@ ISMediumPulseLaser
 ISMediumPulseLaser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 11
 </structural_integrity>
@@ -181,4 +184,3 @@ TRO 3057R - Star League
 <escape_pod>
 7
 </escape_pod>
-

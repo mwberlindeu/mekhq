@@ -12,14 +12,37 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign;
+
+import megamek.client.Client;
+import megamek.common.*;
+import megamek.common.event.GameVictoryEvent;
+import megamek.common.loaders.EntityLoadingException;
+import megamek.common.options.OptionsConstants;
+import mekhq.MekHQ;
+import mekhq.Utilities;
+import mekhq.campaign.event.PersonBattleFinishedEvent;
+import mekhq.campaign.finances.Money;
+import mekhq.campaign.finances.enums.TransactionType;
+import mekhq.campaign.log.ServiceLogger;
+import mekhq.campaign.mission.*;
+import mekhq.campaign.mission.enums.ScenarioStatus;
+import mekhq.campaign.parts.Armor;
+import mekhq.campaign.parts.Part;
+import mekhq.campaign.personnel.Person;
+import mekhq.campaign.personnel.enums.PersonnelStatus;
+import mekhq.campaign.personnel.enums.PrisonerStatus;
+import mekhq.campaign.unit.TestUnit;
+import mekhq.campaign.unit.Unit;
+import mekhq.campaign.unit.actions.AdjustLargeCraftAmmoAction;
+import mekhq.gui.FileDialogs;
+import org.apache.logging.log4j.LogManager;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,30 +51,6 @@ import java.io.InputStream;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import megamek.client.Client;
-import megamek.common.*;
-import megamek.common.event.GameVictoryEvent;
-import megamek.common.loaders.EntityLoadingException;
-import megamek.common.logging.LogLevel;
-import mekhq.MekHQ;
-import mekhq.Utilities;
-import mekhq.campaign.event.PersonBattleFinishedEvent;
-import mekhq.campaign.finances.Money;
-import mekhq.campaign.finances.Transaction;
-import mekhq.campaign.log.ServiceLogger;
-import mekhq.campaign.mission.AtBContract;
-import mekhq.campaign.mission.AtBScenario;
-import mekhq.campaign.mission.Contract;
-import mekhq.campaign.mission.Loot;
-import mekhq.campaign.mission.Mission;
-import mekhq.campaign.mission.Scenario;
-import mekhq.campaign.parts.Armor;
-import mekhq.campaign.parts.Part;
-import mekhq.campaign.personnel.Person;
-import mekhq.campaign.unit.TestUnit;
-import mekhq.campaign.unit.Unit;
-import mekhq.gui.FileDialogs;
-
 /**
  * This object will be the main workhorse for the scenario
  * resolution wizard. It will keep track of information and be
@@ -59,21 +58,24 @@ import mekhq.gui.FileDialogs;
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class ResolveScenarioTracker {
-    //Hashtable<UUID, Entity> entities;
+    Map<UUID, Entity> entities;
+    Map<UUID, List<Entity>> bayLoadedEntities;
+    Map<Integer, UUID> idMap;
     Hashtable<UUID, UnitStatus> unitsStatus;
     Hashtable<UUID, UnitStatus> salvageStatus;
     Hashtable<UUID, Crew> pilots;
     Hashtable<UUID, Crew> mia;
-    ArrayList<TestUnit> potentialSalvage;
-    ArrayList<TestUnit> alliedUnits;
-    ArrayList<TestUnit> actualSalvage;
-    ArrayList<TestUnit> leftoverSalvage;
-    ArrayList<TestUnit> devastatedEnemyUnits;
-    ArrayList<Unit> units;
-    ArrayList<Loot> potentialLoot;
-    ArrayList<Loot> actualLoot;
+    List<TestUnit> potentialSalvage;
+    List<TestUnit> alliedUnits;
+    List<TestUnit> actualSalvage;
+    List<TestUnit> ransomedSalvage;
+    List<TestUnit> leftoverSalvage;
+    List<TestUnit> devastatedEnemyUnits;
+    List<Unit> units;
+    List<Loot> potentialLoot;
+    List<Loot> actualLoot;
     Hashtable<UUID, PersonStatus> peopleStatus;
-    Hashtable<UUID, PrisonerStatus> prisonerStatus;
+    Hashtable<UUID, OppositionPersonnelStatus> oppositionPersonnel;
     Hashtable<String, String> killCredits;
     Hashtable<UUID, EjectedCrew> ejections;
     Hashtable<UUID, EjectedCrew> enemyEjections;
@@ -96,8 +98,9 @@ public class ResolveScenarioTracker {
         unitsStatus = new Hashtable<>();
         salvageStatus = new Hashtable<>();
         potentialSalvage = new ArrayList<>();
-        alliedUnits = new ArrayList<>(); // TODO: Make some use of this?
+        alliedUnits = new ArrayList<>();
         actualSalvage = new ArrayList<>();
+        ransomedSalvage = new ArrayList<>();
         leftoverSalvage = new ArrayList<>();
         devastatedEnemyUnits = new ArrayList<>();
         pilots = new Hashtable<>();
@@ -106,13 +109,16 @@ public class ResolveScenarioTracker {
         potentialLoot = scenario.getLoot();
         actualLoot = new ArrayList<>();
         peopleStatus = new Hashtable<>();
-        prisonerStatus = new Hashtable<>();
+        oppositionPersonnel = new Hashtable<>();
         killCredits = new Hashtable<>();
         ejections = new Hashtable<>();
         enemyEjections = new Hashtable<>();
-        for(UUID uid : scenario.getForces(campaign).getAllUnits()) {
+        entities = new HashMap<>();
+        bayLoadedEntities = new HashMap<>();
+        idMap = new HashMap<>();
+        for (UUID uid : scenario.getForces(campaign).getAllUnits(true)) {
             Unit u = campaign.getUnit(uid);
-            if(null != u && null == u.checkDeployment()) {
+            if (null != u && null == u.checkDeployment()) {
                 units.add(u);
                 //assume its missing until we can confirm otherwise
                 unitsStatus.put(uid, new UnitStatus(u));
@@ -125,8 +131,7 @@ public class ResolveScenarioTracker {
     }
 
     public String getUnitFilePath() {
-        return unitList.map(File::getAbsolutePath)
-                       .orElse("No file selected");
+        return unitList.map(File::getAbsolutePath).orElse("No file selected");
     }
 
     public void setClient(Client c) {
@@ -134,13 +139,11 @@ public class ResolveScenarioTracker {
     }
 
     public void processMulFiles() {
-        //File salvageFile = salvageList.getSelectedFile();
-        if(unitList.isPresent()) {
+        if (unitList.isPresent()) {
             try {
                 loadUnitsAndPilots(unitList.get());
             } catch (IOException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                LogManager.getLogger().error(e);
             }
         } else {
             initUnitsAndPilotsWithoutBattle();
@@ -149,12 +152,8 @@ public class ResolveScenarioTracker {
     }
 
     private TestUnit generateNewTestUnit(Entity e) {
-        // Do some hoops here so that the new mech gets it's old individual paint job!
-        String cat = e.getCamoCategory();
-        String fn = e.getCamoFileName();
         TestUnit nu = new TestUnit(e, campaign, true);
-        nu.getEntity().setCamoCategory(cat);
-        nu.getEntity().setCamoFileName(fn);
+        nu.getEntity().setCamouflage(e.getCamouflage().clone());
         /* AtB uses id to track status of allied units */
         if (e.getExternalIdAsString().equals("-1")) {
             UUID id = UUID.randomUUID();
@@ -163,7 +162,7 @@ public class ResolveScenarioTracker {
         } else {
             nu.setId(UUID.fromString(e.getExternalIdAsString()));
         }
-        
+
         for (Part part : nu.getParts()) {
             part.setBrandNew(false);
         }
@@ -176,60 +175,60 @@ public class ResolveScenarioTracker {
 
         for (Enumeration<Entity> iter = victoryEvent.getEntities(); iter.hasMoreElements();) {
             Entity e = iter.nextElement();
-            if(e.getSubEntities().isPresent()) {
+            if (!e.getSubEntities().isEmpty()) {
                 // Sub-entities have their own entry in the VictoryEvent data
                 continue;
             }
+
+            entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+            //Convenience data
+            idMap.put(e.getId(), UUID.fromString(e.getExternalIdAsString()));
+
             checkForLostLimbs(e, control);
-            if(e.getOwnerId() == pid) {
-                if(!e.getExternalIdAsString().equals("-1")) {
+            if (e.getOwnerId() == pid || e.getOwner().getTeam() == team) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
                     if (null == status && scenario instanceof AtBScenario) {
-                        TestUnit nu = generateNewTestUnit(e);
-                        status = new UnitStatus(nu);
-                        unitsStatus.put(nu.getId(), status);
-                        alliedUnits.add(nu);
+                        status = processAlliedUnit(e);
                     }
-                    if(null != status) {
+
+                    if (null != status) {
                         boolean lost = (!e.canEscape() && !control) || e.getRemovalCondition() == IEntityRemovalConditions.REMOVE_DEVASTATED;
                         status.assignFoundEntity(e, lost);
                     }
                 }
-                if(null != e.getCrew()) {
-                    if(!e.getCrew().getExternalIdAsString().equals("-1")) {
-                        if(!e.getCrew().isEjected() || e instanceof EjectedCrew) {
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                        if (!e.getCrew().isEjected() || (e instanceof EjectedCrew)) {
                             pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
                         }
-                        if(e instanceof EjectedCrew) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         }
                     }
                 }
-            } else if(e.getOwner().getTeam() == team) {
-                TestUnit nu = generateNewTestUnit(e);
-                UnitStatus status = new UnitStatus(nu);
-                unitsStatus.put(nu.getId(), status);
-                alliedUnits.add(nu);
-                boolean lost = (!e.canEscape() && !control) || e.getRemovalCondition() == IEntityRemovalConditions.REMOVE_DEVASTATED;
-                status.assignFoundEntity(e, lost);
-            } else if(e.getOwner().isEnemyOf(client.getLocalPlayer())) {
-                if(control) {
+            } else if (e.getOwner().isEnemyOf(client.getLocalPlayer())) {
+                if (control) {
                     // Kill credit automatically assigned only if they can't escape
                     if (!e.canEscape()) {
                         Entity killer = victoryEvent.getEntity(e.getKillerId());
-                        if(null != killer && killer.getOwnerId() == pid) {
+                        if (null != killer) {
                             //the killer is one of your units, congrats!
                             killCredits.put(e.getDisplayName(), killer.getExternalIdAsString());
                         } else {
                             killCredits.put(e.getDisplayName(), "None");
                         }
                     }
-                    if(e instanceof EjectedCrew) {
+                    if (e instanceof EjectedCrew) {
                         enemyEjections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         continue;
                     }
 
+<<<<<<< HEAD
                     if (e instanceof BattleArmor && e.isDestroyed()) {
+=======
+                    if ((e instanceof BattleArmor) && e.isDestroyed()) {
+>>>>>>> origin/master
                         // BA can only be salvaged with a 10+ roll
                         if (Utilities.dice(2, 6) < 10) {
                             continue;
@@ -244,28 +243,47 @@ public class ResolveScenarioTracker {
                 }
             }
         }
+
+        //If any units ended the game with others loaded in its bays, map those out
+        for (Enumeration<Entity> iter = victoryEvent.getEntities(); iter.hasMoreElements();) {
+            Entity e = iter.nextElement();
+            if (!e.getBayLoadedUnitIds().isEmpty()) {
+                List<Entity> cargo = new ArrayList<>();
+                for (int id : e.getBayLoadedUnitIds()) {
+                    UUID extId = idMap.get(id);
+                    if (extId != null) {
+                        cargo.add(entities.get(extId));
+                    }
+                }
+                bayLoadedEntities.put(UUID.fromString(e.getExternalIdAsString()), cargo);
+            }
+        }
+
         // Utterly destroyed entities
         for (Enumeration<Entity> iter = victoryEvent.getDevastatedEntities(); iter.hasMoreElements();) {
             Entity e = iter.nextElement();
-            if(e.getSubEntities().isPresent()) {
+            if (!e.getSubEntities().isEmpty()) {
                 // Sub-entities have their own entry in the VictoryEvent data
                 continue;
             }
-            if(e.getOwnerId() == pid) {
-                if(!e.getExternalIdAsString().equals("-1")) {
+
+            entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+
+            if (e.getOwnerId() == pid || e.getOwner().getTeam() == team) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
-                    if(null != status) {
+
+                    if (null == status && scenario instanceof AtBScenario) {
+                        status = processAlliedUnit(e);
+                    }
+
+                    if (null != status) {
                         status.assignFoundEntity(e, true);
                     }
                 }
-            } else if(e.getOwner().getTeam() == team) {
-                TestUnit nu = generateNewTestUnit(e);
-                UnitStatus us = new UnitStatus(nu);
-                unitsStatus.put(nu.getId(), us);
-                alliedUnits.add(nu);
             } else {
                 Entity killer = victoryEvent.getEntity(e.getKillerId());
-                if(null != killer && killer.getOwnerId() == pid) {
+                if (null != killer) {
                     //the killer is one of your units, congrats!
                     killCredits.put(e.getDisplayName(), killer.getExternalIdAsString());
                 } else {
@@ -273,68 +291,74 @@ public class ResolveScenarioTracker {
                 }
             }
         }
+
         //add retreated units
         for (Enumeration<Entity> iter = victoryEvent.getRetreatedEntities(); iter.hasMoreElements();) {
             Entity e = iter.nextElement();
-            if(e.getSubEntities().isPresent()) {
+            if (!e.getSubEntities().isEmpty()) {
                 // Sub-entities have their own entry in the VictoryEvent data
                 continue;
             }
+
+            entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+
             checkForLostLimbs(e, control);
-            if(e.getOwnerId() == pid) {
-                if(!e.getExternalIdAsString().equals("-1")) {
+            if (e.getOwnerId() == pid || e.getOwner().getTeam() == team) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
                     if (null == status && scenario instanceof AtBScenario) {
-                        TestUnit nu = generateNewTestUnit(e);
-                        status = new UnitStatus(nu);
-                        unitsStatus.put(nu.getId(), status);
-                        alliedUnits.add(nu);
+                        status = processAlliedUnit(e);
                     }
-                    if(null != status) {
+
+                    if (null != status) {
                         status.assignFoundEntity(e, false);
                     }
                 }
-                if(null != e.getCrew()) {
-                    if(!e.getCrew().getExternalIdAsString().equals("-1")) {
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
                         pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
-                        if(e instanceof EjectedCrew) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         }
                     }
                 }
-            } else if(e.getOwner().getTeam() == team) {
-                TestUnit nu = generateNewTestUnit(e);
-                UnitStatus us = new UnitStatus(nu);
-                unitsStatus.put(nu.getId(), us);
-                alliedUnits.add(nu);
             }
         }
 
         Enumeration<Entity> wrecks = victoryEvent.getGraveyardEntities();
         while (wrecks.hasMoreElements()) {
             Entity e = wrecks.nextElement();
-            if(e.getSubEntities().isPresent()) {
+            if (!e.getSubEntities().isEmpty()) {
                 // Sub-entities have their own entry in the VictoryEvent data
                 continue;
             }
+
+            entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+            idMap.put(e.getId(), UUID.fromString(e.getExternalIdAsString()));
+
             checkForLostLimbs(e, control);
-            if(e.getOwnerId() == pid) {
-                if(!e.getExternalIdAsString().equals("-1")) {
+            if (e.getOwnerId() == pid || e.getOwner().getTeam() == team) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
-                    if(null != status) {
+
+                    if (null == status && scenario instanceof AtBScenario) {
+                        status = processAlliedUnit(e);
+                    }
+
+                    if (null != status) {
                         status.assignFoundEntity(e, !control);
-                        if(e instanceof EjectedCrew) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getExternalIdAsString()), (EjectedCrew)e);
                         }
                     }
                 }
-                if(null != e.getCrew()) {
-                    if(!e.getCrew().getExternalIdAsString().equals("-1")) {
-                        if(e instanceof EjectedCrew) {
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         }
-                        if(!e.getCrew().isEjected() || e instanceof EjectedCrew) {
-                            if(control) {
+                        if (!e.getCrew().isEjected() || e instanceof EjectedCrew) {
+                            if (control) {
                                 pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
                             } else {
                                 mia.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
@@ -342,24 +366,19 @@ public class ResolveScenarioTracker {
                         }
                     }
                 }
-            } else if(e.getOwner().getTeam() == team) {
-                TestUnit nu = generateNewTestUnit(e);
-                UnitStatus us = new UnitStatus(nu);
-                unitsStatus.put(nu.getId(), us);
-                alliedUnits.add(nu);
-            } else if(e.getOwner().isEnemyOf(client.getLocalPlayer())) {
+            } else if (e.getOwner().isEnemyOf(client.getLocalPlayer())) {
                 Entity killer = victoryEvent.getEntity(e.getKillerId());
-                if(null != killer && killer.getOwnerId() == pid) {
+                if (null != killer) {
                     //the killer is one of your units, congrats!
                     killCredits.put(e.getDisplayName(), killer.getExternalIdAsString());
                 } else {
                     killCredits.put(e.getDisplayName(), "None");
                 }
-                if(e instanceof EjectedCrew) {
+                if (e instanceof EjectedCrew) {
                     enemyEjections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                     continue;
                 }
-                if(control) {
+                if (control) {
                     TestUnit nu = generateNewTestUnit(e);
                     UnitStatus us = new UnitStatus(nu);
                     us.setTotalLoss(false);
@@ -368,7 +387,31 @@ public class ResolveScenarioTracker {
                 }
             }
         }
+        //If a unit in a bay was destroyed, add it. We still need to deal with the crew
+        for (Enumeration<Entity> iter = victoryEvent.getGraveyardEntities(); iter.hasMoreElements();) {
+            Entity e = iter.nextElement();
+            if (e.getTransportId() != Entity.NONE) {
+                UUID trnId = idMap.get(e.getTransportId());
+                List<Entity> cargo;
+                if (bayLoadedEntities.containsKey(trnId)) {
+                    cargo = bayLoadedEntities.get(trnId);
+                } else {
+                    cargo = new ArrayList<>();
+                }
+                cargo.add(e);
+                bayLoadedEntities.put(trnId, cargo);
+            }
+        }
         checkStatusOfPersonnel();
+    }
+
+    private UnitStatus processAlliedUnit(Entity e) {
+        TestUnit nu = generateNewTestUnit(e);
+        UnitStatus us = new UnitStatus(nu);
+        unitsStatus.put(nu.getId(), us);
+        alliedUnits.add(nu);
+
+        return us;
     }
 
     /**
@@ -382,8 +425,8 @@ public class ResolveScenarioTracker {
      * @param controlsField
      */
     private void checkForLostLimbs(Entity en, boolean controlsField) {
-        for(int loc = 0; loc < en.locations(); loc++) {
-            if(en.isLocationBlownOff(loc) && !controlsField) {
+        for (int loc = 0; loc < en.locations(); loc++) {
+            if (en.isLocationBlownOff(loc) && !controlsField) {
                 //sorry dude, we cant find your arm
                 en.setLocationBlownOff(loc, false);
                 en.setArmor(IArmorState.ARMOR_DESTROYED, loc);
@@ -392,18 +435,18 @@ public class ResolveScenarioTracker {
             //check for mounted and critical slot missingness as well
             for (int i = 0; i < en.getNumberOfCriticals(loc); i++) {
                 final CriticalSlot cs = en.getCritical(loc, i);
-                if(null == cs || !cs.isEverHittable()) {
+                if (null == cs || !cs.isEverHittable()) {
                     continue;
                 }
                 Mounted m = cs.getMount();
-                if(cs.isMissing()) {
-                    if(controlsField) {
+                if (cs.isMissing()) {
+                    if (controlsField) {
                         cs.setMissing(false);
-                        if(null != m) {
+                        if (null != m) {
                             m.setMissing(false);
                         }
                     } else {
-                        if(null != m) {
+                        if (null != m) {
                             m.setMissing(true);
                         }
                     }
@@ -416,8 +459,7 @@ public class ResolveScenarioTracker {
         List<Person> sortedList = new ArrayList<>();
         Random generator = new Random();
 
-        while (source.size() > 0)
-        {
+        while (source.size() > 0) {
             int position = generator.nextInt(source.size());
             sortedList.add(source.get(position));
             source.remove(position);
@@ -427,24 +469,22 @@ public class ResolveScenarioTracker {
     }
 
     public void assignKills() {
-        final String METHOD_NAME = "assignKills()"; //$NON-NLS-1$
-
-        for(Unit u : units) {
-            for(String killed : killCredits.keySet()) {
-                if(killCredits.get(killed).equalsIgnoreCase("None")) {
+        for (Unit u : units) {
+            for (String killed : killCredits.keySet()) {
+                if (killCredits.get(killed).equalsIgnoreCase("None")) {
                     continue;
                 }
-                if(u.getId().toString().equals(killCredits.get(killed))) {
-                    for(Person p : u.getActiveCrew()) {
+                if (u.getId().toString().equals(killCredits.get(killed))) {
+                    for (Person p : u.getActiveCrew()) {
                         PersonStatus status = peopleStatus.get(p.getId());
-                        if(null == status) {
-                            //this shouldnt happen so report
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.ERROR,
-                                    "A null person status was found for person id " + p.getId().toString() //$NON-NLS-1$
-                                    + " when trying to assign kills"); //$NON-NLS-1$
+                        if (null == status) {
+                            //this shouldn't happen so report
+                            LogManager.getLogger().error(
+                                    "A null person status was found for person id " + p.getId().toString()
+                                    + " when trying to assign kills");
                             continue;
                         }
-                        status.addKill(new Kill(p.getId(), killed, u.getEntity().getShortNameRaw(), campaign.getCalendar().getTime()));
+                        status.addKill(new Kill(p.getId(), killed, u.getEntity().getShortNameRaw(), campaign.getLocalDate()));
                     }
                 }
             }
@@ -453,184 +493,355 @@ public class ResolveScenarioTracker {
     }
 
     public void checkStatusOfPersonnel() {
-
-        //lets cycle through units and get their crew
-        for(Unit u : units) {
-            //shuffling the crew ensures that casualties are randomly assigned in multi-crew units
+        // lets cycle through units and get their crew
+        for (Unit u : units) {
+            // shuffling the crew ensures that casualties are randomly assigned in multi-crew units
             List<Person> crew = shuffleCrew(u.getActiveCrew());
             Entity en = null;
-            UnitStatus ustatus = unitsStatus.get(u.getId());
-            if(null != ustatus) {
-                en = ustatus.getEntity();
+            UnitStatus unitStatus = unitsStatus.get(u.getId());
+            if (null != unitStatus) {
+                en = unitStatus.getEntity();
             }
-            if(null == en) {
+            if (null == en) {
                 continue;
             }
-            //check for an ejected entity and if we find one then assign it instead to switch vees
-            //over to infantry checks for casualties
-            Entity ejected = ejections.get(UUID.fromString(en.getCrew().getExternalIdAsString()));
-            //determine total casualties for infantry and large craft
-            int casualties = 0;
-            int casualtiesAssigned = 0;
-            Infantry infantry = null;
-            if (en instanceof Infantry) {
-                infantry = (Infantry)en;
-            } else if (ejected != null && ejected instanceof Infantry) {
-                infantry = (Infantry)ejected;
-            }
-            if(infantry != null) {
-                infantry.applyDamage();
-                // If reading from a MUL, the shooting strength is set to Integer.MAX_VALUE if there is no damage.
-                int strength = Math.min(((Infantry)infantry).getShootingStrength(), crew.size());
-                casualties = crew.size() - strength;
-                if (ustatus.isTotalLoss()) {
-                    casualties = crew.size();
-                }
-                // If a tank has already taken hits to the commander or driver, do not assign them again.
-                if (en instanceof Tank) {
-                    if (((Tank)en).isDriverHit()) {
-                        casualtiesAssigned++;
-                    }
-                    if (((Tank)en).isCommanderHit()) {
-                        casualtiesAssigned++;
+            //Handle spacecraft a bit differently
+            if ((en instanceof SmallCraft) || (en instanceof Jumpship)) {
+                processLargeCraft(u, en, crew, unitStatus);
+            } else {
+                if (en.getTransportId() != Entity.NONE) {
+                    // Check to see if the unit is in a large craft bay, if so, its crew will be processed with the ship,
+                    // so ignore it here.
+                    UUID trnId = idMap.get(en.getTransportId());
+                    if (trnId != null) {
+                        Entity transport = unitsStatus.get(trnId).getEntity();
+                        if ((transport != null) && transport.isLargeCraft()) {
+                            continue;
+                        }
                     }
                 }
-            }
-            if(en instanceof SmallCraft || en instanceof Jumpship) {
-                //need to check for existing hits because you can fly aeros with less than full
-                //crew
-                int existingHits = 0;
-                int currentHits = 0;
-                if(null != u.getEntity().getCrew()) {
-                    existingHits = u.getEntity().getCrew().getHits();
+                // check for an ejected entity and if we find one then assign it instead to switch vees
+                // over to infantry checks for casualties
+                Entity ejected = ejections.get(UUID.fromString(en.getCrew().getExternalIdAsString()));
+                // determine total casualties for infantry and large craft
+                int casualties = 0;
+                int casualtiesAssigned = 0;
+                Infantry infantry = null;
+                if (en instanceof Infantry) {
+                    infantry = (Infantry) en;
+                } else if (ejected != null) {
+                    infantry = (Infantry) ejected;
                 }
-                if(null != en && null != en.getCrew()) {
-                    currentHits = en.getCrew().getHits();
-                }
-                int newHits = Math.max(0,currentHits - existingHits);
-                casualties = (int)Math.ceil(Compute.getFullCrewSize(en) * (newHits/6.0));
-            }
-            //try to find the crew in our pilot and mia vectors
-            Crew pilot = pilots.get(u.getCommander().getId());
-            boolean missingCrew = false;
-            //For multi-crew cockpits, the crew id is the first slot, which is not necessarily the commander
-            if (null == pilot) {
-                for (Person p : u.getCrew()) {
-                    if (pilots.containsKey(p.getId())) {
-                        pilot = pilots.get(p.getId());
-                        break;
+                if (infantry != null) {
+                    infantry.applyDamage();
+                    // If reading from a MUL, the shooting strength is set to Integer.MAX_VALUE if there is no damage.
+                    int strength = Math.min(infantry.getShootingStrength(), crew.size());
+                    casualties = crew.size() - strength;
+                    if (unitStatus.isTotalLoss()) {
+                        casualties = crew.size();
+                    }
+                    // If a tank has already taken hits to the commander or driver, do not assign them again.
+                    if (en instanceof Tank) {
+                        if (((Tank) en).isDriverHit()) {
+                            casualtiesAssigned++;
+                        }
+                        if (((Tank) en).isCommanderHit()) {
+                            casualtiesAssigned++;
+                        }
                     }
                 }
-            }
-            if (null == pilot) {
-                pilot = mia.get(UUID.fromString(en.getCrew().getExternalIdAsString()));
-                missingCrew = true;
-            }
-            for(Person p : crew) {
-                PersonStatus status = new PersonStatus(p.getFullName(), u.getEntity().getDisplayName(), p.getHits(), p.getId());
-                status.setMissing(missingCrew);
-                //if the pilot was not found in either the pilot or mia vector
-                //then the unit was devastated and no one ejected, so they should be dead, really dead
-                if(null == pilot) {
-                    status.setHits(6);
-                    status.setDead(true);
-                }
-                //multi-crewed cockpit; set each crew member separately
-                else if (pilot.getSlotCount() > 1) {
-                    for (int slot = 0; slot < pilot.getSlotCount(); slot++) {
-                        if (p.getId().toString().equals(pilot.getExternalIdAsString(slot))) {
-                            status.setHits(pilot.getHits(slot));
+                //try to find the crew in our pilot and mia vectors
+                Crew pilot = pilots.get(u.getCommander().getId());
+                boolean missingCrew = false;
+                //For multi-crew cockpits, the crew id is the first slot, which is not necessarily the commander
+                if (null == pilot) {
+                    for (Person p : u.getCrew()) {
+                        if (pilots.containsKey(p.getId())) {
+                            pilot = pilots.get(p.getId());
                             break;
                         }
                     }
                 }
-                //cant do the following by u.usesSoloPilot because entity may be different if ejected
-                else if(en instanceof Mech
-                        || en instanceof Protomech
-                        || (en instanceof Aero && !(en instanceof SmallCraft || en instanceof Jumpship))) {
-                    status.setHits(pilot.getHits());
-                } else {
-                    //we have a multi-crewed vee/Aero/Infantry
-                    boolean wounded = false;
-                    //tanks need to be handled specially because of the special crits and because
-                    //tank destruction should "kill" the crew
-                    if(en instanceof Tank) {
-                        boolean destroyed = false;
-                        for(int loc = 0; loc < en.locations(); loc++) {
-                            if(loc == Tank.LOC_TURRET || loc == Tank.LOC_TURRET_2 || loc == Tank.LOC_BODY) {
-                                continue;
-                            }
-                            if(en.getInternal(loc) <= 0) {
-                                destroyed = true;
+                if (null == pilot) {
+                    pilot = mia.get(UUID.fromString(en.getCrew().getExternalIdAsString()));
+                    missingCrew = true;
+                }
+                for (Person p : crew) {
+                    PersonStatus status = new PersonStatus(p.getFullName(), u.getEntity().getDisplayName(),
+                            p.getHits(), p.getId());
+                    status.setMissing(missingCrew);
+                    // if the pilot was not found in either the pilot or mia vector
+                    // then the unit was devastated and no one ejected, so they should be dead, really dead
+                    if (null == pilot) {
+                        status.setHits(6);
+                        status.setDead(true);
+                    }
+                    // multi-crewed cockpit; set each crew member separately
+                    else if (pilot.getSlotCount() > 1) {
+                        for (int slot = 0; slot < pilot.getSlotCount(); slot++) {
+                            if (p.getId().toString().equals(pilot.getExternalIdAsString(slot))) {
+                                status.setHits(pilot.getHits(slot));
                                 break;
                             }
                         }
-                        if(destroyed || null == en.getCrew() || en.getCrew().isDead()) {
-                            if(Compute.d6(2) >= 7) {
+                    // else if: can't do the following by u.usesSoloPilot because entity may be different if ejected
+                    } else if (en instanceof Mech || en instanceof Protomech || en.isFighter()) {
+                        status.setHits(pilot.getHits());
+                    } else {
+                        // we have a multi-crewed Vehicle/Aero/Infantry
+                        boolean wounded = false;
+                        // tanks need to be handled specially because of the special crits and because
+                        // tank destruction should "kill" the crew
+                        if (en instanceof Tank) {
+                            boolean destroyed = false;
+                            for (int loc = 0; loc < en.locations(); loc++) {
+                                if (loc == Tank.LOC_TURRET || loc == Tank.LOC_TURRET_2 || loc == Tank.LOC_BODY) {
+                                    continue;
+                                }
+                                if (en.getInternal(loc) <= 0) {
+                                    destroyed = true;
+                                    break;
+                                }
+                            }
+                            if (destroyed || null == en.getCrew() || en.getCrew().isDead()) {
+                                if (Compute.d6(2) >= 7) {
+                                    wounded = true;
+                                } else {
+                                    status.setHits(6);
+                                    status.setDead(true);
+                                }
+                            } else if (((Tank)en).isDriverHit() && u.isDriver(p)) {
+                                if (Compute.d6(2) >= 7) {
+                                    wounded = true;
+                                } else {
+                                    status.setHits(6);
+                                    status.setDead(true);
+                                }
+                            } else if (((Tank) en).isCommanderHit() && (u.isCommander(p)
+                                    || u.isTechOfficer(p))) {
+                                //If there is a command console, the commander hit flag is set on the second such critical,
+                                //which means both commanders have been hit.
+                                if (Compute.d6(2) >= 7) {
+                                    wounded = true;
+                                } else {
+                                    status.setHits(6);
+                                    status.setDead(true);
+                                }
+                            } else if (((Tank) en).isUsingConsoleCommander() && u.isCommander(p)) {
+                                //This flag is set after the first commander hit critical.
+                                if (Compute.d6(2) >= 7) {
+                                    wounded = true;
+                                } else {
+                                    status.setHits(6);
+                                    status.setDead(true);
+                                }
+                            }
+                        }
+                        if (casualtiesAssigned < casualties) {
+                            casualtiesAssigned++;
+                            if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
                                 status.setDead(true);
                             }
                         }
-                        else if(((Tank)en).isDriverHit() && u.isDriver(p)) {
-                            if(Compute.d6(2) >= 7) {
-                                wounded = true;
-                            } else {
-                                status.setHits(6);
-                                status.setDead(true);
+                        if (wounded) {
+                            int hits = campaign.getCampaignOptions().getMinimumHitsForVehicles();
+                            if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVehicles()) {
+                                int range = 6 - hits;
+                                hits = hits + Compute.randomInt(range);
                             }
-                        } else if (((Tank)en).isCommanderHit() && (u.isCommander(p)
-                                || u.isTechOfficer(p))) {
-                            //If there is a command console, the commander hit flag is set on the second such critical,
-                            //which means both commanders have been hit.
-                            if(Compute.d6(2) >= 7) {
-                                wounded = true;
-                            } else {
-                                status.setHits(6);
-                                status.setDead(true);
-                            }
-                        } else if (((Tank)en).isUsingConsoleCommander() && u.isCommander(p)) {
-                            //This flag is set after the first commander hit critical.
-                            if(Compute.d6(2) >= 7) {
-                                wounded = true;
-                            } else {
-                                status.setHits(6);
-                                status.setDead(true);
-                            }
+                            status.setHits(hits);
                         }
                     }
-                    if(casualtiesAssigned < casualties) {
-                        casualtiesAssigned++;
-                        if(Compute.d6(2) >= 7) {
-                            wounded = true;
-                        } else {
-                            status.setHits(6);
-                            status.setDead(true);
-                        }
-                    }
-                    if(wounded) {
-                        int hits = campaign.getCampaignOptions().getMinimumHitsForVees();
-                        if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVees()) {
-                            int range = 6 - hits;
-                            hits = hits + Compute.randomInt(range);
-                        }
-                        status.setHits(hits);
-                    }
+                    status.setXP(campaign.getCampaignOptions().getScenarioXP());
+                    status.setDeployed(!en.wasNeverDeployed());
+                    peopleStatus.put(p.getId(), status);
                 }
-                status.setXP(campaign.getCampaignOptions().getScenarioXP());
-                status.setDeployed(!en.wasNeverDeployed());
-                peopleStatus.put(p.getId(), status);
             }
         }
 
         // And now we have potential prisoners that are crewing a unit...
-        if(campaign.getCampaignOptions().capturePrisoners()) {
+        if (campaign.getCampaignOptions().getPrisonerCaptureStyle().isEnabled()) {
             processPrisonerCapture(potentialSalvage);
             processPrisonerCapture(devastatedEnemyUnits);
         }
     }
-    
+
+    /**
+     * Helper function that handles crew and passengers ejected from a large spacecraft,
+     * which may be scattered about on numerous other entities
+     * @param ship The large craft unit we're currently processing
+     * @param en The entity associated with the unit Ship
+     * @param personnel The list of persons assigned to the ship as crew and marines
+     * @param unitStatus The post-battle status of en
+     */
+    private void processLargeCraft(Unit ship, Entity en, List<Person> personnel, UnitStatus unitStatus) {
+        //The entity must be an Aero for us to get here
+        Aero aero = (Aero) en;
+        //Find out if this large craft ejected or was in the process of ejecting,
+        // and if so what entities are carrying the personnel
+        int rescuedCrew = 0;
+        int rescuedPassengers = 0;
+        if (en.getCrew().isEjected() || aero.isEjecting()) {
+            for (String id : aero.getEscapeCraft()) {
+                Entity e = entities.get(UUID.fromString(id));
+                // Invalid entity?
+                if (e == null) {
+                    LogManager.getLogger().error("Null entity reference in:" + aero.getDisplayName() + "getEscapeCraft()");
+                    continue;
+                }
+                //If the escape craft was destroyed in combat, skip it
+                if (e.isDestroyed() || e.isDoomed()) {
+                    continue;
+                }
+                //Now let's see how many passengers and crew we picked up
+                if (e instanceof SmallCraft) {
+                    SmallCraft craft = (SmallCraft) e;
+                    if (craft.getPassengers().get(en.getExternalIdAsString()) != null) {
+                        rescuedPassengers += craft.getPassengers().get(en.getExternalIdAsString());
+                    }
+                    if (craft.getNOtherCrew().get(en.getExternalIdAsString()) != null) {
+                        rescuedCrew += craft.getNOtherCrew().get(en.getExternalIdAsString());
+                    }
+                } else if (e instanceof EjectedCrew) {
+                    EjectedCrew crew = (EjectedCrew) e;
+                    if (crew.getPassengers().get(en.getExternalIdAsString()) != null) {
+                        rescuedPassengers += crew.getPassengers().get(en.getExternalIdAsString());
+                    }
+                    if (crew.getNOtherCrew().get(en.getExternalIdAsString()) != null) {
+                        rescuedCrew += crew.getNOtherCrew().get(en.getExternalIdAsString());
+                    }
+                }
+            }
+        }
+        //Check crewed aeros for existing hits since they could be flying without full crews
+        int casualties;
+        int casualtiesAssigned = 0;
+        int existingHits = 0;
+        int currentHits = 0;
+        if (null != ship.getEntity().getCrew()) {
+            existingHits = ship.getEntity().getCrew().getHits();
+        }
+        if (null != en.getCrew()) {
+            currentHits = en.getCrew().getHits();
+        }
+        if (en.isDestroyed()) {
+            currentHits = 6;
+        }
+        int newHits = Math.max(0, currentHits - existingHits);
+        casualties = (int) Math.ceil(Compute.getFullCrewSize(en) * (newHits / 6.0));
+        //Now reduce the casualties if some "hits" were caused by ejection
+        casualties = Math.max(0, casualties - rescuedCrew);
+
+        //And assign the casualties and experience amongst the crew and marines
+        for (Person p : personnel) {
+            PersonStatus status = new PersonStatus(p.getFullName(), ship.getEntity().getDisplayName(),
+                    p.getHits(), p.getId());
+            boolean wounded = false;
+            if (casualtiesAssigned < casualties) {
+                casualtiesAssigned++;
+                if (Compute.d6(2) >= 7) {
+                    wounded = true;
+                } else {
+                    status.setHits(6);
+                    status.setDead(true);
+                }
+            }
+            if (wounded) {
+                int hits = campaign.getCampaignOptions().getMinimumHitsForVehicles();
+                if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVehicles()) {
+                    int range = 6 - hits;
+                    hits = hits + Compute.randomInt(range);
+                }
+                status.setHits(hits);
+            }
+            status.setXP(campaign.getCampaignOptions().getScenarioXP());
+            status.setDeployed(!en.wasNeverDeployed());
+            peopleStatus.put(p.getId(), status);
+        }
+
+        //Now, did the passengers take any hits?
+        //We'll assume that if units in transport bays were hit, their crews and techs might also have been
+        Set<PersonStatus> allPassengersStatus = new HashSet<>(); //Use this to keep track of ejected passengers for the next step
+        List<Entity> cargo = bayLoadedEntities.get(UUID.fromString(en.getExternalIdAsString()));
+        if (cargo != null) {
+            for (Entity e : cargo) {
+                //Match the still-loaded cargo entity with its unit so we can get the crew
+                Unit u = campaign.getUnit(UUID.fromString(e.getExternalIdAsString()));
+                if (u != null) {
+                    List<Person> cargoCrew = u.getActiveCrew();
+                    cargoCrew.add(u.getTech());
+                    cargoCrew = shuffleCrew(cargoCrew);
+                    for (Person p : cargoCrew) {
+                        PersonStatus status = new PersonStatus(p.getFullName(), u.getEntity().getDisplayName(),
+                                p.getHits(), p.getId());
+                        boolean wounded = false;
+                        //The lore says bay crews have pressurized sleeping alcoves in the corners of each bay
+                        //Let's assume people are injured on an 8+ if the unit is destroyed, same as a critical hit chance
+                        if (e.isDestroyed() && Compute.d6(2) >= 8) {
+                            //As with crewmembers, on a 7+ they're only wounded
+                            if (Compute.d6(2) >= 7) {
+                                wounded = true;
+                            } else {
+                                status.setHits(6);
+                                status.setDead(true);
+                            }
+                            if (wounded) {
+                                int hits = campaign.getCampaignOptions().getMinimumHitsForVehicles();
+                                if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVehicles()) {
+                                    int range = 6 - hits;
+                                    hits = hits + Compute.randomInt(range);
+                                }
+                                status.setHits(hits);
+                            }
+                        }
+                        //Go ahead and add everyone to this master list, even if they're killed/wounded above.
+                        //It's normal to have some casualties in the lifeboats...
+                        allPassengersStatus.add(status);
+                    }
+                }
+            }
+        }
+        //Now let's account for any passengers aboard escape craft
+        //If the host ship ended the game mid-ejection but remains undestroyed, add its remaining passengers
+        if (aero.isEjecting() || aero.getCrew().isEjected()) {
+            if (aero.isEjecting() && !aero.isDestroyed()) {
+                rescuedPassengers = allPassengersStatus.size();
+            }
+            //Convert the set to a list so we can pick a random value by index...
+            List<PersonStatus> allPassengersStatusList = new ArrayList<>();
+            for (PersonStatus s : allPassengersStatus) {
+                allPassengersStatusList.add(s);
+            }
+
+            //Let's go through and handle the list
+            while (rescuedPassengers > 0) {
+                if (allPassengersStatus.isEmpty()) {
+                    //Could happen on ships with passenger quarters where numbers exceed those associated
+                    //with transported units, or ships that are just empty
+                    break;
+                }
+                PersonStatus s = allPassengersStatusList.remove(Compute.randomInt(allPassengersStatusList.size()));
+                UUID pid = s.getId();
+                peopleStatus.put(pid, s);
+                rescuedPassengers --;
+            }
+            //Everyone who didn't make it to an escape craft dies
+            for (PersonStatus s : allPassengersStatusList) {
+                s.setHits(6);
+                s.setDead(true);
+                peopleStatus.put(s.getId(), s);
+            }
+        } else {
+            //No ejection is involved, just add everyone to our master peopleStatus table
+            for (PersonStatus s : allPassengersStatus) {
+                peopleStatus.put(s.getId(), s);
+            }
+        }
+    }
+
     /**
      * Helper function that contains the logic for processing prisoner capture.
      * Copy and pasted from checkStatusOfPersonnel, so the internal logic is kind of opaque.
@@ -638,7 +849,6 @@ public class ResolveScenarioTracker {
      *                  in order to be processed, a unit must be in the salvageStatus hashtable.
      */
     private void processPrisonerCapture(List<TestUnit> unitsToProcess) {
-
         Mission currentMission = campaign.getMission(scenario.getMissionId());
         String enemyCode;
         if (currentMission instanceof AtBContract) {
@@ -647,40 +857,45 @@ public class ResolveScenarioTracker {
             enemyCode = "IND";
         }
 
-        for(Unit u : unitsToProcess) {
+        for (Unit u : unitsToProcess) {
             if (null == u) {
                 continue; // Shouldn't happen... but well... ya know
             }
             Entity en = null;
             UnitStatus ustatus = salvageStatus.get(u.getId());
-            if(null != ustatus) {
+            if (null != ustatus) {
                 en = ustatus.getEntity();
             }
-            if(null == en) {
+            if (null == en) {
                 continue;
             }
             //check for an ejected entity and if we find one then assign it instead to switch vees
             //over to infantry checks for casualties
             Entity ejected = null;
             if (!en.getCrew().getExternalIdAsString().equals("-1")) {
-                ejected = enemyEjections.get(UUID.fromString(en.getCrew().getExternalIdAsString()));                
+                ejected = enemyEjections.get(UUID.fromString(en.getCrew().getExternalIdAsString()));
             }
-            if(null != ejected) {
-                en = ejected;          
+            if (null != ejected) {
+                en = ejected;
             }
             //check if this ejection was picked up by a player's unit
-            boolean pickedUp = en instanceof MechWarrior 
+            boolean pickedUp = en instanceof MechWarrior
                     && !((MechWarrior)en).getPickedUpByExternalIdAsString().equals("-1")
                     && null != unitsStatus.get(UUID.fromString(((MechWarrior)en).getPickedUpByExternalIdAsString()));
+            // If this option is turned on and the player controls the battlefield,
+            // assume that all ejected warriors have been picked up
+            if (campaign.getGameOptions().booleanOption(OptionsConstants.ADVGRNDMOV_EJECTED_PILOTS_FLEE)) {
+                pickedUp = true;
+            }
             //if the crew ejected from this unit, then skip it because we should find them elsewhere
             //if they are alive
-            if(!(en instanceof EjectedCrew)
+            if (!(en instanceof EjectedCrew)
                     && null != en.getCrew()
-                    && en.getCrew().isEjected()) {
+                    && (en.getCrew().isEjected() && !campaign.getGameOptions().booleanOption(OptionsConstants.ADVGRNDMOV_EJECTED_PILOTS_FLEE))) {
                 continue;
             }
             //shuffling the crew ensures that casualties are randomly assigned in multi-crew units
-            List<Person> crew = Utilities.genRandomCrewWithCombinedSkill(campaign, u, enemyCode).values().stream().flatMap(c -> c.stream()).collect(Collectors.toList());
+            List<Person> crew = Utilities.genRandomCrewWithCombinedSkill(campaign, u, enemyCode).values().stream().flatMap(Collection::stream).collect(Collectors.toList());
             crew = shuffleCrew(crew);
 
             //For vees we may need to know the commander or driver, which aren't assigned for TestUnit.
@@ -690,70 +905,61 @@ public class ResolveScenarioTracker {
             if (en instanceof Tank) {
                 //Prefer gunner over driver, as in Unit::getCommander
                 for (Person p : crew) {
-                    if (p.getPrimaryRole() == Person.T_VEE_GUNNER) {
+                    if (p.getPrimaryRole().isVehicleGunner()) {
                         commander = p;
-                    } else if (p.getPrimaryRole() == Person.T_GVEE_DRIVER
-                            || p.getPrimaryRole() == Person.T_VTOL_PILOT
-                            || p.getPrimaryRole() == Person.T_NVEE_DRIVER) {
+                    } else if (p.getPrimaryRole().isGroundVehicleDriver()
+                            || p.getPrimaryRole().isNavalVehicleDriver()
+                            || p.getPrimaryRole().isVTOLPilot()) {
                         driver = p;
                     }
                 }
                 if (en.hasWorkingMisc(MiscType.F_COMMAND_CONSOLE)) {
                     for (Person p : crew) {
-                        if (p != commander && p != driver) {
+                        if (!p.equals(commander) && !p.equals(driver)) {
                             console = p;
                             break;
                         }
                     }
                 }
             }
-            if (commander == null && crew.size() > 0) {
+
+            if ((commander == null) && (crew.size() > 0)) {
                 commander = crew.get(0);
             }
-            
+
             int casualties = 0;
             int casualtiesAssigned = 0;
-            if(en instanceof Infantry) {
+            if (en instanceof Infantry) {
                 en.applyDamage();
-                int strength = ((Infantry)en).getShootingStrength();
+                int strength = ((Infantry) en).getShootingStrength();
                 casualties = crew.size() - strength;
             }
-            if(en instanceof Aero && !u.usesSoloPilot()) {
+            if (en instanceof Aero && !u.usesSoloPilot()) {
                 //need to check for existing hits because you can fly aeros with less than full
                 //crew
                 int existingHits = 0;
                 int currentHits = 0;
-                if(null != u.getEntity().getCrew()) {
+                if (null != u.getEntity().getCrew()) {
                     existingHits = u.getEntity().getCrew().getHits();
                 }
-                if(null != en && null != en.getCrew()) {
+                if (null != en.getCrew()) {
                     currentHits = en.getCrew().getHits();
                 }
-                int newHits = Math.max(0,currentHits - existingHits);
-                casualties = (int)Math.ceil(Compute.getFullCrewSize(en) * (newHits/6.0));
+                int newHits = Math.max(0, currentHits - existingHits);
+                casualties = (int) Math.ceil(Compute.getFullCrewSize(en) * (newHits / 6.0));
             }
-            for(Person p : crew) {
-                // Give them a UUID. We won't actually use this for the campaign, but to
-                //identify them in the prisonerStatus hash
-                UUID id = p.getId();
-                if (null == id) {
-                    id = UUID.randomUUID();
-                    while (prisonerStatus.get(id) != null) {
-                        id = UUID.randomUUID();
-                    }
-                    p.setId(id);
-                }
-                PrisonerStatus status = new PrisonerStatus(p.getFullName(), u.getEntity().getDisplayName(), p);
+            for (Person p : crew) {
+                OppositionPersonnelStatus status = new OppositionPersonnelStatus(p.getFullName(), u.getEntity().getDisplayName(), p);
                 if (en instanceof Mech
                         || en instanceof Protomech
-                        || (en instanceof Aero && !(en instanceof SmallCraft || en instanceof Jumpship))
+                        || en.isFighter()
                         || en instanceof MechWarrior) {
                     Crew pilot = en.getCrew();
-                    if(null == pilot) {
+                    if (null == pilot) {
                         continue;
                     }
                     int slot = 0;
-                    //For multicrew cockpits the person id has been set to match the crew slot 
+                    //For multi-person cockpits the person id has been set to match the crew slot
                     for (int pos = 0; pos < pilot.getSlotCount(); pos++) {
                         if (p.getId().toString().equals(pilot.getExternalIdAsString(pos))) {
                             slot = pos;
@@ -764,10 +970,10 @@ public class ResolveScenarioTracker {
                 } else {
                     //we have a multi-crewed vee
                     boolean wounded = false;
-                    if(en instanceof Tank) {
+                    if (en instanceof Tank) {
                         boolean destroyed = false;
-                        for(int loc = 0; loc < en.locations(); loc++) {
-                            if(loc == Tank.LOC_TURRET || loc == Tank.LOC_TURRET_2 || loc == Tank.LOC_BODY) {
+                        for (int loc = 0; loc < en.locations(); loc++) {
+                            if (loc == Tank.LOC_TURRET || loc == Tank.LOC_TURRET_2 || loc == Tank.LOC_BODY) {
                                 continue;
                             }
                             if (en.getInternal(loc) <= 0) {
@@ -775,49 +981,44 @@ public class ResolveScenarioTracker {
                                 break;
                             }
                         }
-                        if(destroyed || null == en.getCrew() || en.getCrew().isDead()) {
+
+                        if (destroyed || (null == en.getCrew()) || en.getCrew().isDead()) {
                             if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
                             }
-                        } else if(((Tank)en).isDriverHit()
-                                && driver != null && driver.getId() == p.getId()) {
+                        } else if (((Tank) en).isDriverHit() && p.equals(driver)) {
                             if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
                                 status.setDead(true);
                             }
-                        } else if (((Tank)en).isCommanderHit()
-                                && (((commander != null && commander.getId() == p.getId())
-                                        || (console != null && console.getId() == p.getId())))) {
+                        } else if (((Tank) en).isCommanderHit() && (p.equals(commander) || p.equals(console))) {
                             //If there is a command console, the commander hit flag does not
                             //get set until after the second such critical, which means that
                             //both commanders have been hit.
-                            if(Compute.d6(2) >= 7) {
+                            if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
                                 status.setDead(true);
                             }
-                        } else if (((Tank)en).isUsingConsoleCommander()
-                                && commander != null
-                                && commander.getId() == p.getId()) {
+                        } else if (((Tank) en).isUsingConsoleCommander() && p.equals(commander)) {
                             //If this flag is set we are using a command console and have already
                             //taken one commander hit critical, which takes out the primary commander.
-                            if(Compute.d6(2) >= 7) {
+                            if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
                                 status.setDead(true);
                             }
                         }
-                    }
-                    else if(en instanceof Infantry || en instanceof Aero) {
-                        if(casualtiesAssigned < casualties) {
+                    } else if (en instanceof Infantry || en instanceof Aero) {
+                        if (casualtiesAssigned < casualties) {
                             casualtiesAssigned++;
-                            if(Compute.d6(2) >= 7) {
+                            if (Compute.d6(2) >= 7) {
                                 wounded = true;
                             } else {
                                 status.setHits(6);
@@ -825,25 +1026,23 @@ public class ResolveScenarioTracker {
                             }
                         }
                     }
-                    if(wounded) {
-                        int hits = campaign.getCampaignOptions().getMinimumHitsForVees();
-                        if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVees()) {
+                    if (wounded) {
+                        int hits = campaign.getCampaignOptions().getMinimumHitsForVehicles();
+                        if (campaign.getCampaignOptions().useAdvancedMedical() || campaign.getCampaignOptions().useRandomHitsForVehicles()) {
                             int range = 6 - hits;
                             hits = hits + Compute.randomInt(range);
                         }
                         status.setHits(hits);
                     }
                 }
-                status.setCaptured(Utilities.isLikelyCapture(en) || pickedUp);                
-                status.setXP(campaign.getCampaignOptions().getScenarioXP());     
-                prisonerStatus.put(id, status);
+                status.setCaptured(Utilities.isLikelyCapture(en) || pickedUp);
+                status.setXP(campaign.getCampaignOptions().getScenarioXP());
+                oppositionPersonnel.put(p.getId(), status);
             }
         }
     }
 
     private void loadUnitsAndPilots(File unitFile) throws IOException {
-        final String METHOD_NAME = "loadUnitsAndPilots(File)"; //$NON-NLS-1$
-
         if (unitFile != null) {
             // I need to get the parser myself, because I want to pull both
             // entities and pilots from it
@@ -851,74 +1050,93 @@ public class ResolveScenarioTracker {
             MULParser parser = new MULParser();
 
             // Open up the file.
-            InputStream listStream = new FileInputStream(unitFile);
-            // Read a Vector from the file.
-            try {
+            try (InputStream listStream = new FileInputStream(unitFile)) {
+                // Read a Vector from the file.
                 parser.parse(listStream);
-                listStream.close();
-            } catch (Exception excep) {
-                excep.printStackTrace(System.err);
-                // throw new IOException("Unable to read from: " +
-                // unitFile.getName());
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
             }
 
             // Was there any error in parsing?
             if (parser.hasWarningMessage()) {
-                MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.WARNING,
-                        parser.getWarningMessage());
+                LogManager.getLogger().warn(parser.getWarningMessage());
             }
 
             killCredits = parser.getKills();
 
+            //Map everyone's ID to External Id
+            for (Entity e : parser.getEntities()) {
+                idMap.put(e.getId(), UUID.fromString(e.getExternalIdAsString()));
+            }
+            for (Entity e : parser.getSalvage()) {
+                idMap.put(e.getId(), UUID.fromString(e.getExternalIdAsString()));
+            }
+            for (Entity e : parser.getRetreated()) {
+                idMap.put(e.getId(), UUID.fromString(e.getExternalIdAsString()));
+            }
+
+            //If any units ended the game with others loaded in its bays, map those out
+            for (Entity e : parser.getEntities()) {
+                if (!e.getBayLoadedUnitIds().isEmpty()) {
+                    List<Entity> cargo = new ArrayList<>();
+                    for (int id : e.getBayLoadedUnitIds()) {
+                        UUID extId = idMap.get(id);
+                        if (extId != null) {
+                            cargo.add(entities.get(extId));
+                        }
+                    }
+                    bayLoadedEntities.put(UUID.fromString(e.getExternalIdAsString()), cargo);
+                }
+            }
+
             for (Entity e : parser.getSurvivors()) {
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
                 checkForLostLimbs(e, control);
-                if(!e.getExternalIdAsString().equals("-1")) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
                     if (null == status && scenario instanceof AtBScenario && !(e instanceof EjectedCrew)) {
-                        TestUnit nu = generateNewTestUnit(e);
-                        status = new UnitStatus(nu);
-                        unitsStatus.put(nu.getId(), status);
-                        alliedUnits.add(nu);
+                        status = processAlliedUnit(e);
                     }
-                    if(null != status) {
+
+                    if (null != status) {
                         boolean lost = (!e.canEscape() && !control) || e.getRemovalCondition() == IEntityRemovalConditions.REMOVE_DEVASTATED;
                         status.assignFoundEntity(e, lost);
                     }
                 }
-                if(null != e.getCrew()) {
-                    if(!e.getCrew().getExternalIdAsString().equals("-1")) {
-                        if(!e.getCrew().isEjected() || e instanceof EjectedCrew) {
+
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                        if (!e.getCrew().isEjected() || e instanceof EjectedCrew) {
                             pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
                         }
-                        if(e instanceof EjectedCrew) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         }
-                        
+
                     }
                 }
             }
 
             for (Entity e : parser.getAllies()) {
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
                 checkForLostLimbs(e, control);
-                if(!e.getExternalIdAsString().equals("-1")) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
-                    if (null == status) {
-                        TestUnit nu = generateNewTestUnit(e);
-                        status = new UnitStatus(nu);
-                        unitsStatus.put(nu.getId(), status);
-                        alliedUnits.add(nu);
+                    if (null == status && scenario instanceof AtBScenario && !(e instanceof EjectedCrew)) {
+                        status = processAlliedUnit(e);
                     }
-                    if(null != status) {
+
+                    if (null != status) {
                         boolean lost = (!e.canEscape() && !control) || e.getRemovalCondition() == IEntityRemovalConditions.REMOVE_DEVASTATED;
                         status.assignFoundEntity(e, lost);
                     }
                 }
-                if(null != e.getCrew()) {
-                    if(!e.getCrew().getExternalIdAsString().equals("-1")) {
-                        if(!e.getCrew().isEjected() || e instanceof EjectedCrew) {
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                        if (!e.getCrew().isEjected() || e instanceof EjectedCrew) {
                             pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
                         }
-                        if(e instanceof EjectedCrew) {
+                        if (e instanceof EjectedCrew) {
                             ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         }
                     }
@@ -927,11 +1145,12 @@ public class ResolveScenarioTracker {
 
             // Utterly destroyed entities
             for (Entity e : parser.getDevastated()) {
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
                 UnitStatus status = null;
-                if(!e.getExternalIdAsString().equals("-1")) {
+                if (!e.getExternalIdAsString().equals("-1")) {
                     status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
                 }
-                if(null != status) {
+                if (null != status) {
                     status.assignFoundEntity(e, true);
                 } else {
                     // completely destroyed units (such as from an ammo explosion) need to be
@@ -943,21 +1162,36 @@ public class ResolveScenarioTracker {
                 }
             }
 
-            for(Entity e : parser.getSalvage()) {
+            for (Entity e : parser.getSalvage()) {
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
                 checkForLostLimbs(e, control);
                 UnitStatus status = null;
-                if(!e.getExternalIdAsString().equals("-1") && e.isSalvage()) {
+                if (!e.getExternalIdAsString().equals("-1") && e.isSalvage()) {
+                    // Check to see if this is a friendly deployed unit with a unit ID in the campaign
                     status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
                 }
-                if(null != status) {
+                //If a unit in a bay was destroyed, add it. We still need to deal with the crew
+                if (e.getTransportId() != Entity.NONE) {
+                    UUID trnId = idMap.get(e.getTransportId());
+                    List<Entity> cargo;
+                    if (bayLoadedEntities.containsKey(trnId)) {
+                        cargo = bayLoadedEntities.get(trnId);
+                    } else {
+                        cargo = new ArrayList<>();
+                    }
+                    e.setDestroyed(true);
+                    cargo.add(e);
+                    bayLoadedEntities.put(trnId, cargo);
+                }
+                if (null != status) {
                     status.assignFoundEntity(e, !control);
-                    if(null != e.getCrew()) {
-                        if(!e.getCrew().getExternalIdAsString().equals("-1")) {
-                            if(e instanceof EjectedCrew) {
+                    if (null != e.getCrew()) {
+                        if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                            if (e instanceof EjectedCrew) {
                                 ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                             }
-                            if(!e.getCrew().isEjected() || e instanceof EjectedCrew) {
-                                if(control) {
+                            if (!e.getCrew().isEjected() || e instanceof EjectedCrew) {
+                                if (control) {
                                     pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
                                 } else {
                                     mia.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
@@ -966,11 +1200,12 @@ public class ResolveScenarioTracker {
                         }
                     }
                 } else {
-                    if(e instanceof EjectedCrew & null != e.getCrew() && !e.getCrew().getExternalIdAsString().equals("-1")) {
+                    // Enemy crew/pilot entity is actually in the salvage list
+                    if (e instanceof EjectedCrew && null != e.getCrew() && !e.getCrew().getExternalIdAsString().equals("-1")) {
                         enemyEjections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
                         continue;
                     }
-                    if(control) {
+                    if (control) {
                         TestUnit nu = generateNewTestUnit(e);
                         UnitStatus us = new UnitStatus(nu);
                         us.setTotalLoss(false);
@@ -979,44 +1214,115 @@ public class ResolveScenarioTracker {
                     }
                 }
             }
+
+            for (Entity e : parser.getRetreated()) {
+                if (!e.getExternalIdAsString().equals("-1")) {
+                    UnitStatus status = unitsStatus.get(UUID.fromString(e.getExternalIdAsString()));
+                    if (null == status && scenario instanceof AtBScenario) {
+                        status = processAlliedUnit(e);
+                    }
+
+                    if (null != status) {
+                        status.assignFoundEntity(e, false);
+                    }
+                    if (!e.getBayLoadedUnitIds().isEmpty()) {
+                        List<Entity> cargo = new ArrayList<>();
+                        for (int id : e.getBayLoadedUnitIds()) {
+                            UUID extId = idMap.get(id);
+                            if (extId != null) {
+                                cargo.add(entities.get(extId));
+                            }
+                        }
+                        bayLoadedEntities.put(UUID.fromString(e.getExternalIdAsString()), cargo);
+                    }
+                }
+                if (null != e.getCrew()) {
+                    if (!e.getCrew().getExternalIdAsString().equals("-1")) {
+                        pilots.put(UUID.fromString(e.getCrew().getExternalIdAsString()), e.getCrew());
+                        if (e instanceof EjectedCrew) {
+                            ejections.put(UUID.fromString(e.getCrew().getExternalIdAsString()), (EjectedCrew)e);
+                        }
+                    }
+                }
+
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+            }
         }
     }
-    
+
     /**
      * When resolving the battle manually without a resolution file (such as MekHQ + tabletop),
      * set initial status of units and crew as pre-battle.
      */
     private void initUnitsAndPilotsWithoutBattle() {
-    	for (Unit u : units) {
-    		UnitStatus status = unitsStatus.get(u.getId());
-    		status.assignFoundEntity(u.getEntity(), false);
-    		u.getEntity().setDeployed(true);
-    		Crew crew = u.getEntity().getCrew();
-            if(null != crew && !crew.getExternalIdAsString().equals("-1")) {
-            	pilots.put(UUID.fromString(crew.getExternalIdAsString()), crew);
-            }    		
-    	}
+        for (Unit u : units) {
+            UnitStatus status = unitsStatus.get(u.getId());
+            status.assignFoundEntity(u.getEntity(), false);
+            u.getEntity().setDeployed(true);
+            Crew crew = u.getEntity().getCrew();
+            if ((null != crew) && !crew.getExternalIdAsString().equals("-1")) {
+                pilots.put(UUID.fromString(crew.getExternalIdAsString()), crew);
+            }
+
+            entities.put(UUID.fromString(u.getEntity().getExternalIdAsString()), u.getEntity());
+        }
+
+        // if it's an AtB scenario, load up all the bot units into the entities collection
+        // for objective processing
+        if (scenario instanceof AtBScenario) {
+            AtBScenario atbScenario = (AtBScenario) scenario;
+            for (Entity e : atbScenario.getAlliesPlayer()) {
+                entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+            }
+
+            for (int x = 0; x < atbScenario.getNumBots(); x++) {
+                BotForce botForce = atbScenario.getBotForce(x);
+
+                for (Entity e : botForce.getEntityList()) {
+                    entities.put(UUID.fromString(e.getExternalIdAsString()), e);
+                }
+            }
+        }
     }
 
-    public ArrayList<TestUnit> getAlliedUnits() {
+    public List<TestUnit> getAlliedUnits() {
         return alliedUnits;
     }
 
-    public ArrayList<TestUnit> getPotentialSalvage() {
+    public List<TestUnit> getPotentialSalvage() {
         return potentialSalvage;
     }
 
-    public ArrayList<TestUnit> getActualSalvage() {
+    public List<TestUnit> getActualSalvage() {
         return actualSalvage;
     }
 
-    public void salvageUnit(int i) {
-        TestUnit salvageUnit = potentialSalvage.get(i);
-        actualSalvage.add(salvageUnit);
+    public List<TestUnit> getRansomedSalvage() {
+        return ransomedSalvage;
     }
 
-    public void dontSalvageUnit(int i) {
-        leftoverSalvage.add(potentialSalvage.get(i));
+    public List<TestUnit> getLeftoverSalvage() {
+        return leftoverSalvage;
+    }
+
+    public void salvageUnit(int i) {
+        if (i < getPotentialSalvage().size()) {
+            TestUnit salvageUnit = getPotentialSalvage().get(i);
+            getActualSalvage().add(salvageUnit);
+        }
+    }
+
+    public void ransomUnit(int i) {
+        if (i < getPotentialSalvage().size()) {
+            TestUnit ransomUnit = getPotentialSalvage().get(i);
+            getRansomedSalvage().add(ransomUnit);
+        }
+    }
+
+    public void doNotSalvageUnit(int i) {
+        if (i < getPotentialSalvage().size()) {
+            getLeftoverSalvage().add(getPotentialSalvage().get(i));
+        }
     }
 
     public void setContractBreaches(int i) {
@@ -1043,132 +1349,149 @@ public class ResolveScenarioTracker {
         return killCredits;
     }
 
-    public ArrayList<Unit> getUnits() {
+    public List<Unit> getUnits() {
         return units;
     }
 
-    public void resolveScenario(int resolution, String report) {
-
+    public void resolveScenario(ScenarioStatus resolution, String report) {
         //lets start by generating a stub file for our records
         scenario.generateStub(campaign);
 
-        //ok lets do the whole enchilada and go ahead and update campaign
+        // and create trackers for ransomed prisoners and units
+        Money prisonerRansoms = Money.zero();
+        Money unitRansoms = Money.zero();
 
+        //ok lets do the whole enchilada and go ahead and update campaign
         //first figure out if we need any battle loss comp
         double blc = 0;
-        Mission m = campaign.getMission(scenario.getMissionId());
-        if(m instanceof Contract) {
-            blc = ((Contract)m).getBattleLossComp()/100.0;
+        final Mission mission = getMission();
+
+        final boolean isContract = mission instanceof Contract;
+        final boolean isAtBContract = mission instanceof AtBContract;
+        if (isContract) {
+            blc = ((Contract) mission).getBattleLossComp() / 100.0;
         }
 
         //now lets update personnel
-        for(UUID pid : peopleStatus.keySet()) {
+        for (UUID pid : peopleStatus.keySet()) {
             Person person = campaign.getPerson(pid);
             PersonStatus status = peopleStatus.get(pid);
-            if(null == person || null == status) {
+            if (null == person || null == status) {
                 continue;
             }
+
             MekHQ.triggerEvent(new PersonBattleFinishedEvent(person, status));
-            if(status.getHits() > person.getHits()) {
+            if (status.getHits() > person.getHits()) {
                 person.setHits(status.getHits());
             }
-            if(status.wasDeployed()) {
-                person.setXp(person.getXp() + status.getXP());
-                ServiceLogger.participatedInMission(person, campaign.getDate(), scenario.getName(), m.getName());
+
+            if (status.wasDeployed()) {
+                person.awardXP(campaign, status.getXP());
+                ServiceLogger.participatedInMission(person, campaign.getLocalDate(),
+                        scenario.getName(), mission.getName());
             }
-            for(Kill k : status.getKills()) {
+            for (Kill k : status.getKills()) {
                 campaign.addKill(k);
             }
-            if(status.isMissing()) {
-                campaign.changeStatus(person, Person.S_MIA);
-            }
-            if(status.isDead()) {
-                campaign.changeStatus(person, Person.S_KIA);
-                if (campaign.getCampaignOptions().getUseAtB() &&
-                        m instanceof AtBContract) {
-                    campaign.getRetirementDefectionTracker().removeFromCampaign(person,
-                            true, campaign.getCampaignOptions().getUseShareSystem()?person.getNumShares(campaign.getCampaignOptions().getSharesForAll()):0,
-                                    campaign, (AtBContract)m);
+            if (status.isMissing()) {
+                person.changeStatus(getCampaign(), getCampaign().getLocalDate(), PersonnelStatus.MIA);
+            } else if (status.isDead()) {
+                person.changeStatus(getCampaign(), getCampaign().getLocalDate(), PersonnelStatus.KIA);
+                if (campaign.getCampaignOptions().getUseAtB() && isAtBContract) {
+                    campaign.getRetirementDefectionTracker().removeFromCampaign(person, true,
+                            campaign, (AtBContract) mission);
                 }
             }
+
             if (campaign.getCampaignOptions().useAdvancedMedical()) {
                 person.diagnose(status.getHits());
             }
+
             if (status.toRemove()) {
-                campaign.removePerson(pid, false);
+                campaign.removePerson(person, false);
             }
         }
-        // update prisoners
-        for(UUID pid : prisonerStatus.keySet()) {
-            PrisonerStatus status = prisonerStatus.get(pid);
+
+        //region Prisoners
+        for (UUID pid : oppositionPersonnel.keySet()) {
+            OppositionPersonnelStatus status = oppositionPersonnel.get(pid);
             Person person = status.getPerson();
-            if(null == person || null == status) {
+            if (person == null) {
                 continue;
             }
             MekHQ.triggerEvent(new PersonBattleFinishedEvent(person, status));
-            if(status.isDead()) {
+            if (status.isDead()) {
                 continue;
-            }
-            if (status.isCaptured()) {
-                getCampaign().recruitPerson(person, true, true);
-                if (getCampaign().getCampaignOptions().getUseAtB() &&
-                        getCampaign().getCampaignOptions().getUseAtBCapture() &&
-                        m instanceof AtBContract &&
-                        status.isCaptured()) {
-                    if (Compute.d6(2) >= 10 + ((AtBContract)m).getEnemySkill() - getCampaign().getUnitRatingMod()) {
-                        getCampaign().addReport(String.format(
-                            "You have convinced %s to defect.", person.getHyperlinkedName())); //$NON-NLS-1$
-                        person.setWillingToDefect(true);
+            } else if (status.isRansomed()) {
+                prisonerRansoms = prisonerRansoms.plus(person.getRansomValue());
+                continue;
+            } else if (status.isCaptured()) {
+                PrisonerStatus prisonerStatus = getCampaign().getCampaignOptions().getDefaultPrisonerStatus();
+
+                // Then, we need to determine if they are a defector
+                if (prisonerStatus.isPrisoner() && getCampaign().getCampaignOptions().useAtBPrisonerDefection()
+                        && isAtBContract) {
+                    // Are they actually a defector?
+                    if (Compute.d6(2) >= (8 + ((AtBContract) mission).getEnemySkill().ordinal() - getCampaign().getUnitRatingAsInteger())) {
+                        prisonerStatus = PrisonerStatus.PRISONER_DEFECTOR;
                     }
+                }
+
+                getCampaign().recruitPerson(person, prisonerStatus);
+                if (prisonerStatus.isWillingToDefect()) {
+                    getCampaign().addReport(String.format("You have convinced %s to defect.",
+                            person.getHyperlinkedName()));
                 }
             } else {
                 continue;
             }
-            person.setXp(person.getXp() + status.getXP());
-            if(status.getHits() > person.getHits()) {
+            person.awardXP(campaign, status.getXP());
+            if (status.getHits() > person.getHits()) {
                 person.setHits(status.getHits());
             }
 
-            ServiceLogger.participatedInMission(person, campaign.getDate(), scenario.getName(), m.getName());
+            ServiceLogger.participatedInMission(person, campaign.getLocalDate(), scenario.getName(), mission.getName());
 
-            for(Kill k : status.getKills()) {
+            for (Kill k : status.getKills()) {
                 campaign.addKill(k);
             }
-            //if(status.isMissing()) {
-              //  campaign.changeStatus(person, Person.S_MIA);
-            //}
-            if(status.isDead()) {
-                campaign.changeStatus(person, Person.S_KIA);
-                if (campaign.getCampaignOptions().getUseAtB() &&
-                        m instanceof AtBContract) {
-                    campaign.getRetirementDefectionTracker().removeFromCampaign(person,
-                            true, campaign.getCampaignOptions().getUseShareSystem()?person.getNumShares(campaign.getCampaignOptions().getSharesForAll()):0,
-                                    campaign, (AtBContract)m);
-                }
-            }
+
             if (campaign.getCampaignOptions().useAdvancedMedical()) {
                 person.diagnose(status.getHits());
             }
         }
 
+        if (prisonerRansoms.isGreaterThan(Money.zero())) {
+            getCampaign().getFinances().credit(TransactionType.RANSOM, getCampaign().getLocalDate(),
+                    prisonerRansoms, "Prisoner ransoms for " + getScenario().getName());
+            getCampaign().addReport(prisonerRansoms.toAmountAndNameString()
+                    + " has been credited to your account for prisoner ransoms following "
+                    + getScenario().getName() + ".");
+        }
+        //endregion Prisoners
+
         //now lets update all units
-        for(Unit unit : units) {
+        for (Unit unit : getUnits()) {
             UnitStatus ustatus = unitsStatus.get(unit.getId());
-            if(null == ustatus) {
+            if (null == ustatus) {
                 //shouldn't happen
                 continue;
             }
             Entity en = ustatus.getEntity();
             Money unitValue = unit.getBuyCost();
-            if(campaign.getCampaignOptions().useBLCSaleValue()) {
+            if (campaign.getCampaignOptions().useBLCSaleValue()) {
                 unitValue = unit.getSellValue();
             }
-            if(ustatus.isTotalLoss()) {
+
+            if (ustatus.isTotalLoss()) {
                 //missing unit
-                if(blc > 0) {
+                if (blc > 0) {
                     Money value = unitValue.multipliedBy(blc);
-                    campaign.getFinances().credit(value, Transaction.C_BLC, "Battle loss compensation for " + unit.getName(), campaign.getCalendar().getTime());
-                    campaign.addReport(value.toAmountAndSymbolString() + " in battle loss compensation for " + unit.getName() + " has been credited to your account.");
+                    campaign.getFinances().credit(TransactionType.BATTLE_LOSS_COMPENSATION,
+                            getCampaign().getLocalDate(), value,
+                            "Battle loss compensation for " + unit.getName());
+                    campaign.addReport(value.toAmountAndSymbolString() + " in battle loss compensation for "
+                            + unit.getName() + " has been credited to your account.");
                 }
                 campaign.removeUnit(unit.getId());
             } else {
@@ -1176,15 +1499,15 @@ public class ResolveScenarioTracker {
                 campaign.clearGameData(en);
                 // FIXME: Need to implement a "fuel" part just like the "armor" part
                 if (en.isAero()) {
-                    ((IAero)en).setFuelTonnage(((IAero)ustatus.getBaseEntity()).getFuelTonnage());
+                    ((IAero) en).setFuelTonnage(((IAero) ustatus.getBaseEntity()).getFuelTonnage());
                 }
                 unit.setEntity(en);
                 if (en.usesWeaponBays()) {
-                    unit.adjustLargeCraftAmmo();
+                    new AdjustLargeCraftAmmoAction().execute(campaign, unit);
                 }
                 unit.runDiagnostic(true);
                 unit.resetPilotAndEntity();
-                if(!unit.isRepairable()) {
+                if (!unit.isRepairable()) {
                     unit.setSalvage(true);
                 }
                 campaign.addReport(unit.getHyperlinkedName() + " has been recovered.");
@@ -1193,71 +1516,97 @@ public class ResolveScenarioTracker {
                 Money blcValue = newValue.minus(currentValue);
                 Money repairBLC = Money.zero();
                 String blcString = "battle loss compensation (parts) for " + unit.getName();
-                if(!unit.isRepairable()) {
+                if (!unit.isRepairable()) {
                     //if the unit is not repairable, you should get BLC for it but we should subtract
                     //the value of salvageable parts
                     blcValue = unitValue.minus(unit.getSellValue());
                     blcString = "battle loss compensation for " + unit.getName();
                 }
                 if (campaign.getCampaignOptions().payForRepairs()) {
-                    for(Part p : unit.getParts()) {
+                    for (Part p : unit.getParts()) {
                         if (p.needsFixing() && !(p instanceof Armor)) {
                             repairBLC = repairBLC.plus(p.getStickerPrice().multipliedBy(0.2));
                         }
                     }
                 }
                 blcValue = blcValue.plus(repairBLC);
-                if(blc > 0 && blcValue.isPositive()) {
+                if ((blc > 0) && blcValue.isPositive()) {
                     Money finalValue = blcValue.multipliedBy(blc);
+<<<<<<< HEAD
                     campaign.getFinances().credit(
                             finalValue,
                             Transaction.C_BLC,
                             blcString.substring(0, 1).toUpperCase() + blcString.substring(1),
                             campaign.getCalendar().getTime());
+=======
+                    getCampaign().getFinances().credit(TransactionType.BATTLE_LOSS_COMPENSATION,
+                            getCampaign().getLocalDate(), finalValue,
+                            blcString.substring(0, 1).toUpperCase() + blcString.substring(1));
+>>>>>>> origin/master
                     campaign.addReport( finalValue.toAmountAndSymbolString() + " in " + blcString + " has been credited to your account.");
                 }
             }
         }
 
         //now lets take care of salvage
-        for(TestUnit salvageUnit : actualSalvage) {
+        for (TestUnit salvageUnit : getActualSalvage()) {
             UnitStatus salstatus = new UnitStatus(salvageUnit);
             // FIXME: Need to implement a "fuel" part just like the "armor" part
             if (salvageUnit.getEntity() instanceof Aero) {
-                ((Aero)salvageUnit.getEntity()).setFuelTonnage(((Aero)salstatus.getBaseEntity()).getFuelTonnage());
+                ((Aero) salvageUnit.getEntity()).setFuelTonnage(((Aero) salstatus.getBaseEntity()).getFuelTonnage());
             }
             campaign.clearGameData(salvageUnit.getEntity());
             campaign.addTestUnit(salvageUnit);
             //if this is a contract, add to the salvaged value
-            if(getMission() instanceof Contract) {
-                ((Contract)getMission()).addSalvageByUnit(salvageUnit.getSellValue());
+            if (isContract) {
+                ((Contract) mission).addSalvageByUnit(salvageUnit.getSellValue());
             }
         }
-        if(getMission() instanceof Contract) {
+
+        // And any ransomed salvaged units
+        if (!getRansomedSalvage().isEmpty()) {
+            for (Unit ransomedUnit : getRansomedSalvage()) {
+                unitRansoms = unitRansoms.plus(ransomedUnit.getSellValue());
+            }
+
+            if (unitRansoms.isGreaterThan(Money.zero())) {
+                getCampaign().getFinances().credit(TransactionType.SALVAGE, getCampaign().getLocalDate(),
+                        unitRansoms, "Unit ransoms for " + getScenario().getName());
+                getCampaign().addReport(unitRansoms.toAmountAndNameString()
+                        + " has been credited to your account from unit ransoms following "
+                        + getScenario().getName() + ".");
+                if (isContract) {
+                    ((Contract) mission).addSalvageByUnit(unitRansoms);
+                }
+            }
+        }
+
+        if (isContract) {
             Money value = Money.zero();
-            for(Unit salvageUnit : leftoverSalvage) {
+            for (Unit salvageUnit : getLeftoverSalvage()) {
                 value = value.plus(salvageUnit.getSellValue());
             }
-            if(((Contract)getMission()).isSalvageExchange()) {
-                value = value.multipliedBy(((Contract)getMission()).getSalvagePct()).dividedBy(100);
-                campaign.getFinances().credit(value, Transaction.C_SALVAGE, "salvage exchange for " + scenario.getName(),  campaign.getCalendar().getTime());
+            if (((Contract) mission).isSalvageExchange()) {
+                value = value.multipliedBy(((Contract) mission).getSalvagePct()).dividedBy(100);
+                campaign.getFinances().credit(TransactionType.SALVAGE_EXCHANGE, getCampaign().getLocalDate(),
+                        value, "Salvage exchange for " + scenario.getName());
                 campaign.addReport(value.toAmountAndSymbolString() + " have been credited to your account for salvage exchange.");
             } else {
-                ((Contract)getMission()).addSalvageByEmployer(value);
+                ((Contract) mission).addSalvageByEmployer(value);
             }
         }
 
-        if (campaign.getCampaignOptions().getUseAtB() && getMission() instanceof AtBContract) {
-            int unitRatingMod = campaign.getUnitRatingMod();
-            for (Unit unit : units) {
-                unit.setSite(((AtBContract)getMission()).getRepairLocation(unitRatingMod));
+        if (campaign.getCampaignOptions().getUseAtB() && isAtBContract) {
+            final int unitRatingMod = campaign.getUnitRatingMod();
+            for (Unit unit : getUnits()) {
+                unit.setSite(((AtBContract) mission).getRepairLocation(unitRatingMod));
             }
-            for (Unit unit : actualSalvage) {
-                unit.setSite(((AtBContract)getMission()).getRepairLocation(unitRatingMod));
+            for (Unit unit : getActualSalvage()) {
+                unit.setSite(((AtBContract) mission).getRepairLocation(unitRatingMod));
             }
         }
 
-        for(Loot loot : actualLoot) {
+        for (Loot loot : actualLoot) {
             loot.get(campaign, scenario);
         }
 
@@ -1267,20 +1616,17 @@ public class ResolveScenarioTracker {
         //lets reset the network ids from the c3UUIDs
         campaign.reloadGameEntities();
         campaign.refreshNetworks();
-        scenario.setDate(campaign.getCalendar().getTime());
-        if (campaign.getCampaignOptions().getUseAtB() && scenario instanceof AtBScenario) {
-            ((AtBScenario)scenario).doPostResolution(campaign, contractBreaches, bonusRolls);
-        }
+        scenario.setDate(campaign.getLocalDate());
         client = null;
     }
 
     public ArrayList<Person> getMissingPersonnel() {
         ArrayList<Person> mia = new ArrayList<>();
-        for(UUID pid : peopleStatus.keySet()) {
+        for (UUID pid : peopleStatus.keySet()) {
             PersonStatus status = peopleStatus.get(pid);
-            if(status.isMissing()) {
+            if (status.isMissing()) {
                 Person p = campaign.getPerson(pid);
-                if(null != p) {
+                if (null != p) {
                     mia.add(p);
                 }
             }
@@ -1290,11 +1636,11 @@ public class ResolveScenarioTracker {
 
     public ArrayList<Person> getDeadPersonnel() {
         ArrayList<Person> kia = new ArrayList<>();
-        for(UUID pid : peopleStatus.keySet()) {
+        for (UUID pid : peopleStatus.keySet()) {
             PersonStatus status = peopleStatus.get(pid);
-            if(status.isDead()) {
+            if (status.isDead()) {
                 Person p = campaign.getPerson(pid);
-                if(null != p) {
+                if (null != p) {
                     kia.add(p);
                 }
             }
@@ -1304,11 +1650,11 @@ public class ResolveScenarioTracker {
 
     public ArrayList<Person> getRecoveredPersonnel() {
         ArrayList<Person> recovered = new ArrayList<>();
-        for(UUID pid : peopleStatus.keySet()) {
+        for (UUID pid : peopleStatus.keySet()) {
             PersonStatus status = peopleStatus.get(pid);
-            if(!status.isDead() && !status.isMissing()) {
+            if (!status.isDead() && !status.isMissing()) {
                 Person p = campaign.getPerson(pid);
-                if(null != p) {
+                if (null != p) {
                     recovered.add(p);
                 }
             }
@@ -1320,8 +1666,8 @@ public class ResolveScenarioTracker {
         return peopleStatus;
     }
 
-    public Hashtable<UUID, PrisonerStatus> getPrisonerStatus() {
-        return prisonerStatus;
+    public Hashtable<UUID, OppositionPersonnelStatus> getOppositionPersonnel() {
+        return oppositionPersonnel;
     }
 
     public Hashtable<UUID, UnitStatus> getUnitsStatus() {
@@ -1332,7 +1678,11 @@ public class ResolveScenarioTracker {
         return salvageStatus;
     }
 
-    public ArrayList<Loot> getPotentialLoot() {
+    public Map<UUID, Entity> getAllInvolvedUnits() {
+        return entities;
+    }
+
+    public List<Loot> getPotentialLoot() {
         return potentialLoot;
     }
 
@@ -1343,9 +1693,9 @@ public class ResolveScenarioTracker {
     public ArrayList<PersonStatus> getSortedPeople() {
         //put all the PersonStatuses in an ArrayList and sort by the unit name
         ArrayList<PersonStatus> toReturn = new ArrayList<>();
-        for(UUID id : getPeopleStatus().keySet()) {
+        for (UUID id : getPeopleStatus().keySet()) {
             PersonStatus status = peopleStatus.get(id);
-            if(null != status) {
+            if (null != status) {
                 toReturn.add(status);
             }
         }
@@ -1354,12 +1704,12 @@ public class ResolveScenarioTracker {
         return toReturn;
     }
 
-    public ArrayList<PrisonerStatus> getSortedPrisoners() {
+    public ArrayList<OppositionPersonnelStatus> getSortedPrisoners() {
         //put all the PersonStatuses in an ArrayList and sort by the unit name
-        ArrayList<PrisonerStatus> toReturn = new ArrayList<>();
-        for(UUID id : getPrisonerStatus().keySet()) {
-            PrisonerStatus status = prisonerStatus.get(id);
-            if(null != status) {
+        ArrayList<OppositionPersonnelStatus> toReturn = new ArrayList<>();
+        for (UUID id : getOppositionPersonnel().keySet()) {
+            OppositionPersonnelStatus status = oppositionPersonnel.get(id);
+            if (null != status) {
                 toReturn.add(status);
             }
         }
@@ -1369,16 +1719,16 @@ public class ResolveScenarioTracker {
     }
 
     public boolean usesSalvageExchange() {
-        return (getMission() instanceof Contract) && ((Contract)getMission()).isSalvageExchange();
+        return (getMission() instanceof Contract) && ((Contract) getMission()).isSalvageExchange();
     }
-    
+
     /**
      * This object is used to track the status of a particular personnel. At the present,
      * we track the person's missing status, hits, and XP
      * @author Jay Lawson
      *
      */
-    public class PersonStatus implements Comparable<PersonStatus> {
+    public static class PersonStatus implements Comparable<PersonStatus> {
         private String name;
         private String unitName;
         private int hits;
@@ -1467,7 +1817,7 @@ public class ResolveScenarioTracker {
         }
 
         public int getXP() {
-            if(isDead()) {
+            if (isDead()) {
                 return 0;
             }
             return xp;
@@ -1506,18 +1856,18 @@ public class ResolveScenarioTracker {
     }
 
     /**
-     * This object is used to track the status of a prisoners. We need to actually put the whole
+     * This object is used to track the status of a opposition personnel. We need to actually put the whole
      * person object here because we are not already tracking it on the campaign
      * @author Jay Lawson
      *
      */
-    public class PrisonerStatus extends PersonStatus {
-
+    public static class OppositionPersonnelStatus extends PersonStatus {
         //for prisoners we have to track a whole person
-        Person person;
+        private Person person;
         private boolean captured;
+        private boolean ransomed = false;
 
-        public PrisonerStatus(String n, String u, Person p) {
+        public OppositionPersonnelStatus(String n, String u, Person p) {
             super(n, u, 0, p.getId());
             person = p;
         }
@@ -1534,6 +1884,13 @@ public class ResolveScenarioTracker {
             captured = set;
         }
 
+        public boolean isRansomed() {
+            return ransomed;
+        }
+
+        public void setRansomed(boolean ransomed) {
+            this.ransomed = ransomed;
+        }
     }
 
     /**
@@ -1541,15 +1898,14 @@ public class ResolveScenarioTracker {
      * @author Jay Lawson
      *
      */
-    public class UnitStatus {
-
+    public static class UnitStatus {
         private String name;
         private String chassis;
         private String model;
         private boolean totalLoss;
         private Entity entity;
         private Entity baseEntity;
-        Unit unit;
+        private Unit unit;
 
         public UnitStatus(Unit unit) {
             this.unit = unit;
@@ -1560,15 +1916,14 @@ public class ResolveScenarioTracker {
             totalLoss = true;
             //create a brand new entity until we find one
             MechSummary summary = MechSummaryCache.getInstance().getMech(getLookupName());
-            if(null == summary) {
-
-            } else {
+            if (null != summary) {
                 try {
-                    entity = unit.getEntity() == null ? new MechFileParser(summary.getSourceFile(), summary.getEntryName()).getEntity() : unit.getEntity();
+                    entity = unit.getEntity() == null
+                            ? new MechFileParser(summary.getSourceFile(), summary.getEntryName()).getEntity()
+                            : unit.getEntity();
                     baseEntity = new MechFileParser(summary.getSourceFile(), summary.getEntryName()).getEntity();
                 } catch (EntityLoadingException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
+                    LogManager.getLogger().error(e);
                 }
             }
         }
@@ -1604,6 +1959,10 @@ public class ResolveScenarioTracker {
             this.baseEntity = baseEntity;
         }
 
+        public Unit getUnit() {
+            return unit;
+        }
+
         public boolean isTotalLoss() {
             return totalLoss;
         }
@@ -1617,7 +1976,7 @@ public class ResolveScenarioTracker {
         }
 
         public String getDesc(boolean printSellValue) {
-            if(null == entity) {
+            if (null == entity) {
                 return "Whoops, No Entity";
             }
             String color = "black";
@@ -1653,7 +2012,7 @@ public class ResolveScenarioTracker {
         }
 
         public boolean isLikelyCaptured() {
-            if(null == entity) {
+            if (null == entity) {
                 return false;
             }
             return Utilities.isLikelyCapture(entity);
@@ -1662,5 +2021,9 @@ public class ResolveScenarioTracker {
 
     public void setEvent(GameVictoryEvent gve) {
         victoryEvent = gve;
+    }
+
+    public boolean playerHasBattlefieldControl() {
+        return control;
     }
 }

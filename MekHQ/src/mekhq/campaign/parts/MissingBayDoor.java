@@ -1,18 +1,18 @@
 /*
  * Copyright (c) 2017 - The MegaMek Team. All rights reserved.
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -21,6 +21,7 @@ package mekhq.campaign.parts;
 import org.w3c.dom.Node;
 
 import megamek.common.Entity;
+import megamek.common.SimpleTechLevel;
 import megamek.common.TechAdvancement;
 import mekhq.campaign.Campaign;
 
@@ -29,12 +30,12 @@ import mekhq.campaign.Campaign;
  *
  */
 public class MissingBayDoor extends MissingPart {
-    
+
     /**
-     * 
+     *
      */
     private static final long serialVersionUID = 4652276524852879974L;
-    
+
     public MissingBayDoor() {
         this(0, null);
     }
@@ -43,12 +44,11 @@ public class MissingBayDoor extends MissingPart {
         super(tonnage, false, c);
         name = "Bay Door";
     }
-    
+
     @Override
     public String getName() {
-        Part parent = campaign.getPart(parentPartId);
-        if (null != parent) {
-            return parent.getName() + " Door";
+        if (null != parentPart) {
+            return parentPart.getName() + " Door";
         }
         return super.getName();
     }
@@ -70,13 +70,17 @@ public class MissingBayDoor extends MissingPart {
         if(null != replacement) {
             Part actualReplacement = replacement.clone();
             unit.addPart(actualReplacement);
-            campaign.addPart(actualReplacement, 0);
+            campaign.getQuartermaster().addPart(actualReplacement, 0);
             replacement.decrementQuantity();
+
+            // Calling 'remove()' has the side effect of setting this.parentPart to null.
+            // Issue #2878 - Missing Bay Door on reload.
+            Part parentReference = parentPart;
             remove(false);
-            Part bayPart = campaign.getPart(parentPartId);
-            if (null != bayPart) {
-                bayPart.addChildPart(actualReplacement);
-                bayPart.updateConditionFromPart();
+            
+            if (null != parentReference) {
+                parentReference.addChildPart(actualReplacement);
+                parentReference.updateConditionFromPart();
             }
         }
     }
@@ -122,8 +126,10 @@ public class MissingBayDoor extends MissingPart {
 
     @Override
     public TechAdvancement getTechAdvancement() {
-        return new TechAdvancement().setTechRating(RATING_A)
-                .setAvailability(RATING_A, RATING_A, RATING_A, RATING_A);
+        return new TechAdvancement(TECH_BASE_ALL).setAdvancement(DATE_PS, DATE_PS, DATE_PS)
+                .setTechRating(RATING_A)
+                .setAvailability(RATING_A, RATING_A, RATING_A, RATING_A)
+                .setStaticTechLevel(SimpleTechLevel.STANDARD);
     }
 
 }

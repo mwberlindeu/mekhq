@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -41,7 +41,7 @@ asfbay:6.0:3:1
 2ndclassquarters:0.0:0
 crewquarters:385.0:0
 1stclassquarters:100.0:0
-cargobay:573.0:2:2
+cargobay:573.0:2:5
 </transporters>
 
 <SafeThrust>
@@ -180,6 +180,9 @@ ISLaserAntiMissileSystem
 Ammo Screen:10
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 40
 </structural_integrity>
@@ -191,6 +194,10 @@ TRO 3067 - Jihad
 <tonnage>
 9700.0
 </tonnage>
+
+<designtype>
+1
+</designtype>
 
 <crew>
 67
@@ -227,4 +234,3 @@ TRO 3067 - Jihad
 <escape_pod>
 6
 </escape_pod>
-

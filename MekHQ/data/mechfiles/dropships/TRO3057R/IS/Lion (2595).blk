@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -42,7 +42,7 @@ lightvehiclebay:12.0:2:2
 2ndclassquarters:0.0:0
 1stclassquarters:90.0:0
 crewquarters:280.0:0
-cargobay:2355.5:1:3
+cargobay:2355.5:1:6
 </transporters>
 
 <SafeThrust>
@@ -155,6 +155,9 @@ SRM 6
 IS Ammo SRM-6:60
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 14
 </structural_integrity>
@@ -206,4 +209,3 @@ TRO 3057R - Star League
 <escape_pod>
 10
 </escape_pod>
-

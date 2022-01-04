@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -126,6 +126,9 @@ IS Ammo SRM-4 Artemis-capable:25
 ISArtemisIV
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 9
 </structural_integrity>
@@ -177,4 +180,3 @@ TRO 3057R - Clan Invasion
 <escape_pod>
 4
 </escape_pod>
-

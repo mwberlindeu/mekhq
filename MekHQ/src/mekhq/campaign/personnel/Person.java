@@ -1,7 +1,6 @@
 /*
- * Person.java
- *
- * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
+ * Copyright (c) 2009 - Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
+ * Copyright (c) 2020-2021 - The MegaMek Team. All Rights Reserved.
  *
  * This file is part of MekHQ.
  *
@@ -12,321 +11,207 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.personnel;
 
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.function.IntSupplier;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
+import megamek.Version;
+import megamek.client.generator.RandomNameGenerator;
+import megamek.common.*;
+import megamek.common.annotations.Nullable;
+import megamek.common.enums.Gender;
+import megamek.common.icons.Portrait;
+import megamek.common.options.IOption;
+import megamek.common.options.IOptionGroup;
 import megamek.common.util.EncodeControl;
-import mekhq.campaign.*;
+import megamek.common.util.StringUtil;
+import mekhq.MekHQ;
+import mekhq.MekHqXmlUtil;
+import mekhq.Utilities;
+import mekhq.campaign.Campaign;
+import mekhq.campaign.CampaignOptions;
+import mekhq.campaign.ExtraData;
+import mekhq.campaign.event.PersonChangedEvent;
 import mekhq.campaign.finances.Money;
-import mekhq.campaign.log.*;
-import org.joda.time.DateTime;
+import mekhq.campaign.force.Force;
+import mekhq.campaign.io.CampaignXmlParser;
+import mekhq.campaign.io.Migration.PersonMigrator;
+import mekhq.campaign.log.LogEntry;
+import mekhq.campaign.log.LogEntryFactory;
+import mekhq.campaign.log.ServiceLogger;
+import mekhq.campaign.mod.am.InjuryUtil;
+import mekhq.campaign.parts.Part;
+import mekhq.campaign.personnel.enums.*;
+import mekhq.campaign.personnel.familyTree.Genealogy;
+import mekhq.campaign.personnel.ranks.Rank;
+import mekhq.campaign.personnel.ranks.RankSystem;
+import mekhq.campaign.personnel.ranks.RankValidator;
+import mekhq.campaign.personnel.ranks.Ranks;
+import mekhq.campaign.unit.Unit;
+import mekhq.campaign.universe.Faction;
+import mekhq.campaign.universe.Factions;
+import mekhq.campaign.universe.Planet;
+import mekhq.campaign.work.IPartWork;
+import mekhq.io.idReferenceClasses.PersonIdReference;
+import org.apache.logging.log4j.LogManager;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import megamek.common.Aero;
-import megamek.common.BattleArmor;
-import megamek.common.Compute;
-import megamek.common.ConvFighter;
-import megamek.common.Crew;
-import megamek.common.Dropship;
-import megamek.common.Entity;
-import megamek.common.EntityMovementMode;
-import megamek.common.Infantry;
-import megamek.common.Jumpship;
-import megamek.common.LandAirMech;
-import megamek.common.Mech;
-import megamek.common.Protomech;
-import megamek.common.SmallCraft;
-import megamek.common.Tank;
-import megamek.common.TargetRoll;
-import megamek.common.VTOL;
-import megamek.common.annotations.Nullable;
-import megamek.common.logging.LogLevel;
-import megamek.common.options.IOption;
-import megamek.common.options.IOptionGroup;
-import megamek.common.options.PilotOptions;
-import mekhq.MekHQ;
-import mekhq.MekHqXmlSerializable;
-import mekhq.MekHqXmlUtil;
-import mekhq.Utilities;
-import mekhq.Version;
-import mekhq.campaign.event.PersonChangedEvent;
-import mekhq.campaign.mod.am.InjuryUtil;
-import mekhq.campaign.unit.Unit;
-import mekhq.campaign.work.IAcquisitionWork;
-import mekhq.campaign.work.IPartWork;
-import mekhq.campaign.universe.Faction;
+import java.io.PrintWriter;
+import java.io.Serializable;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
+<<<<<<< HEAD
 
 //MWBerlin: potentially relevant for large wet navy vessels - first priority (campaign administration)
 
 public class Person implements Serializable, MekHqXmlSerializable {
+=======
+public class Person implements Serializable {
+    //region Variable Declarations
+>>>>>>> origin/master
     private static final long serialVersionUID = -847642980395311152L;
 
-    public static final int G_MALE = 0;
-    public static final int G_FEMALE = 1;
-
-    /* If any new roles are added they should go at the end. They should also be accounted for
-     * in isCombatRole(int) or isSupportRole(int). You should also increase the value of T_NUM
-     * if you add new roles.
-     */
-    public static final int T_NONE = 0;
-    public static final int T_MECHWARRIOR = 1;
-    public static final int T_AERO_PILOT = 2;
-    public static final int T_GVEE_DRIVER = 3;
-    public static final int T_NVEE_DRIVER = 4;
-    public static final int T_VTOL_PILOT = 5;
-    public static final int T_VEE_GUNNER = 6;
-    public static final int T_BA = 7;
-    public static final int T_INFANTRY = 8;
-    public static final int T_PROTO_PILOT = 9;
-    public static final int T_CONV_PILOT = 10;
-    public static final int T_SPACE_PILOT = 11;
-    public static final int T_SPACE_CREW = 12;
-    public static final int T_SPACE_GUNNER = 13;
-    public static final int T_NAVIGATOR = 14; // End of combat roles
-    public static final int T_MECH_TECH = 15;
-    public static final int T_MECHANIC = 16;
-    public static final int T_AERO_TECH = 17;
-    public static final int T_BA_TECH = 18;
-    public static final int T_ASTECH = 19;
-    public static final int T_DOCTOR = 20;
-    public static final int T_MEDIC = 21;
-    public static final int T_ADMIN_COM = 22;
-    public static final int T_ADMIN_LOG = 23;
-    public static final int T_ADMIN_TRA = 24;
-    public static final int T_ADMIN_HR = 25; // End of support roles
-    public static final int T_LAM_PILOT = 26; // Not a separate type, but an alias for MW + Aero pilot
-                                              // Does not count as either combat or support role
-
-    // This value should always be +1 of the last defined role
-    public static final int T_NUM = 27;
-
-    public static final int S_ACTIVE = 0;
-    public static final int S_RETIRED = 1;
-    public static final int S_KIA = 2;
-    public static final int S_MIA = 3;
-    public static final int S_NUM = 4;
-
-    public static final int PRONOUN_HESHE = 0;
-    public static final int PRONOUN_HIMHER = 1;
-    public static final int PRONOUN_HISHER = 2;
-    public static final int PRONOUN_HISHERS = 3;
-
-    // Prisoners, Bondsmen, and Normal Personnel
-    public static final int PRISONER_NOT = 0;
-    public static final int PRISONER_YES = 1;
-    public static final int PRISONER_BONDSMAN = 2;
-    public static final int PRISONER_NUM = 3;
-
-    // Phenotypes
-    public static final int PHENOTYPE_NONE = 0;
-    public static final int PHENOTYPE_MW = 1;
-    public static final int PHENOTYPE_BA = 2;
-    public static final int PHENOTYPE_AERO = 3;
-    public static final int PHENOTYPE_VEE = 4;
-    public static final int PHENOTYPE_NUM = 5;
-
-    // ROM Designations
-    public static final int DESIG_NONE    = 0;
-    public static final int DESIG_EPSILON = 1;
-    public static final int DESIG_PI      = 2;
-    public static final int DESIG_IOTA    = 3;
-    public static final int DESIG_XI      = 4;
-    public static final int DESIG_THETA   = 5;
-    public static final int DESIG_ZETA    = 6;
-    public static final int DESIG_MU      = 7;
-    public static final int DESIG_RHO     = 8;
-    public static final int DESIG_LAMBDA  = 9;
-    public static final int DESIG_PSI     = 10;
-    public static final int DESIG_OMICRON = 11;
-    public static final int DESIG_CHI     = 12;
-    public static final int DESIG_GAMMA   = 13;
-    public static final int DESIG_NUM     = 14;
-    
     private static final Map<Integer, Money> MECHWARRIOR_AERO_RANSOM_VALUES;
     private static final Map<Integer, Money> OTHER_RANSOM_VALUES;
 
-    public PersonAwardController awardController;
+    private PersonAwardController awardController;
 
-    private static final IntSupplier PREGNANCY_DURATION = () -> {
-        double gaussian = Math.sqrt(-2 * Math.log(Math.nextUp(Math.random())))
-            * Math.cos(2.0 * Math.PI * Math.random());
-        // To not get weird results, we limit the values to +/- 4.0 (almost 6 weeks)
-        gaussian = Math.max(-4.0, Math.min(4.0, gaussian));
-        return (int) Math.round(gaussian * 10 + 38 * 7);
-    };
-    private static final IntSupplier PREGNANCY_SIZE = () -> {
-        int children = 1;
-        // Hellin's law says it's 1:89 chance, to not make it appear too seldom, we use 1:50
-        while(Compute.randomInt(50) == 0) {
-            ++ children;
-        }
-        return Math.min(children, 8); // Limit to octuplets, for the sake of sanity
-    };
-    
-    private static final String[] PREGNANCY_MULTIPLE_NAMES = {null, null,
-        "twins", "triplets", "quadruplets", "quintuplets",
-        "sextuplets", "septuplets", "octuplets", "nonuplets", "decuplets"
-    };
-    
-    public static final ExtraData.IntKey PREGNANCY_CHILDREN_DATA
-        = new ExtraData.IntKey("procreation:children");
-    public static final ExtraData.StringKey PREGNANCY_FATHER_DATA
-        = new ExtraData.StringKey("procreation:father");
+    //region Family Variables
+    // Lineage
+    private Genealogy genealogy;
 
-    /** Contains the skill levels to be displayed in a tech's description */
-    private static final String[] DISPLAYED_SKILL_LEVELS = new String[] {
-        SkillType.S_TECH_MECH,
-        SkillType.S_TECH_MECHANIC,
-        SkillType.S_TECH_BA,
-        SkillType.S_TECH_AERO,
-        SkillType.S_TECH_VESSEL,
-    };
-    
-    protected UUID id;
-    protected int oldId;
+    //region Procreation
+    // this is a flag used in random procreation to determine whether or not to attempt to procreate
+    private boolean tryingToConceive;
+    private LocalDate dueDate;
+    private LocalDate expectedDueDate;
+    //endregion Procreation
 
-    // Lineage & Procreation
-    protected UUID ancestorsID;
-    protected UUID spouse;
-    protected GregorianCalendar dueDate;
+    //region Marriage
+    // this is a flag used in determine whether or not a person is a potential marriage candidate
+    // provided that they are not married, are old enough, etc.
+    private boolean tryingToMarry;
+    //endregion Marriage
+    //endregion Family Variables
 
-    private String name;
-    private String maidenname;
+    private UUID id;
 
+    //region Name
+    private transient String fullName; // this is a runtime variable, and shouldn't be saved
+    private String preNominal;
+    private String givenName;
+    private String surname;
+    private String postNominal;
+    private String maidenName;
     private String callsign;
-    private int gender;
+    //endregion Name
 
-    private int primaryRole;
-    private int secondaryRole;
+    private Gender gender;
+    private Portrait portrait;
 
-    private int primaryDesignator;
-    private int secondaryDesignator;
+    private PersonnelRole primaryRole;
+    private PersonnelRole secondaryRole;
 
-    protected String biography;
-    protected GregorianCalendar birthday;
-    protected GregorianCalendar deathday;
-    protected GregorianCalendar recruitment;
-    protected ArrayList<LogEntry> personnelLog;
-    protected List<LogEntry> missionLog;
+    private ROMDesignation primaryDesignator;
+    private ROMDesignation secondaryDesignator;
 
-    private Hashtable<String, Skill> skills;
-    private PersonnelOptions options = new PersonnelOptions();
+    private String biography;
+    private LocalDate birthday;
+    private LocalDate dateOfDeath;
+    private LocalDate recruitment;
+    private LocalDate lastRankChangeDate;
+    private LocalDate retirement;
+    private List<LogEntry> personnelLog;
+    private List<LogEntry> missionLog;
+
+    private Skills skills;
+    private PersonnelOptions options;
     private int toughness;
 
-    private int status;
-    protected int xp;
-    protected int engXp;
-    protected int acquisitions;
-    protected Money salary;
+    private PersonnelStatus status;
+    private int xp;
+    private int totalXPEarnings;
+    private int acquisitions;
+    private Money salary;
+    private Money totalEarnings;
     private int hits;
-    private int prisonerStatus;
-    // Is this person willing to defect? Only for prisoners ...
-    private boolean willingToDefect;
+    private PrisonerStatus prisonerStatus;
 
-    boolean dependent;
-    boolean commander;
-    boolean isClanTech;
+    private boolean commander;
+
     // Supports edge usage by a ship's engineer composite crewman
-    int edgeUsedThisRound;
+    private int edgeUsedThisRound;
     // To track how many edge points support personnel have left until next refresh
-    int currentEdge;
+    private int currentEdge;
 
     //phenotype and background
-    private int phenotype;
+    private Phenotype phenotype;
     private boolean clan;
     private String bloodname;
     private Faction originFaction;
+    private Planet originPlanet;
 
     //assignments
-    private UUID unitId;
-    protected UUID doctorId;
-    private ArrayList<UUID> techUnitIds;
-    //for reverse compatability v0.1.8 and earlier
-    protected int teamId = -1;
-
-    //for reverse compatability
-    private int oldUnitId;
-    private int oldDoctorId;
+    private Unit unit;
+    private UUID doctorId;
+    private List<Unit> techUnits;
 
     //days of rest
-    protected int idleMonths;
-    protected int daysToWaitForHealing;
-
-    //portrait
-    protected String portraitCategory;
-    protected String portraitFile;
-    // runtime override (not saved)
-    protected transient String portraitCategoryOverride;
-    protected transient String portraitFileOverride;
+    private int idleMonths;
+    private int daysToWaitForHealing;
 
     // Our rank
+    private RankSystem rankSystem;
     private int rank;
     private int rankLevel;
-    // If this Person uses a custom rank system (-1 for no)
-    private int rankSystem = -1;
-    private Ranks ranks;
 
-
-    // Manei Domini "Classes"
-    public static final int MD_NONE			= 0;
-    public static final int MD_GHOST		= 1;
-    public static final int MD_WRAITH		= 2;
-    public static final int MD_BANSHEE		= 3;
-    public static final int MD_ZOMBIE		= 4;
-    public static final int MD_PHANTOM		= 5;
-    public static final int MD_SPECTER		= 6;
-    public static final int MD_POLTERGEIST	= 7;
-    public static final int MD_NUM			= 8;
-    private int maneiDominiClass = MD_NONE;
-    private int maneiDominiRank = Rank.MD_RANK_NONE;
+    private ManeiDominiClass maneiDominiClass;
+    private ManeiDominiRank maneiDominiRank;
 
     //stuff to track for support teams
-    protected int minutesLeft;
-    protected int overtimeLeft;
-    protected int nTasks;
-    protected boolean engineer;
+    private int minutesLeft;
+    private int overtimeLeft;
+    private int nTasks;
+    private boolean engineer;
+    public static final int PRIMARY_ROLE_SUPPORT_TIME = 480;
+    public static final int PRIMARY_ROLE_OVERTIME_SUPPORT_TIME = 240;
+    public static final int SECONDARY_ROLE_SUPPORT_TIME = 240;
+    public static final int SECONDARY_ROLE_OVERTIME_SUPPORT_TIME = 120;
 
-    /**
-     * * Start Advanced Medical ***
-     */
-    private ArrayList<Injury> injuries = new ArrayList<>();
-    private Map<BodyLocation, Integer> hitsPerLocation = new EnumMap<>(BodyLocation.class);
-    /**
-     * * End Advanced Medical ***
-     */
+    //region Advanced Medical
+    private List<Injury> injuries;
+    //endregion Advanced Medical
 
-    /* Against the Bot */
+    //region Against the Bot
     private boolean founder; // +1 share if using shares system
-    private int originalUnitWeight; // uses EntityWeightClass; 0 (Extra-Light) for no original unit
-    private int originalUnitTech; // 0 = IS1, 1 = IS2, 2 = Clan
+    private int originalUnitWeight; // uses EntityWeightClass with 0 (Extra-Light) for no original unit
+    public static final int TECH_IS1 = 0;
+    public static final int TECH_IS2 = 1;
+    public static final int TECH_CLAN = 2;
+    private int originalUnitTech;
     private UUID originalUnitId;
-    
+    //endregion Against the Bot
+
     // Generic extra data, for use with plugins and mods
-    private ExtraData extraData = new ExtraData();
+    private ExtraData extraData;
 
     //lets just go ahead and pass in the campaign - to hell with OOP
+    @Deprecated // May 1st, 2020 - As part of moving Person to be a fully OOP class
     private Campaign campaign;
 
-    // For upgrading personnel entries to missiong log entries
+    // For upgrading personnel entries to missing log entries
     private static String missionParticipatedString;
     private static String getMissionParticipatedString() {
         if (missionParticipatedString == null) {
@@ -346,7 +231,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
         MECHWARRIOR_AERO_RANSOM_VALUES.put(SkillType.EXP_REGULAR, Money.of(25000));
         MECHWARRIOR_AERO_RANSOM_VALUES.put(SkillType.EXP_VETERAN, Money.of(75000));
         MECHWARRIOR_AERO_RANSOM_VALUES.put(SkillType.EXP_ELITE, Money.of(150000));
-        
+
         OTHER_RANSOM_VALUES = new HashMap<>();
         OTHER_RANSOM_VALUES.put(SkillType.EXP_ULTRA_GREEN, Money.of(2500));
         OTHER_RANSOM_VALUES.put(SkillType.EXP_GREEN, Money.of(5000));
@@ -354,72 +239,130 @@ public class Person implements Serializable, MekHqXmlSerializable {
         OTHER_RANSOM_VALUES.put(SkillType.EXP_VETERAN, Money.of(25000));
         OTHER_RANSOM_VALUES.put(SkillType.EXP_ELITE, Money.of(50000));
     }
-    
+    //endregion Variable Declarations
+
+    //region Constructors
     //default constructor
-    public Person(Campaign c) {
-        this("Biff the Understudy", c);
+    protected Person(UUID id) {
+        this.id = id;
     }
 
-    public Person(Campaign c, String factionCode) {
-        this("Biff the Understudy", c, factionCode);
+    public Person(Campaign campaign) {
+        this(RandomNameGenerator.UNNAMED, RandomNameGenerator.UNNAMED_SURNAME, campaign);
     }
-    
-    public Person(String name, Campaign c) {
-        this(name, c, c.getFactionCode());
+
+    public Person(Campaign campaign, String factionCode) {
+        this(RandomNameGenerator.UNNAMED, RandomNameGenerator.UNNAMED_SURNAME, campaign, factionCode);
     }
-    
-    public Person(String name, Campaign c, String factionCode) {
-        this.name = name;
-        callsign = "";
-        portraitCategory = Crew.ROOT_PORTRAIT;
-        portraitFile = Crew.PORTRAIT_NONE;
-        portraitCategoryOverride = null;
-        portraitFileOverride = null;
-        xp = 0;
-        acquisitions = 0;
-        gender = G_MALE;
-        birthday = new GregorianCalendar(3042, Calendar.JANUARY, 1);
-        rank = 0;
-        rankLevel = 0;
-        status = S_ACTIVE;
-        hits = 0;
-        skills = new Hashtable<>();
-        salary = Money.of(-1);
-        campaign = c;
-        doctorId = null;
-        unitId = null;
-        oldDoctorId = -1;
-        oldUnitId = -1;
-        toughness = 0;
+
+    public Person(String givenName, String surname, Campaign campaign) {
+        this(givenName, surname, campaign, campaign.getFactionCode());
+    }
+
+    public Person(String givenName, String surname, @Nullable Campaign campaign, String factionCode) {
+        this("", givenName, surname, "", campaign, factionCode);
+    }
+
+    /**
+     * Primary Person constructor, variables are initialized in the exact same order as they are
+     * saved to the XML file
+     * @param preNominal    the person's pre-nominal
+     * @param givenName     the person's given name
+     * @param surname       the person's surname
+     * @param postNominal   the person's post-nominal
+     * @param campaign      the campaign this person is a part of, or null (unit testing only)
+     * @param factionCode   the faction this person was borne into
+     */
+    public Person(final String preNominal, final String givenName, final String surname,
+                  final String postNominal, final @Nullable Campaign campaign,
+                  final String factionCode) {
+        // First, we assign campaign
+        this.campaign = campaign;
+
+        // Then, we assign the variables in XML file order
+        id = UUID.randomUUID();
+
+        //region Name
+        setPreNominalDirect(preNominal);
+        setGivenNameDirect(givenName);
+        setSurnameDirect(surname);
+        setPostNominalDirect(postNominal);
+        setMaidenName(null); // this is set to null to handle divorce cases
+        setCallsignDirect("");
+        //endregion Name
+
+        primaryRole = PersonnelRole.NONE;
+        secondaryRole = PersonnelRole.NONE;
+        primaryDesignator = ROMDesignation.NONE;
+        secondaryDesignator = ROMDesignation.NONE;
+        setBirthday(LocalDate.now());
+
+        commander = false;
+        originFaction = Factions.getInstance().getFaction(factionCode);
+        originPlanet = null;
+        clan = originFaction.isClan();
+        phenotype = Phenotype.NONE;
+        bloodname = "";
         biography = "";
+        setGenealogy(new Genealogy(this));
+        tryingToMarry = true;
+        tryingToConceive = true;
+        dueDate = null;
+        expectedDueDate = null;
+        setPortrait(new Portrait());
+        setXPDirect(0);
+        setTotalXPEarnings(0);
+        daysToWaitForHealing = 0;
+        setGender(Gender.MALE);
+        setRankSystemDirect((campaign == null) ? null : campaign.getRankSystem());
+        setRank(0);
+        setRankLevel(0);
+        setManeiDominiClassDirect(ManeiDominiClass.NONE);
+        setManeiDominiRankDirect(ManeiDominiRank.NONE);
         nTasks = 0;
+        doctorId = null;
+        salary = Money.of(-1);
+        totalEarnings = Money.of(0);
+        status = PersonnelStatus.ACTIVE;
+        prisonerStatus = PrisonerStatus.FREE;
+        hits = 0;
+        toughness = 0;
+        resetMinutesLeft(); // this assigns minutesLeft and overtimeLeft
+        dateOfDeath = null;
+        recruitment = null;
+        lastRankChangeDate = null;
+        retirement = null;
+        skills = new Skills();
+        options = new PersonnelOptions();
+        currentEdge = 0;
+        techUnits = new ArrayList<>();
         personnelLog = new ArrayList<>();
         missionLog = new ArrayList<>();
-        idleMonths = -1;
-        daysToWaitForHealing = 15;
-        resetMinutesLeft();
-        prisonerStatus = PRISONER_NOT;
-        dependent = false;
-        commander = false;
-        isClanTech = false;
-        techUnitIds = new ArrayList<>();
-        phenotype = PHENOTYPE_NONE;
-        originFaction = Faction.getFaction(factionCode);
-        clan = originFaction.isClan();
-        bloodname = "";
-        primaryDesignator = DESIG_NONE;
-        secondaryDesignator = DESIG_NONE;
         awardController = new PersonAwardController(this);
+        injuries = new ArrayList<>();
+        founder = false;
+        originalUnitWeight = EntityWeightClass.WEIGHT_ULTRA_LIGHT;
+        originalUnitTech = TECH_IS1;
+        originalUnitId = null;
+        acquisitions = 0;
+        extraData = new ExtraData();
+
+        // Initialize Data based on these settings
+        setFullName();
+    }
+    //endregion Constructors
+
+    @Deprecated // May 1st, 2020 - as part of turning Person into a fully OOP class
+    public Campaign getCampaign() {
+        return campaign;
     }
 
-    public Campaign getCampaign(){return campaign;}
-
-    public int getPhenotype() {
+    public Phenotype getPhenotype() {
         return phenotype;
     }
 
-    public void setPhenotype(int i) {
-        phenotype = i;
+    public void setPhenotype(Phenotype phenotype) {
+        this.phenotype = phenotype;
     }
 
     public boolean isClanner() {
@@ -430,20 +373,13 @@ public class Person implements Serializable, MekHqXmlSerializable {
         clan = b;
     }
 
-    public String getBackgroundName() {
-        if (isClanner()) {
-            return getPhenotypeName();
-        } else {
-            return "Inner Sphere";
-        }
-    }
-
     public String getBloodname() {
         return bloodname;
     }
 
-    public void setBloodname(String bn) {
-        bloodname = bn;
+    public void setBloodname(String bloodname) {
+        this.bloodname = bloodname;
+        setFullName();
     }
 
     public Faction getOriginFaction() {
@@ -454,6 +390,14 @@ public class Person implements Serializable, MekHqXmlSerializable {
         originFaction = f;
     }
 
+    public Planet getOriginPlanet() {
+        return originPlanet;
+    }
+
+    public void setOriginPlanet(Planet p) {
+        originPlanet = p;
+    }
+
     public boolean isCommander() {
         return commander;
     }
@@ -462,300 +406,601 @@ public class Person implements Serializable, MekHqXmlSerializable {
         commander = tf;
     }
 
-    public boolean isDependent() {
-        return dependent;
-    }
-
-    public void setDependent(boolean tf) {
-        dependent = tf;
-        if (dependent) {
-            recruitment = null;
-        } else {
-            recruitment = (GregorianCalendar) campaign.getCalendar().clone();
-        }
-    }
-
-    public boolean isPrisoner() {
-        return prisonerStatus == PRISONER_YES;
-    }
-
-    public void setPrisoner() {
-        prisonerStatus = PRISONER_YES;
-        setRankNumeric(Ranks.RANK_PRISONER);
-    }
-
-    public boolean isBondsman() {
-        return prisonerStatus == PRISONER_BONDSMAN;
-    }
-
-    public void setBondsman() {
-        prisonerStatus = PRISONER_BONDSMAN;
-        willingToDefect = false;
-        setRankNumeric(Ranks.RANK_BONDSMAN);
-    }
-
-    public boolean isFree() {
-        return (!isPrisoner() && !isBondsman());
-    }
-
-    public void setFreeMan() {
-        prisonerStatus = PRISONER_NOT;
-        willingToDefect = false;
-    }
-
-    public void setPrisonerStatus(int status) {
-        prisonerStatus = status;
-        if( prisonerStatus != PRISONER_YES ) {
-            willingToDefect = false;
-        }
-    }
-
-    public int getPrisonerStatus() {
+    public PrisonerStatus getPrisonerStatus() {
         return prisonerStatus;
     }
-    
-    public boolean isWillingToDefect() {
-        return willingToDefect;
-    }
-    
-    public void setWillingToDefect(boolean willingToDefect) {
-        this.willingToDefect = willingToDefect && (prisonerStatus == PRISONER_YES);
+
+    public void setPrisonerStatus(PrisonerStatus prisonerStatus) {
+        setPrisonerStatus(prisonerStatus, true);
     }
 
-    public String getGenderName() {
-        return getGenderName(gender);
-    }
+    /**
+     * This requires expanded checks because a number of functionalities are strictly dependant on
+     * the current person's prisoner status.
+     * @param prisonerStatus The new prisoner status for the person in question
+     * @param log whether to log the change or not
+     */
+    public void setPrisonerStatus(PrisonerStatus prisonerStatus, boolean log) {
+        // This must be processed completely, as the unchanged prisoner status of Free to Free is
+        // used during recruitment
 
-    public static String getGenderName(int gender) {
-        switch (gender) {
-            case G_MALE:
-                return "Male";
-            case G_FEMALE:
-                return "Female";
-            default:
-                return "?";
+        final boolean freed = !getPrisonerStatus().isFree();
+        final boolean isPrisoner = prisonerStatus.isPrisoner();
+        this.prisonerStatus = prisonerStatus;
+
+        // Now, we need to fix values and ranks based on the Person's status
+        switch (prisonerStatus) {
+            case PRISONER:
+            case PRISONER_DEFECTOR:
+            case BONDSMAN:
+                setRecruitment(null);
+                setLastRankChangeDate(null);
+                if (log) {
+                    if (isPrisoner) {
+                        ServiceLogger.madePrisoner(this, getCampaign().getLocalDate(),
+                                getCampaign().getName(), "");
+                    } else {
+                        ServiceLogger.madeBondsman(this, getCampaign().getLocalDate(),
+                                getCampaign().getName(), "");
+                    }
+                }
+                break;
+            case FREE:
+                if (!getPrimaryRole().isDependent()) {
+                    if (getCampaign().getCampaignOptions().getUseTimeInService()) {
+                        setRecruitment(getCampaign().getLocalDate());
+                    }
+                    if (getCampaign().getCampaignOptions().getUseTimeInRank()) {
+                        setLastRankChangeDate(getCampaign().getLocalDate());
+                    }
+                }
+
+                if (log) {
+                    if (freed) {
+                        ServiceLogger.freed(this, getCampaign().getLocalDate(),
+                                getCampaign().getName(), "");
+                    } else {
+                        ServiceLogger.joined(this, getCampaign().getLocalDate(),
+                                getCampaign().getName(), "");
+                    }
+                }
+                break;
         }
-    }
 
-    public String getGenderPronoun(int variant) {
-        return getGenderPronoun(gender, variant);
-    }
-
-    public static String getGenderPronoun(int gender, int variant) {
-        if (variant == PRONOUN_HESHE) {
-            switch (gender) {
-                case G_MALE:
-                    return "he";
-                case G_FEMALE:
-                    return "she";
-                default:
-                    return "?";
+        if (!prisonerStatus.isFree()) {
+            if (getUnit() != null) {
+                getUnit().remove(this, true);
             }
-        } else if (variant == PRONOUN_HIMHER) {
-            switch (gender) {
-                case G_MALE:
-                    return "him";
-                case G_FEMALE:
-                    return "her";
-                default:
-                    return "?";
-            }
-        } else if (variant == PRONOUN_HISHER) {
-            switch (gender) {
-                case G_MALE:
-                    return "his";
-                case G_FEMALE:
-                    return "her";
-                default:
-                    return "?";
-            }
-        } else if (variant == PRONOUN_HISHERS) {
-            switch (gender) {
-                case G_MALE:
-                    return "his";
-                case G_FEMALE:
-                    return "hers";
-                default:
-                    return "?";
-            }
-        } else {
-            return "UNKNOWN ERROR IN GENDER PRONOUN";
         }
+
+        MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public static String getStatusName(int status) {
-        switch (status) {
-            case S_ACTIVE:
-                return "Active";
-            case S_RETIRED:
-                return "Retired";
-            case S_KIA:
-                return "Killed in Action";
-            case S_MIA:
-                return "Missing in Action";
-            default:
-                return "?";
-        }
-    }
-
+    //region Text Getters
     public String pregnancyStatus() {
         return isPregnant() ? " (Pregnant)" : "";
     }
+    //endregion Text Getters
 
-    public String getStatusName() {
-        return getStatusName(status);
-    }
-
-    public static String getPhenotypeName(int pheno) {
-        switch (pheno) {
-            case PHENOTYPE_NONE:
-                return "Freeborn";
-            case PHENOTYPE_MW:
-                return "Trueborn Mechwarrior";
-            case PHENOTYPE_AERO:
-                return "Trueborn Pilot";
-            case PHENOTYPE_VEE:
-                return "Trueborn Vehicle Crew";
-            case PHENOTYPE_BA:
-                return "Trueborn Elemental";
-            default:
-                return "?";
-        }
-    }
-
-    public static String getPhenotypeShortName(int pheno) {
-        switch (pheno) {
-            case PHENOTYPE_NONE:
-                return "Freeborn";
-            case PHENOTYPE_MW:
-            case PHENOTYPE_AERO:
-            case PHENOTYPE_VEE:
-            case PHENOTYPE_BA:
-                return "Trueborn";
-            default:
-                return "?";
-        }
-    }
-
-    public String getPhenotypeName() {
-        return getPhenotypeName(phenotype);
-    }
-
-    public String getPhenotypeShortName() {
-        return getPhenotypeShortName(phenotype);
-    }
-
-    public static String getPrisonerStatusName(int status) {
-        switch (status) {
-            case PRISONER_NOT:
-                return "Free";
-            case PRISONER_YES:
-                return "Prisoner";
-            case PRISONER_BONDSMAN:
-                return "Bondsman";
-            default:
-                return "?";
-        }
-    }
-
-    public String getPrisonerStatusName() {
-        return getPrisonerStatusName(prisonerStatus);
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String n) {
-        this.name = n;
-    }
-
-    public String getMaidenName() {
-        return maidenname;
-    }
-
-    public void setMaidenName(String n) {
-        this.maidenname = n;
-    }
-
+    //region Name
+    /**
+     * @return the person's full name
+     */
     public String getFullName() {
-        if (bloodname.length() > 0) {
-            return name + " " + bloodname;
+        return fullName;
+    }
+
+    /**
+     * @return a hyperlinked string for the person's name
+     */
+    public String getHyperlinkedName() {
+        return String.format("<a href='PERSON:%s'>%s</a>", getId(), getFullName());
+    }
+
+    /**
+     * This is used to create the full name of the person, based on their first and last names
+     */
+    public void setFullName() {
+        final String lastName = getLastName();
+        setFullNameDirect(getFirstName()
+                + (getCallsign().isBlank() ? "" : (" \"" + getCallsign() + "\""))
+                + (lastName.isBlank() ? "" : " " + lastName));
+    }
+
+    /**
+     * @param fullName this sets the full name to be equal to the input string. This can ONLY be
+     *                 called by {@link Person#setFullName()} or its overrides.
+     */
+    protected void setFullNameDirect(final String fullName) {
+        this.fullName = fullName;
+    }
+
+    /**
+     * @return a String containing the person's first name including their pre-nominal
+     */
+    public String getFirstName() {
+        return (getPreNominal().isBlank() ? "" : (getPreNominal() + " ")) + getGivenName();
+    }
+
+    /**
+     * Return a full last name which may be a bloodname or a surname with or without a post-nominal.
+     * A bloodname will overrule a surname but we do not disallow surnames for clanners, if the
+     * player wants to input them
+     * @return a String of the person's last name
+     */
+    public String getLastName() {
+        String lastName = !StringUtil.isNullOrEmpty(getBloodname()) ? getBloodname()
+                : !StringUtil.isNullOrEmpty(getSurname()) ? getSurname()
+                : "";
+        if (!StringUtil.isNullOrEmpty(getPostNominal())) {
+            lastName += (lastName.isBlank() ? "" : " ") + getPostNominal();
         }
-        return name;
+        return lastName;
     }
 
-   public String getHyperlinkedName() {
-        return "<a href='PERSON:" + getId() + "'>" + getFullName() + "</a>";
+    /**
+     * @return the person's pre-nominal
+     */
+    public String getPreNominal() {
+        return preNominal;
     }
 
+    /**
+     * @param preNominal the person's new pre-nominal
+     */
+    public void setPreNominal(final String preNominal) {
+        setPreNominalDirect(preNominal);
+        setFullName();
+    }
+
+    protected void setPreNominalDirect(final String preNominal) {
+        this.preNominal = preNominal;
+    }
+
+    /**
+     * @return the person's given name
+     */
+    public String getGivenName() {
+        return givenName;
+    }
+
+    /**
+     * @param givenName the person's new given name
+     */
+    public void setGivenName(final String givenName) {
+        setGivenNameDirect(givenName);
+        setFullName();
+    }
+
+    protected void setGivenNameDirect(final String givenName) {
+        this.givenName = givenName;
+    }
+
+    /**
+     * @return the person's surname
+     */
+    public String getSurname() {
+        return surname;
+    }
+
+    /**
+     * @param surname the person's new surname
+     */
+    public void setSurname(final String surname) {
+        setSurnameDirect(surname);
+        setFullName();
+    }
+
+    protected void setSurnameDirect(final String surname) {
+        this.surname = surname;
+    }
+
+    /**
+     * @return the person's post-nominal
+     */
+    public String getPostNominal() {
+        return postNominal;
+    }
+
+    /**
+     * @param postNominal the person's new post-nominal
+     */
+    public void setPostNominal(final String postNominal) {
+        setPostNominalDirect(postNominal);
+        setFullName();
+    }
+
+    protected void setPostNominalDirect(final String postNominal) {
+        this.postNominal = postNominal;
+    }
+
+    /**
+     * @return the person's maiden name
+     */
+    public @Nullable String getMaidenName() {
+        return maidenName;
+    }
+
+    /**
+     * @param maidenName the person's new maiden name
+     */
+    public void setMaidenName(final @Nullable String maidenName) {
+        this.maidenName = maidenName;
+    }
+
+    /**
+     * @return the person's callsign
+     */
     public String getCallsign() {
         return callsign;
     }
 
-    public void setCallsign(String n) {
-        this.callsign = n;
+    /**
+     * @param callsign the person's new callsign
+     */
+    public void setCallsign(final String callsign) {
+        setCallsignDirect(callsign);
+        setFullName();
     }
 
-    public String getPortraitCategory() {
-        return Utilities.nonNull(portraitCategoryOverride, portraitCategory);
+    protected void setCallsignDirect(final String callsign) {
+        this.callsign = callsign;
     }
 
-    public String getPortraitFileName() {
-        return Utilities.nonNull(portraitFileOverride, portraitFile);
+    /**
+     * This method is used to migrate names from being a joined name to split between given name and
+     * surname, as part of the Personnel changes in MekHQ 0.47.4, and is used to migrate from
+     * MM-style names to MHQ-style names
+     * @param text text containing the name to be migrated
+     */
+    public void migrateName(final String text) {
+        // How this works:
+        // Takes the input name, and splits it into individual parts.
+        // Then, it depends on whether the person is a Clanner or not.
+        // For Clan names:
+        // Takes the input name, and assumes that person does not have a surname
+        // Bloodnames are assumed to have been assigned by MekHQ
+        // For Inner Sphere names:
+        // Depending on the length of the resulting array, the name is processed differently
+        // Array of length 1: the name is assumed to not have a surname, just a given name
+        // Array of length 2: the name is assumed to be a given name and a surname
+        // Array of length 3: the name is assumed to be a given name and two surnames
+        // Array of length 4+: the name is assumed to be as many given names as possible and two surnames
+        //
+        // Then, the full name is set
+        final String[] name = text.trim().split("\\s+");
+        final StringBuilder givenName = new StringBuilder(name[0]);
+
+        if (isClanner()) {
+            if (name.length > 1) {
+                int i;
+                for (i = 1; i < name.length - 1; i++) {
+                    givenName.append(" ").append(name[i]);
+                }
+
+                if (!(!StringUtil.isNullOrEmpty(getBloodname()) && getBloodname().equals(name[i]))) {
+                    givenName.append(" ").append(name[i]);
+                }
+            }
+        } else {
+            if (name.length == 2) {
+                setSurnameDirect(name[1]);
+            } else if (name.length == 3) {
+                setSurnameDirect(name[1] + " " + name[2]);
+            } else if (name.length > 3) {
+                int i;
+                for (i = 1; i < name.length - 2; i++) {
+                    givenName.append(" ").append(name[i]);
+                }
+                setSurnameDirect(name[i] + " " + name[i + 1]);
+            }
+        }
+
+        if ((getSurname() == null) || getSurname().equals(RandomNameGenerator.UNNAMED_SURNAME)) {
+            setSurnameDirect("");
+        }
+
+        setGivenNameDirect(givenName.toString());
+        setFullName();
+    }
+    //endregion Names
+
+    public Portrait getPortrait() {
+        return portrait;
     }
 
-    public void setPortraitCategory(String s) {
-        this.portraitCategory = s;
+    public void setPortrait(final Portrait portrait) {
+        assert (portrait != null) : "Illegal assignment: cannot have a null Portrait for a Portrait";
+        this.portrait = Objects.requireNonNull(portrait);
     }
 
-    public void setPortraitFileName(String s) {
-        this.portraitFile = s;
-    }
-
-    public void setPortraitCategoryOverride(String s) {
-        this.portraitCategoryOverride = s;
-    }
-
-    public void setPortraitFileNameOverride(String s) {
-        this.portraitFileOverride = s;
-    }
-
-
-    public int getPrimaryRole() {
+    //region Personnel Roles
+    public PersonnelRole getPrimaryRole() {
         return primaryRole;
     }
 
-    public void setPrimaryRole(int t) {
-        this.primaryRole = t;
-        //you can't be primary tech and a secondary astech
-        //you can't be a primary astech and a secondary tech
-        if ((isTechPrimary() && secondaryRole == T_ASTECH)
-            || (isTechSecondary() && primaryRole == T_ASTECH)) {
-            secondaryRole = T_NONE;
+    public void setPrimaryRole(final PersonnelRole primaryRole) {
+        // don't need to do any processing for no changes
+        if (primaryRole == getPrimaryRole()) {
+            return;
         }
-        if ((primaryRole == T_DOCTOR && secondaryRole == T_MEDIC)
-            || (secondaryRole == T_DOCTOR && primaryRole == T_MEDIC)) {
-            secondaryRole = T_NONE;
+
+        // We need to make some secondary role assignments to None here for better UX in
+        // assigning roles, following these rules:
+        // 1) Cannot have the same primary and secondary roles
+        // 2) Must have a None secondary role if you are a Dependent
+        // 3) Cannot be a primary tech and a secondary Astech
+        // 4) Cannot be a primary Astech and a secondary tech
+        // 5) Cannot be primary medical staff and a secondary Medic
+        // 6) Cannot be a primary Medic and secondary medical staff
+        if ((primaryRole == getSecondaryRole())
+                || primaryRole.isDependent()
+                || (primaryRole.isTech() && getSecondaryRole().isAstech())
+                || (primaryRole.isAstech() && getSecondaryRole().isTechSecondary())
+                || (primaryRole.isMedicalStaff() && getSecondaryRole().isMedic())
+                || (primaryRole.isMedic() && getSecondaryRole().isMedicalStaff())) {
+            setSecondaryRoleDirect(PersonnelRole.NONE);
         }
+
+        // Now, we can perform the time in service and last rank change tracking change for dependents
+        if (primaryRole.isDependent()) {
+            setRecruitment(null);
+            setLastRankChangeDate(null);
+        } else if (getPrimaryRole().isDependent()) {
+            setRecruitment(getCampaign().getLocalDate());
+            setLastRankChangeDate(getCampaign().getLocalDate());
+        }
+
+        // Finally, we can set the primary role
+        setPrimaryRoleDirect(primaryRole);
+
+        // and trigger the update event
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public int getSecondaryRole() {
+    public void setPrimaryRoleDirect(PersonnelRole primaryRole) {
+        this.primaryRole = primaryRole;
+    }
+
+    public PersonnelRole getSecondaryRole() {
         return secondaryRole;
     }
 
-    public void setSecondaryRole(int t) {
-        this.secondaryRole = t;
+    public void setSecondaryRole(final PersonnelRole secondaryRole) {
+        if (secondaryRole == getSecondaryRole()) {
+            return;
+        }
+
+        setSecondaryRoleDirect(secondaryRole);
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public int getStatus() {
+    public void setSecondaryRoleDirect(PersonnelRole secondaryRole) {
+        this.secondaryRole = secondaryRole;
+    }
+
+    /**
+     * This is used to determine if a person has a specific role as either their primary OR their
+     * secondary role
+     * @param role the role to determine
+     * @return true if the person has the specific role either as their primary or secondary role
+     */
+    public boolean hasRole(PersonnelRole role) {
+        return (getPrimaryRole() == role) || (getSecondaryRole() == role);
+    }
+
+    /**
+     * @return true if the person has a primary or secondary combat role
+     */
+    public boolean hasCombatRole() {
+        return getPrimaryRole().isCombat() || getSecondaryRole().isCombat();
+    }
+
+    /**
+     * @param excludeUnmarketable whether to exclude the unmarketable roles from the comparison
+     * @return true if the person has a primary or secondary support role
+     */
+    public boolean hasSupportRole(boolean excludeUnmarketable) {
+        return getPrimaryRole().isSupport(excludeUnmarketable) || getSecondaryRole().isSupport(excludeUnmarketable);
+    }
+
+    public String getRoleDesc() {
+        String role = getPrimaryRoleDesc();
+        if (!getSecondaryRole().isNone()) {
+            role += "/" + getSecondaryRoleDesc();
+        }
+        return role;
+    }
+
+    public String getPrimaryRoleDesc() {
+        String bgPrefix = "";
+        if (isClanner()) {
+            bgPrefix = getPhenotype().getShortName() + " ";
+        }
+        return bgPrefix + getPrimaryRole().getName(isClanner());
+    }
+
+    public String getSecondaryRoleDesc() {
+        return getSecondaryRole().getName(isClanner());
+    }
+
+    public boolean canPerformRole(final PersonnelRole role, final boolean primary) {
+        if (primary) {
+            // Primary Role:
+            // We only do a few here, as it is better on the UX-side to correct the issues when
+            // assigning the primary role
+            // 1) Can always be Dependent
+            // 2) Cannot be None
+            if (role.isDependent()) {
+                return true;
+            } else if (role.isNone()) {
+                return false;
+            }
+        } else {
+            // Secondary Role:
+            // 1) Can always be None
+            // 2) Cannot be Dependent
+            // 3) Can only be None if the primary role is a Dependent
+            // 4) Cannot be equal to the primary role
+            // 5) Cannot be a tech role if the primary role is an Astech
+            // 6) Cannot be Astech if the primary role is a tech role
+            // 7) Cannot be a medical staff role if the primary role is a Medic
+            // 8) Cannot be Medic if the primary role is one of the medical staff roles
+            if (role.isNone()) {
+                return true;
+            } else if (role.isDependent()
+                    || getPrimaryRole().isDependent()
+                    || (getPrimaryRole() == role)
+                    || (role.isTechSecondary() && getPrimaryRole().isAstech())
+                    || (role.isAstech() && getPrimaryRole().isTech())
+                    || (role.isMedicalStaff() && getPrimaryRole().isMedic())
+                    || (role.isMedic() && getPrimaryRole().isMedicalStaff())) {
+                return false;
+            }
+        }
+
+        switch (role) {
+            case MECHWARRIOR:
+                return hasSkill(SkillType.S_GUN_MECH) && hasSkill(SkillType.S_PILOT_MECH);
+            case LAM_PILOT:
+                return hasSkill(SkillType.S_GUN_MECH) && hasSkill(SkillType.S_PILOT_MECH)
+                        && hasSkill(SkillType.S_GUN_AERO) && hasSkill(SkillType.S_PILOT_AERO);
+            case GROUND_VEHICLE_DRIVER:
+                return hasSkill(SkillType.S_PILOT_GVEE);
+            case NAVAL_VEHICLE_DRIVER:
+                return hasSkill(SkillType.S_PILOT_NVEE);
+            case VTOL_PILOT:
+                return hasSkill(SkillType.S_PILOT_VTOL);
+            case VEHICLE_GUNNER:
+                return hasSkill(SkillType.S_GUN_VEE);
+            case VEHICLE_CREW:
+                return hasSkill(SkillType.S_TECH_MECHANIC) && getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case AEROSPACE_PILOT:
+                return hasSkill(SkillType.S_GUN_AERO) && hasSkill(SkillType.S_PILOT_AERO);
+            case CONVENTIONAL_AIRCRAFT_PILOT:
+                return hasSkill(SkillType.S_GUN_JET) && hasSkill(SkillType.S_PILOT_JET);
+            case PROTOMECH_PILOT:
+                return hasSkill(SkillType.S_GUN_PROTO);
+            case BATTLE_ARMOUR:
+                return hasSkill(SkillType.S_GUN_BA);
+            case SOLDIER:
+                return hasSkill(SkillType.S_SMALL_ARMS);
+            case VESSEL_PILOT:
+                return hasSkill(SkillType.S_PILOT_SPACE);
+            case VESSEL_CREW:
+                return hasSkill(SkillType.S_TECH_VESSEL);
+            case VESSEL_GUNNER:
+                return hasSkill(SkillType.S_GUN_SPACE);
+            case VESSEL_NAVIGATOR:
+                return hasSkill(SkillType.S_NAV);
+            case MECH_TECH:
+                return hasSkill(SkillType.S_TECH_MECH) && getSkill(SkillType.S_TECH_MECH).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case MECHANIC:
+                return hasSkill(SkillType.S_TECH_MECHANIC) && getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case AERO_TECH:
+                return hasSkill(SkillType.S_TECH_AERO) && getSkill(SkillType.S_TECH_AERO).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case BA_TECH:
+                return hasSkill(SkillType.S_TECH_BA) && getSkill(SkillType.S_TECH_BA).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case ASTECH:
+                return hasSkill(SkillType.S_ASTECH);
+            case DOCTOR:
+                return hasSkill(SkillType.S_DOCTOR) && getSkill(SkillType.S_DOCTOR).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
+            case MEDIC:
+                return hasSkill(SkillType.S_MEDTECH);
+            case ADMINISTRATOR_COMMAND:
+            case ADMINISTRATOR_LOGISTICS:
+            case ADMINISTRATOR_TRANSPORT:
+            case ADMINISTRATOR_HR:
+                return hasSkill(SkillType.S_ADMIN);
+            case DEPENDENT:
+            case NONE:
+                return true;
+            default:
+                return false;
+        }
+    }
+    //endregion Personnel Roles
+
+    public PersonnelStatus getStatus() {
         return status;
     }
 
-    public void setStatus(int s) {
-        this.status = s;
+    /**
+     * This is used to change the person's PersonnelStatus
+     * @param campaign the campaign the person is part of
+     * @param today the current date
+     * @param status the person's new PersonnelStatus
+     */
+    public void changeStatus(final Campaign campaign, final LocalDate today,
+                             final PersonnelStatus status) {
+        if (status == getStatus()) { // no change means we don't need to process anything
+            return;
+        } else if (getStatus().isDead() && !status.isDead()) {
+            // remove date of death for resurrection
+            setDateOfDeath(null);
+            ServiceLogger.resurrected(this, today);
+        }
+
+        switch (status) {
+            case ACTIVE:
+                if (getStatus().isMIA()) {
+                    ServiceLogger.recoveredMia(this, today);
+                } else if (getStatus().isOnLeave()) {
+                    ServiceLogger.returnedFromLeave(this, campaign.getLocalDate());
+                } else if (getStatus().isAWOL()) {
+                    ServiceLogger.returnedFromAWOL(this, campaign.getLocalDate());
+                } else {
+                    ServiceLogger.rehired(this, today);
+                }
+                setRetirement(null);
+                break;
+            case RETIRED:
+                ServiceLogger.retired(this, today);
+                if (campaign.getCampaignOptions().useRetirementDateTracking()) {
+                    setRetirement(today);
+                }
+                break;
+            case PREGNANCY_COMPLICATIONS:
+                campaign.getProcreation().processPregnancyComplications(campaign, campaign.getLocalDate(), this);
+                // purposeful fall through
+            default:
+                ServiceLogger.changedStatus(this, campaign.getLocalDate(), status);
+                break;
+        }
+
+        setStatus(status);
+
+        if (status.isDead()) {
+            setDateOfDeath(today);
+            // Don't forget to tell the spouse
+            if (getGenealogy().hasSpouse() && !getGenealogy().getSpouse().getStatus().isDeadOrMIA()) {
+                Divorce divorceType = campaign.getCampaignOptions().getKeepMarriedNameUponSpouseDeath()
+                        ? Divorce.ORIGIN_CHANGE_SURNAME : Divorce.SPOUSE_CHANGE_SURNAME;
+                divorceType.divorce(this, campaign);
+            }
+        }
+
+        if (!status.isActive()) {
+            setDoctorId(null, campaign.getCampaignOptions().getNaturalHealingWaitingPeriod());
+
+            // If we're assigned to a unit, remove us from it
+            if (getUnit() != null) {
+                getUnit().remove(this, true);
+            }
+
+            // Clear Tech Setup
+            removeAllTechJobs(campaign);
+        }
+
+        MekHQ.triggerEvent(new PersonChangedEvent(this));
+    }
+
+    /**
+     * This is used to directly set the Person's PersonnelStatus without any processing
+     * @param status the person's new status
+     */
+    public void setStatus(PersonnelStatus status) {
+        this.status = status;
     }
 
     public int getIdleMonths() {
@@ -774,225 +1019,130 @@ public class Person implements Serializable, MekHqXmlSerializable {
         this.daysToWaitForHealing = d;
     }
 
-
-    public static String getRoleDesc(int type, boolean clan) {
-        switch (type) {
-            case (T_NONE):
-                return "None";
-            case (T_MECHWARRIOR):
-                return "Mechwarrior";
-            case (T_GVEE_DRIVER):
-                return "Vehicle Driver";
-            case (T_NVEE_DRIVER):
-                return "Naval Driver";
-            case (T_VTOL_PILOT):
-                return "VTOL Pilot";
-            case (T_VEE_GUNNER):
-                return "Vehicle Gunner";
-            case (T_CONV_PILOT):
-                return "Conventional Aircraft Pilot";
-            case (T_AERO_PILOT):
-                return "Aero Pilot";
-            case (T_PROTO_PILOT):
-                return "Proto Pilot";
-            case (T_BA):
-                if (clan) {
-                    return "Elemental";
-                } else {
-                    return "Battle Armor Pilot";
-                }
-            case (T_INFANTRY):
-                return "Soldier";
-            case (T_SPACE_PILOT):
-                return "Vessel Pilot";
-            case (T_SPACE_CREW):
-                return "Vessel Crewmember";
-            case (T_SPACE_GUNNER):
-                return "Vessel Gunner";
-            case (T_NAVIGATOR):
-                return "Hyperspace Navigator";
-            case (T_MECH_TECH):
-                return "Mech Tech";
-            case (T_MECHANIC):
-                return "Mechanic";
-            case (T_AERO_TECH):
-                return "Aero Tech";
-            case (T_BA_TECH):
-                return "Battle Armor Tech";
-            case (T_ASTECH):
-                return "Astech";
-            case (T_DOCTOR):
-                return "Doctor";
-            case (T_MEDIC):
-                return "Medic";
-            case (T_ADMIN_COM):
-                return "Admin/Command";
-            case (T_ADMIN_LOG):
-                return "Admin/Logistical";
-            case (T_ADMIN_TRA):
-                return "Admin/Transport";
-            case (T_ADMIN_HR):
-                return "Admin/HR";
-            case (T_LAM_PILOT):
-                return "LAM Pilot";
-            default:
-                return "??";
-        }
+    public void setGender(Gender gender) {
+        this.gender = gender;
     }
 
-    public String getRoleDesc() {
-        String role = getPrimaryRoleDesc();
-        if (secondaryRole != T_NONE && secondaryRole != -1) {
-            role += "/" + getSecondaryRoleDesc();
-        }
-        return role;
-    }
-
-    public String getPrimaryRoleDesc() {
-        String bgPrefix = "";
-        if (isClanner()) {
-            bgPrefix = getPhenotypeShortName() + " ";
-        }
-        return bgPrefix + getRoleDesc(primaryRole, campaign.getFaction().isClan());
-    }
-
-    public String getSecondaryRoleDesc() {
-        return getRoleDesc(secondaryRole, campaign.getFaction().isClan());
-    }
-
-    public boolean canPerformRole(int role) {
-        switch (role) {
-            case (T_NONE):
-                return true;
-            case (T_MECHWARRIOR):
-                return hasSkill(SkillType.S_GUN_MECH) && hasSkill(SkillType.S_PILOT_MECH);
-            case (T_GVEE_DRIVER):
-                return hasSkill(SkillType.S_PILOT_GVEE);
-            case (T_NVEE_DRIVER):
-                return hasSkill(SkillType.S_PILOT_NVEE);
-            case (T_VTOL_PILOT):
-                return hasSkill(SkillType.S_PILOT_VTOL);
-            case (T_VEE_GUNNER):
-                return hasSkill(SkillType.S_GUN_VEE);
-            case (T_AERO_PILOT):
-                return hasSkill(SkillType.S_GUN_AERO) && hasSkill(SkillType.S_PILOT_AERO);
-            case (T_CONV_PILOT):
-                return hasSkill(SkillType.S_GUN_JET) && hasSkill(SkillType.S_PILOT_JET);
-            case (T_PROTO_PILOT):
-                return hasSkill(SkillType.S_GUN_PROTO);
-            case (T_BA):
-                return hasSkill(SkillType.S_GUN_BA);
-            case (T_INFANTRY):
-                return hasSkill(SkillType.S_SMALL_ARMS);
-            case (T_SPACE_PILOT):
-                return hasSkill(SkillType.S_PILOT_SPACE);
-            case (T_SPACE_CREW):
-                return hasSkill(SkillType.S_TECH_VESSEL);
-            case (T_SPACE_GUNNER):
-                return hasSkill(SkillType.S_GUN_SPACE);
-            case (T_NAVIGATOR):
-                return hasSkill(SkillType.S_NAV);
-            case (T_MECH_TECH):
-                return hasSkill(SkillType.S_TECH_MECH) && getSkill(SkillType.S_TECH_MECH).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
-            case (T_MECHANIC):
-                return hasSkill(SkillType.S_TECH_MECHANIC) && getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
-            case (T_AERO_TECH):
-                return hasSkill(SkillType.S_TECH_AERO) && getSkill(SkillType.S_TECH_AERO).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
-            case (T_BA_TECH):
-                return hasSkill(SkillType.S_TECH_BA) && getSkill(SkillType.S_TECH_BA).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
-            case (T_ASTECH):
-                return hasSkill(SkillType.S_ASTECH);
-            case (T_DOCTOR):
-                return hasSkill(SkillType.S_DOCTOR) && getSkill(SkillType.S_DOCTOR).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN;
-            case (T_MEDIC):
-                return hasSkill(SkillType.S_MEDTECH);
-            case (T_ADMIN_COM):
-            case (T_ADMIN_LOG):
-            case (T_ADMIN_TRA):
-            case (T_ADMIN_HR):
-                return hasSkill(SkillType.S_ADMIN);
-            default:
-                return false;
-        }
-    }
-
-    public void setGender(int g) {
-        this.gender = g;
-    }
-
-    public int getGender() {
+    public Gender getGender() {
         return gender;
     }
 
-    public void setBirthday(GregorianCalendar date) {
+    public void setBirthday(LocalDate date) {
         this.birthday = date;
     }
 
-    public GregorianCalendar getBirthday() {
+    public LocalDate getBirthday() {
         return birthday;
     }
 
-    public GregorianCalendar getDeathday() {
-        return deathday;
+    public LocalDate getDateOfDeath() {
+        return dateOfDeath;
     }
 
-    public void setDeathday(GregorianCalendar date) {
-        this.deathday = date;
+    public String getDeathDateAsString() {
+        if (getDateOfDeath() == null) {
+            return "";
+        } else {
+            return MekHQ.getMekHQOptions().getDisplayFormattedDate(getDateOfDeath());
+        }
     }
 
-    public void setRecruitment(GregorianCalendar date) {
+    public void setDateOfDeath(LocalDate date) {
+        this.dateOfDeath = date;
+    }
+
+    public int getAge(LocalDate today) {
+        // Get age based on year
+        if (getDateOfDeath() != null) {
+            //use date of death instead of birthday
+            today = getDateOfDeath();
+        }
+
+        return Math.toIntExact(ChronoUnit.YEARS.between(getBirthday(), today));
+    }
+
+    public void setRecruitment(LocalDate date) {
         this.recruitment = date;
     }
 
-    public GregorianCalendar getRecruitment() {
+    public LocalDate getRecruitment() {
         return recruitment;
     }
 
     public String getRecruitmentAsString() {
-        if (recruitment == null) {
-            return null;
+        if (getRecruitment() == null) {
+            return "";
+        } else {
+            return MekHQ.getMekHQOptions().getDisplayFormattedDate(getRecruitment());
         }
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-        return df.format(recruitment.getTime());
     }
 
-    public int getAge(GregorianCalendar today) {
-        // Get age based on year
-        if (null != deathday) {
-            //use deathday instead of birthdate
-            today = deathday;
-        }
-
-        int age = today.get(Calendar.YEAR) - birthday.get(Calendar.YEAR);
-
-        // Add the tentative age to the date of birth to get this year's birthday
-        GregorianCalendar tmpDate = (GregorianCalendar) birthday.clone();
-        tmpDate.add(Calendar.YEAR, age);
-
-        // If this year's birthday has not happened yet, subtract one from age
-        if (today.before(tmpDate)) {
-            age--;
-        }
-        return age;
-    }
-
-    public int getTimeInService(GregorianCalendar today) {
+    public String getTimeInService(Campaign campaign) {
         // Get time in service based on year
-        if (null == recruitment) {
-            //use zero if hasn't been recruited yet
-            return -1;
+        if (getRecruitment() == null) {
+            //use "" they haven't been recruited or are dependents
+            return "";
         }
-         
-        int timeinservice = today.get(Calendar.YEAR) - recruitment.get(Calendar.YEAR);
 
-        // Add the tentative time in service to the date of recruitment to get this year's service history
-        GregorianCalendar tmpDate = (GregorianCalendar) recruitment.clone();
-        tmpDate.add(Calendar.YEAR, timeinservice);
+        LocalDate today = campaign.getLocalDate();
 
-        if (today.before(tmpDate)) {
-            timeinservice--;
+        // If the person is dead, we only care about how long they spent in service to the company
+        if (getDateOfDeath() != null) {
+            //use date of death instead of the current day
+            today = getDateOfDeath();
         }
-        return timeinservice;
+
+        return campaign.getCampaignOptions().getTimeInServiceDisplayFormat()
+                .getDisplayFormattedOutput(getRecruitment(), today);
+    }
+
+    public void setLastRankChangeDate(LocalDate date) {
+        this.lastRankChangeDate = date;
+    }
+
+    public LocalDate getLastRankChangeDate() {
+        return lastRankChangeDate;
+    }
+
+    public String getLastRankChangeDateAsString() {
+        if (getLastRankChangeDate() == null) {
+            return "";
+        } else {
+            return MekHQ.getMekHQOptions().getDisplayFormattedDate(getLastRankChangeDate());
+        }
+    }
+
+    public String getTimeInRank(Campaign campaign) {
+        if (getLastRankChangeDate() == null) {
+            return "";
+        }
+
+        LocalDate today = campaign.getLocalDate();
+
+        // If the person is dead, we only care about how long it was from their last promotion till they died
+        if (getDateOfDeath() != null) {
+            //use date of death instead of the current day
+            today = getDateOfDeath();
+        }
+
+        return campaign.getCampaignOptions().getTimeInRankDisplayFormat()
+                .getDisplayFormattedOutput(getLastRankChangeDate(), today);
+    }
+
+    public void setRetirement(LocalDate date) {
+        this.retirement = date;
+    }
+
+    public LocalDate getRetirement() {
+        return retirement;
+    }
+
+    public String getRetirementAsString() {
+        if (getRetirement() == null) {
+            return "";
+        } else {
+            return MekHQ.getMekHQOptions().getDisplayFormattedDate(getRetirement());
+        }
     }
 
     public void setId(UUID id) {
@@ -1003,203 +1153,172 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return id;
     }
 
-    @Nullable
-    public UUID getSpouseID() {
-        return spouse;
+    public boolean isChild(final LocalDate today) {
+        return getAge(today) <= 13;
     }
 
-    public void setSpouseID(UUID spouse) {
-        this.spouse = spouse;
+    public Genealogy getGenealogy() {
+        return genealogy;
     }
 
-    @Nullable
-    public Person getSpouse() {
-        return campaign.getPerson(spouse);
+    public void setGenealogy(Genealogy genealogy) {
+        this.genealogy = genealogy;
     }
 
-    public boolean hasSpouse(){
-        return (getSpouseID() != null);
+    //region Pregnancy
+    public boolean isTryingToConceive() {
+        return tryingToConceive;
     }
 
-    public GregorianCalendar getDueDate() {
+    public void setTryingToConceive(final boolean tryingToConceive) {
+        this.tryingToConceive = tryingToConceive;
+    }
+
+    public LocalDate getDueDate() {
         return dueDate;
     }
 
-    public void setDueDate(GregorianCalendar dueDate) {
+    public void setDueDate(final LocalDate dueDate) {
         this.dueDate = dueDate;
+    }
+
+    public LocalDate getExpectedDueDate() {
+        return expectedDueDate;
+    }
+
+    public void setExpectedDueDate(final LocalDate expectedDueDate) {
+        this.expectedDueDate = expectedDueDate;
     }
 
     public boolean isPregnant() {
         return dueDate != null;
     }
+    //endregion Pregnancy
 
-    public UUID getAncestorsID() {
-        return ancestorsID;
+    //region Marriage
+    public boolean isTryingToMarry() {
+        return tryingToMarry;
     }
 
-    public void setAncestorsID(UUID id) {
-        ancestorsID = id;
+    public void setTryingToMarry(boolean tryingToMarry) {
+        this.tryingToMarry = tryingToMarry;
     }
 
-    public Ancestors getAncestors() {
-        return campaign.getAncestors(ancestorsID);
-    }
-
-    public Person getMother() {
-        return campaign.getPerson(getAncestors().getMotherID());
-    }
-
-    public Person getFather() {
-        return campaign.getPerson(getAncestors().getFatherID());
-    }
-
-    public Collection<Person> birth() {
-        int size = extraData.get(PREGNANCY_CHILDREN_DATA, 1);
-        String fatherIDString = extraData.get(PREGNANCY_FATHER_DATA);
-        UUID fatherID = (null != fatherIDString) ? UUID.fromString(fatherIDString) : getSpouseID();
-        Ancestors anc = campaign.getAncestors(fatherID, id);
-        if(null == anc) {
-            anc = campaign.createAncestors(fatherID, id);
-        }
-        final UUID ancId = anc.getId();
-        final String surname = getName().contains(" ") ? getName().split(" ", 2)[1] : "";
-        
-        // Cleanup
-        setDueDate(null);
-        extraData.set(PREGNANCY_CHILDREN_DATA, 0);
-        extraData.set(PREGNANCY_FATHER_DATA, null);
-        
-        return IntStream.range(0, size).mapToObj(i -> {
-            Person baby = campaign.newPerson(T_NONE);
-            baby.setDependent(true);
-            baby.setName(baby.getName().split(" ", 2)[0] + " " + surname);
-            baby.setBirthday((GregorianCalendar) campaign.getCalendar().clone());
-            UUID babyId = UUID.randomUUID();
-            while (null != campaign.getPerson(babyId)) {
-                babyId = UUID.randomUUID();
-            }
-            baby.setId(babyId);
-            baby.setAncestorsID(ancId);
-            campaign.addReport(getHyperlinkedName() + " has given birth to " + baby.getHyperlinkedName() + ", a baby " + (baby.getGender() == G_MALE ? "boy!" : "girl!"));
-            if (campaign.getCampaignOptions().logConception()) {
-                MedicalLogger.deliveredBaby(this, baby, campaign.getDate());
-            }
-            return baby;
-        }).collect(Collectors.toList());
-    }
-
-    public void procreate() {
-        if(!isFemale() || isPregnant()) {
-            return;
-        }
-
-        if (!isDeployed()) {
-            // Age limitations...
-            if (getAge(campaign.getCalendar()) > 13 && getAge(campaign.getCalendar()) < 51) {
-                boolean concieved = false;
-                if (!hasSpouse() && campaign.getCampaignOptions().useUnofficialProcreationNoRelationship()) {
-                    // 0.005% chance that this procreation attempt will create a child
-                    concieved = (Compute.randomInt(100000) < 2);
-                } else if (hasSpouse()) {
-                    if (getSpouse().isActive() && !getSpouse().isDeployed() && getSpouse().getAge(campaign.getCalendar()) > 13) {
-                        // 0.05% chance that this procreation attempt will create a child
-                        concieved = (Compute.randomInt(10000) < 2);
-                    }
-                }
-                
-                if(concieved) {
-                    GregorianCalendar tCal = (GregorianCalendar) campaign.getCalendar().clone();
-                    tCal.add(GregorianCalendar.DAY_OF_YEAR, PREGNANCY_DURATION.getAsInt());
-                    setDueDate(tCal);
-                    int size = PREGNANCY_SIZE.getAsInt();
-                    extraData.set(PREGNANCY_CHILDREN_DATA, size);
-                    extraData.set(PREGNANCY_FATHER_DATA,
-                        (hasSpouse()) ? getSpouseID().toString() : null);
-
-                    String sizeString = (size < PREGNANCY_MULTIPLE_NAMES.length) ? PREGNANCY_MULTIPLE_NAMES[size] : null;
-                    if(null == sizeString) {
-                        campaign.addReport(getHyperlinkedName()+" has conceived");
-                    } else {
-                        campaign.addReport(getHyperlinkedName()+" has conceived " + sizeString);
-                    }
-                    if (campaign.getCampaignOptions().logConception()) {
-                        MedicalLogger.hasConceived(this, campaign.getDate(), sizeString);
-                    }
-                }
-            }
-        }
-    }
-
-    public void addPregnancy() {
-        GregorianCalendar tCal = (GregorianCalendar) campaign.getCalendar().clone();
-        tCal.add(GregorianCalendar.DAY_OF_YEAR, PREGNANCY_DURATION.getAsInt());
-        setDueDate(tCal);
-        int size = PREGNANCY_SIZE.getAsInt();
-        extraData.set(PREGNANCY_CHILDREN_DATA, size);
-        extraData.set(PREGNANCY_FATHER_DATA,
-            (hasSpouse()) ? getSpouseID().toString() : null);
-
-        String sizeString = (size < PREGNANCY_MULTIPLE_NAMES.length) ? PREGNANCY_MULTIPLE_NAMES[size] : null;
-        if(null == sizeString) {
-            campaign.addReport(getHyperlinkedName()+" has conceived");
-        } else {
-            campaign.addReport(getHyperlinkedName()+" has conceived " + sizeString);
-        }
-        if (campaign.getCampaignOptions().logConception()) {
-            MedicalLogger.hasConceived(this, campaign.getDate(), sizeString);
-        }
-    }
-
-    public void removePregnancy() {
-        setDueDate(null);
-        extraData.set(PREGNANCY_CHILDREN_DATA, 0);
-        extraData.set(PREGNANCY_FATHER_DATA, null);
-    }
-
-    public boolean safeSpouse(Person p) {
-        // Huge convoluted return statement
+    /**
+     * Determines if another person is a safe spouse for the current person
+     * @param person the person to determine if they are a safe spouse
+     * @param campaign the campaign to use to determine if they are a safe spouse
+     */
+    public boolean safeSpouse(Person person, Campaign campaign) {
+        // Huge convoluted return statement, with the following restrictions
+        // can't marry yourself
+        // can't marry someone who is already married
+        // can't marry someone who doesn't want to be married
+        // can't marry a prisoner, unless you are also a prisoner (this is purposely left open for prisoners to marry who they want)
+        // can't marry a person who is dead or MIA
+        // can't marry inactive personnel (this is to show how they aren't part of the force anymore)
+        // TODO : can't marry anyone who is not located at the same planet as the person - GitHub #1672: Implement current planet tracking for personnel
+        // can't marry a close relative
         return (
-                !this.equals(p)
-                && (getAncestorsID() == null
-                || !campaign.getAncestors(getAncestorsID()).checkMutualAncestors(campaign.getAncestors(p.getAncestorsID())))
-                && !p.hasSpouse()
-                && getGender() != p.getGender()
-                && p.getAge(campaign.getCalendar()) > 13
+                !this.equals(person)
+                && !person.getGenealogy().hasSpouse()
+                && person.isTryingToMarry()
+                && person.oldEnoughToMarry(campaign)
+                && (!person.getPrisonerStatus().isPrisoner() || getPrisonerStatus().isPrisoner())
+                && !person.getStatus().isDeadOrMIA()
+                && person.getStatus().isActive()
+                && !getGenealogy().checkMutualAncestors(person, getCampaign())
         );
     }
 
-    public boolean isFemale() {
-        return gender == G_FEMALE;
+    public boolean oldEnoughToMarry(Campaign campaign) {
+        return (getAge(campaign.getLocalDate()) >= campaign.getCampaignOptions().getMinimumMarriageAge());
     }
 
-    public boolean isMale() {
-        return gender == G_MALE;
+    public void randomMarriage(Campaign campaign) {
+        // Don't attempt to generate is someone isn't trying to marry, has a spouse,
+        // isn't old enough to marry, or is actively deployed
+        if (!isTryingToMarry() || getGenealogy().hasSpouse() || !oldEnoughToMarry(campaign) || isDeployed()) {
+            return;
+        }
+
+        // setting is the fractional chance that this attempt at finding a marriage will result in one
+        if (Compute.randomFloat() < (campaign.getCampaignOptions().getChanceRandomMarriages())) {
+            addRandomSpouse(false, campaign);
+        } else if (campaign.getCampaignOptions().useRandomSameSexMarriages()) {
+            if (Compute.randomFloat() < (campaign.getCampaignOptions().getChanceRandomSameSexMarriages())) {
+                addRandomSpouse(true, campaign);
+            }
+        }
     }
 
-    // Currently this isn't used
-    public boolean isNeuter() {
-        return !isMale() && !isFemale();
+    public void addRandomSpouse(boolean sameSex, Campaign campaign) {
+        List<Person> potentials = new ArrayList<>();
+        Gender gender = sameSex ? getGender() : (getGender().isMale() ? Gender.FEMALE : Gender.MALE);
+        for (Person p : campaign.getActivePersonnel()) {
+            if (isPotentialRandomSpouse(p, gender, campaign)) {
+                potentials.add(p);
+            }
+        }
+
+        int n = potentials.size();
+        if (n > 0) {
+            Marriage.WEIGHTED.marry(campaign, this, potentials.get(Compute.randomInt(n)));
+        }
     }
 
-    public int getXp() {
+    public boolean isPotentialRandomSpouse(Person p, Gender gender, Campaign campaign) {
+        if ((p.getGender() != gender) || !safeSpouse(p, campaign)
+                || !(getPrisonerStatus().isFree()
+                || (getPrisonerStatus().isPrisoner() && p.getPrisonerStatus().isPrisoner()))) {
+            return false;
+        }
+
+        int ageDifference = Math.abs(p.getAge(campaign.getLocalDate()) - getAge(campaign.getLocalDate()));
+
+        return (ageDifference <= campaign.getCampaignOptions().getMarriageAgeRange());
+    }
+    //endregion Marriage
+
+    //region Experience
+    public int getXP() {
         return xp;
     }
 
-    public void setXp(int xp) {
+    public void awardXP(final Campaign campaign, final int xp) {
+        this.xp += xp;
+        if (campaign.getCampaignOptions().isTrackTotalXPEarnings()) {
+            changeTotalXPEarnings(xp);
+        }
+    }
+
+    public void spendXP(final int xp) {
+        this.xp -= xp;
+    }
+
+    public void setXP(final Campaign campaign, final int xp) {
+        if (campaign.getCampaignOptions().isTrackTotalXPEarnings()) {
+            changeTotalXPEarnings(xp - getXP());
+        }
+        setXPDirect(xp);
+    }
+
+    private void setXPDirect(final int xp) {
         this.xp = xp;
     }
 
-    public void awardXP(int xp) {
-        this.xp += xp;
+    public int getTotalXPEarnings() {
+        return totalXPEarnings;
     }
-    
-    public int getEngineerXp() {
-        return engXp;
+
+    public void changeTotalXPEarnings(final int xp) {
+        setTotalXPEarnings(getTotalXPEarnings() + xp);
     }
-    
-    public void setEngineerXp(int xp) {
-        engXp = xp;
+
+    public void setTotalXPEarnings(final int totalXPEarnings) {
+        this.totalXPEarnings = totalXPEarnings;
     }
+    //endregion Experience
 
     public int getAcquisitions() {
         return acquisitions;
@@ -1234,9 +1353,8 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     public boolean isDeployed() {
-        Unit u = campaign.getUnit(unitId);
-        if (null != u) {
-            return u.getScenarioId() != -1;
+        if (null != getUnit()) {
+            return (getUnit().getScenarioId() != -1);
         }
         return false;
     }
@@ -1249,319 +1367,254 @@ public class Person implements Serializable, MekHqXmlSerializable {
         this.biography = s;
     }
 
-    public boolean isActive() {
-        return getStatus() == S_ACTIVE;
-    }
-
-    public boolean isInActive() {
-        return getStatus() != S_ACTIVE;
-    }
-    
     public ExtraData getExtraData() {
         return extraData;
     }
 
-    @Override
-    public void writeToXml(PrintWriter pw1, int indent) {
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
+    //region File I/O
+    public void writeToXML(final Campaign campaign, final PrintWriter pw1, int indent) {
+        pw1.println(MekHqXmlUtil.indentStr(indent) + "<person id=\"" + id
+                + "\" type=\"" + this.getClass().getName() + "\">");
+        try {
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "id", id.toString());
 
-        pw1.println(MekHqXmlUtil.indentStr(indent) + "<person id=\""
-                    + id.toString()
-                    + "\" type=\""
-                    + this.getClass().getName()
-                    + "\">");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<name>"
-                    + MekHqXmlUtil.escape(name)
-                    + "</name>");
-        if (maidenname != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<maidenname>"
-                    + MekHqXmlUtil.escape(maidenname)
-                    + "</maidenname>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<callsign>"
-                    + MekHqXmlUtil.escape(callsign)
-                    + "</callsign>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<primaryRole>"
-                    + primaryRole
-                    + "</primaryRole>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<secondaryRole>"
-                    + secondaryRole
-                    + "</secondaryRole>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<primaryDesignator>"
-                    + primaryDesignator
-                    + "</primaryDesignator>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<secondaryDesignator>"
-                    + secondaryDesignator
-                    + "</secondaryDesignator>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<commander>"
-                    + MekHqXmlUtil.escape(Boolean.toString(commander))
-                    + "</commander>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<dependent>"
-                    + MekHqXmlUtil.escape(Boolean.toString(dependent))
-                    + "</dependent>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<faction>"
-                    + originFaction.getShortName()
-                    + "</faction>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<clan>"
-                    + clan
-                    + "</clan>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<phenotype>"
-                + phenotype
-                + "</phenotype>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<bloodname>"
-                + bloodname
-                + "</bloodname>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<biography>"
-                    + MekHqXmlUtil.escape(biography)
-                    + "</biography>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<idleMonths>"
-                    + idleMonths
-                    + "</idleMonths>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<id>"
-                    + this.id.toString()
-                    + "</id>");
-        if (ancestorsID != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<ancestors>"
-                        + this.ancestorsID.toString()
-                        + "</ancestors>");
-        }
-        if (spouse != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<spouse>"
-                        + this.spouse.toString()
-                        + "</spouse>");
-        }
-        if (dueDate != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<dueDate>"
-                        + df.format(dueDate.getTime())
-                        + "</dueDate>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<portraitCategory>"
-                    + MekHqXmlUtil.escape(portraitCategory)
-                    + "</portraitCategory>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<portraitFile>"
-                    + MekHqXmlUtil.escape(portraitFile)
-                    + "</portraitFile>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<xp>"
-                    + xp
-                    + "</xp>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<daysToWaitForHealing>"
-                    + daysToWaitForHealing
-                    + "</daysToWaitForHealing>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<gender>"
-                    + gender
-                    + "</gender>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<rank>"
-                    + rank
-                    + "</rank>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<rankLevel>"
-                    + rankLevel
-                    + "</rankLevel>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<rankSystem>"
-                    + rankSystem
-                    + "</rankSystem>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<maneiDominiRank>"
-                    + maneiDominiRank
-                    + "</maneiDominiRank>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<maneiDominiClass>"
-                    + maneiDominiClass
-                    + "</maneiDominiClass>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<nTasks>"
-                    + nTasks
-                    + "</nTasks>");
-        if (null != doctorId) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<doctorId>"
-                        + doctorId.toString()
-                        + "</doctorId>");
-        }
-        if (null != unitId) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<unitId>"
-                        + unitId.toString()
-                        + "</unitId>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<salary>"
-                    + salary.toXmlString()
-                    + "</salary>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<status>"
-                    + status
-                    + "</status>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<prisonerstatus>"
-                    + prisonerStatus
-                    + "</prisonerstatus>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<willingToDefect>"
-                    + willingToDefect
-                    + "</willingToDefect>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<hits>"
-                    + hits
-                    + "</hits>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<toughness>"
-                    + toughness
-                    + "</toughness>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<minutesLeft>"
-                    + minutesLeft
-                    + "</minutesLeft>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<overtimeLeft>"
-                    + overtimeLeft
-                    + "</overtimeLeft>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<birthday>"
-                    + df.format(birthday.getTime())
-                    + "</birthday>");
-        if (null != deathday) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<deathday>"
-                        + df.format(deathday.getTime())
-                        + "</deathday>");
-        }
-        if (null != recruitment) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<recruitment>"
-                        + df.format(recruitment.getTime())
-                        + "</recruitment>");
-        }
-        for (String skName : skills.keySet()) {
-            Skill skill = skills.get(skName);
-            skill.writeToXml(pw1, indent + 1);
-        }
-        if (countOptions(PilotOptions.LVL3_ADVANTAGES) > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<advantages>"
-                        + String.valueOf(getOptionList("::", PilotOptions.LVL3_ADVANTAGES))
-                        + "</advantages>");
-        }
-        if (countOptions(PilotOptions.EDGE_ADVANTAGES) > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<edge>"
-                        + String.valueOf(getOptionList("::", PilotOptions.EDGE_ADVANTAGES))
-                        + "</edge>");
-            // For support personnel, write an available edge value
-            if (isSupport() || isEngineer()) {
+            //region Name
+            if (!StringUtil.isNullOrEmpty(getPreNominal())) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "preNominal", getPreNominal());
+            }
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "givenName", getGivenName());
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "surname", getSurname());
+            if (!StringUtil.isNullOrEmpty(getPostNominal())) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "postNominal", getPostNominal());
+            }
+
+            if (getMaidenName() != null) { // this is only a != null comparison because empty is a use case for divorce
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "maidenName", getMaidenName());
+            }
+
+            if (!StringUtil.isNullOrEmpty(getCallsign())) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent, "callsign", getCallsign());
+            }
+            //endregion Name
+
+            // Always save the primary role
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "primaryRole", getPrimaryRole().name());
+            if (!getSecondaryRole().isNone()) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "secondaryRole", getSecondaryRole().name());
+            }
+            if (primaryDesignator != ROMDesignation.NONE) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "primaryDesignator", primaryDesignator.name());
+            }
+            if (secondaryDesignator != ROMDesignation.NONE) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "secondaryDesignator", secondaryDesignator.name());
+            }
+            if (commander) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "commander", true);
+            }
+            // Always save the person's origin faction
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "faction", originFaction.getShortName());
+            if (originPlanet != null) {
                 pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<edgeAvailable>"
-                        + getCurrentEdge()
-                        + "</edgeAvailable>");
+                        + "<planetId systemId=\""
+                        + originPlanet.getParentSystem().getId()
+                        + "\">"
+                        + originPlanet.getId()
+                        + "</planetId>");
             }
-        }
-        if (countOptions(PilotOptions.MD_ADVANTAGES) > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                        + "<implants>"
-                        + String.valueOf(getOptionList("::", PilotOptions.MD_ADVANTAGES))
-                        + "</implants>");
-        }
-        if (!techUnitIds.isEmpty()) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<techUnitIds>");
-            for (UUID id : techUnitIds) {
-                pw1.println(MekHqXmlUtil.indentStr(indent + 2)
-                            + "<id>"
-                            + id.toString()
-                            + "</id>");
+            // Always save whether or not someone is a clanner
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "clan", clan);
+            if (phenotype != Phenotype.NONE) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "phenotype", phenotype.name());
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "</techUnitIds>");
-        }
-        if (!personnelLog.isEmpty()) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<personnelLog>");
-            for (LogEntry entry : personnelLog) {
-                entry.writeToXml(pw1, indent + 2);
+            if (!StringUtil.isNullOrEmpty(bloodname)) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "bloodname", bloodname);
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "</personnelLog>");
-        }
-        if (!missionLog.isEmpty()) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<missionLog>");
-            for (LogEntry entry : missionLog) {
-                entry.writeToXml(pw1, indent + 2);
+            if (!StringUtil.isNullOrEmpty(biography)) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "biography", biography);
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "</missionLog>");
-        }
-        if (!awardController.getAwards().isEmpty()) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<awards>");
-            for (Award award : awardController.getAwards()) {
-                award.writeToXml(pw1, indent + 2);
+            if (idleMonths > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "idleMonths", idleMonths);
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "</awards>");
-        }
-        if (injuries.size() > 0) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "<injuries>");
-            for (Injury injury : injuries) {
-                injury.writeToXml(pw1, indent + 2);
+            if (!genealogy.isEmpty()) {
+                genealogy.writeToXML(pw1, indent + 1);
             }
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1) + "</injuries>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<founder>"
-                + founder
-                + "</founder>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<originalUnitWeight>"
-                + originalUnitWeight
-                + "</originalUnitWeight>");
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<originalUnitTech>"
-                + originalUnitTech
-                + "</originalUnitTech>");
-        if (originalUnitId != null) {
-            pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                    + "<originalUnitId>"
-                    + originalUnitId.toString()
-                    + "</originalUnitId>");
-        }
-        pw1.println(MekHqXmlUtil.indentStr(indent + 1)
-                + "<acquisitions>"
-                + acquisitions
-                + "</acquisitions>");
-        if(null != extraData) {
-            extraData.writeToXml(pw1);
+            if (!isTryingToMarry()) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "tryingToMarry", false);
+            }
+            if (!isTryingToConceive()) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "tryingToConceive", false);
+            }
+            if (dueDate != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "dueDate",
+                        MekHqXmlUtil.saveFormattedDate(dueDate));
+            }
+            if (expectedDueDate != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "expectedDueDate",
+                        MekHqXmlUtil.saveFormattedDate(expectedDueDate));
+            }
+            getPortrait().writeToXML(pw1, indent + 1);
+            if (getXP() != 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "xp", getXP());
+            }
+
+            if (getTotalXPEarnings() != 0) {
+                MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "totalXPEarnings", getTotalXPEarnings());
+            }
+
+            if (daysToWaitForHealing != 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "daysToWaitForHealing", daysToWaitForHealing);
+            }
+            // Always save the person's gender, as it would otherwise get confusing fast
+            MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "gender", getGender().name());
+            if (!getRankSystem().equals(campaign.getRankSystem())) {
+                MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "rankSystem", getRankSystem().getCode());
+            }
+            // Always save a person's rank
+            MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "rank", getRankNumeric());
+            if (getRankLevel() != 0) {
+                MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "rankLevel", getRankLevel());
+            }
+            if (!getManeiDominiClass().isNone()) {
+                MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "maneiDominiClass", getManeiDominiClass().name());
+            }
+            if (!getManeiDominiRank().isNone()) {
+                MekHqXmlUtil.writeSimpleXMLTag(pw1, indent + 1, "maneiDominiRank", getManeiDominiRank().name());
+            }
+            if (nTasks > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "nTasks", nTasks);
+            }
+            if (doctorId != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "doctorId", doctorId.toString());
+            }
+            if (getUnit() != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "unitId", getUnit().getId());
+            }
+            if (!salary.equals(Money.of(-1))) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "salary", salary.toXmlString());
+            }
+            if (!totalEarnings.equals(Money.of(0))) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "totalEarnings", totalEarnings.toXmlString());
+            }
+            // Always save a person's status, to make it easy to parse the personnel saved data
+            MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "status", status.name());
+            if (prisonerStatus != PrisonerStatus.FREE) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "prisonerStatus", prisonerStatus.name());
+            }
+            if (hits > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "hits", hits);
+            }
+            if (toughness != 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "toughness", toughness);
+            }
+            if (minutesLeft > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "minutesLeft", minutesLeft);
+            }
+            if (overtimeLeft > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "overtimeLeft", overtimeLeft);
+            }
+            if (birthday != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "birthday",
+                        MekHqXmlUtil.saveFormattedDate(birthday));
+            }
+            if (dateOfDeath != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "deathday",
+                        MekHqXmlUtil.saveFormattedDate(dateOfDeath));
+            }
+            if (recruitment != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "recruitment",
+                        MekHqXmlUtil.saveFormattedDate(recruitment));
+            }
+            if (lastRankChangeDate != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "lastRankChangeDate",
+                        MekHqXmlUtil.saveFormattedDate(lastRankChangeDate));
+            }
+            if (getRetirement() != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "retirement",
+                        MekHqXmlUtil.saveFormattedDate(getRetirement()));
+            }
+            for (Skill skill : skills.getSkills()) {
+                skill.writeToXml(pw1, indent + 1);
+            }
+            if (countOptions(PersonnelOptions.LVL3_ADVANTAGES) > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "advantages",
+                        getOptionList("::", PersonnelOptions.LVL3_ADVANTAGES));
+            }
+            if (countOptions(PersonnelOptions.EDGE_ADVANTAGES) > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "edge",
+                        getOptionList("::", PersonnelOptions.EDGE_ADVANTAGES));
+                // For support personnel, write an available edge value
+                if (hasSupportRole(true) || isEngineer()) {
+                    MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "edgeAvailable", getCurrentEdge());
+                }
+            }
+            if (countOptions(PersonnelOptions.MD_ADVANTAGES) > 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "implants",
+                        getOptionList("::", PersonnelOptions.MD_ADVANTAGES));
+            }
+            if (!techUnits.isEmpty()) {
+                MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent + 1, "techUnitIds");
+                for (Unit unit : techUnits) {
+                    MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 2, "id", unit.getId());
+                }
+                MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "techUnitIds");
+            }
+            if (!personnelLog.isEmpty()) {
+                MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent + 1, "personnelLog");
+                for (LogEntry entry : personnelLog) {
+                    entry.writeToXml(pw1, indent + 2);
+                }
+                MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "personnelLog");
+            }
+            if (!missionLog.isEmpty()) {
+                MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent + 1, "missionLog");
+                for (LogEntry entry : missionLog) {
+                    entry.writeToXml(pw1, indent + 2);
+                }
+                MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "missionLog");
+            }
+            if (!getAwardController().getAwards().isEmpty()) {
+                MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent + 1, "awards");
+                for (Award award : getAwardController().getAwards()) {
+                    award.writeToXml(pw1, indent + 2);
+                }
+                MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "awards");
+            }
+            if (injuries.size() > 0) {
+                MekHqXmlUtil.writeSimpleXMLOpenIndentedLine(pw1, indent + 1, "injuries");
+                for (Injury injury : injuries) {
+                    injury.writeToXml(pw1, indent + 2);
+                }
+                MekHqXmlUtil.writeSimpleXMLCloseIndentedLine(pw1, indent + 1, "injuries");
+            }
+            if (founder) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "founder", true);
+            }
+            if (originalUnitWeight != EntityWeightClass.WEIGHT_ULTRA_LIGHT) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "originalUnitWeight", originalUnitWeight);
+            }
+            if (originalUnitTech != TECH_IS1) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "originalUnitTech", originalUnitTech);
+            }
+            if (originalUnitId != null) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "originalUnitId", originalUnitId.toString());
+            }
+            if (acquisitions != 0) {
+                MekHqXmlUtil.writeSimpleXmlTag(pw1, indent + 1, "acquisitions", acquisitions);
+            }
+            if (!extraData.isEmpty()) {
+                extraData.writeToXml(pw1);
+            }
+        } catch (Exception e) {
+            LogManager.getLogger().error("Failed to write " + getFullName() + " to the XML File", e);
+            throw e; // we want to rethrow to ensure that that the save fails
         }
         pw1.println(MekHqXmlUtil.indentStr(indent) + "</person>");
     }
 
     public static Person generateInstanceFromXML(Node wn, Campaign c, Version version) {
-        final String METHOD_NAME = "generateInstanceFromXML(Node,Campaign,Version)"; //$NON-NLS-1$
-        
-        Person retVal = null;
+        Person retVal = new Person(c);
 
         try {
-            // Instantiate the correct child class, and call its parsing function.
-            retVal = new Person(c);
-
             // Okay, now load Person-specific fields!
             NodeList nl = wn.getChildNodes();
 
@@ -1569,139 +1622,154 @@ public class Person implements Serializable, MekHqXmlSerializable {
             String edge = null;
             String implants = null;
 
-            //backwards compatability
-            String pilotName = null;
-            String pilotNickname = null;
-            int pilotGunnery = -1;
-            int pilotPiloting = -1;
-            int pilotCommandBonus = -1;
-            int type = 0;
-
             for (int x = 0; x < nl.getLength(); x++) {
                 Node wn2 = nl.item(x);
 
-                if (wn2.getNodeName().equalsIgnoreCase("name")) {
-                    retVal.name = wn2.getTextContent();
-                } else if (wn2.getNodeName().equalsIgnoreCase("maidenname")) {
-                    retVal.maidenname = wn2.getTextContent();
+                if (wn2.getNodeName().equalsIgnoreCase("name")) { // legacy - 0.47.5 removal
+                    retVal.migrateName(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("preNominal")) {
+                    retVal.setPreNominalDirect(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("givenName")) {
+                    retVal.setGivenNameDirect(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("surname")) {
+                    retVal.setSurnameDirect(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("postNominal")) {
+                    retVal.setPostNominalDirect(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("maidenName")) {
+                    retVal.setMaidenName(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("callsign")) {
-                    retVal.callsign = wn2.getTextContent();
+                    retVal.setCallsignDirect(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("commander")) {
                     retVal.commander = Boolean.parseBoolean(wn2.getTextContent().trim());
-                } else if (wn2.getNodeName().equalsIgnoreCase("dependent")) {
-                    retVal.dependent = Boolean.parseBoolean(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("dependent")) { // Legacy, 0.49.1 removal
+                    // Legacy setup was as Astechs, but people (including me) often forgot to remove
+                    // the flag so... just ignoring if they aren't astechs
+                    if (retVal.getPrimaryRole().isAstech()) {
+                        retVal.setPrimaryRoleDirect(PersonnelRole.DEPENDENT);
+                    }
                 } else if (wn2.getNodeName().equalsIgnoreCase("faction")) {
-                    retVal.originFaction = Faction.getFaction(wn2.getTextContent().trim());
-                } else if (wn2.getNodeName().equalsIgnoreCase("isClanTech")
-                           || wn2.getNodeName().equalsIgnoreCase("clan")) {
+                    retVal.originFaction = Factions.getInstance().getFaction(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("planetId")) {
+                    String systemId = wn2.getAttributes().getNamedItem("systemId").getTextContent().trim();
+                    String planetId = wn2.getTextContent().trim();
+                    retVal.originPlanet = c.getSystemById(systemId).getPlanetById(planetId);
+                } else if (wn2.getNodeName().equalsIgnoreCase("clan")) {
                     retVal.clan = Boolean.parseBoolean(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("phenotype")) {
-                    retVal.phenotype = Integer.parseInt(wn2.getTextContent());
+                    retVal.phenotype = Phenotype.parseFromString(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("bloodname")) {
                     retVal.bloodname = wn2.getTextContent();
                 } else if (wn2.getNodeName().equalsIgnoreCase("biography")) {
                     retVal.biography = wn2.getTextContent();
                 } else if (wn2.getNodeName().equalsIgnoreCase("primaryRole")) {
-                    retVal.primaryRole = Integer.parseInt(wn2.getTextContent());
+                    final PersonnelRole primaryRole = PersonnelRole.parseFromString(wn2.getTextContent().trim());
+                    if (version.isLowerThan("0.49.1") && primaryRole.isNone()) {
+                        retVal.setPrimaryRoleDirect(PersonnelRole.DEPENDENT);
+                    } else {
+                        retVal.setPrimaryRoleDirect(primaryRole);
+                    }
                 } else if (wn2.getNodeName().equalsIgnoreCase("secondaryRole")) {
-                    retVal.secondaryRole = Integer.parseInt(wn2.getTextContent());
+                    retVal.setSecondaryRoleDirect(PersonnelRole.parseFromString(wn2.getTextContent().trim()));
                 } else if (wn2.getNodeName().equalsIgnoreCase("acquisitions")) {
                     retVal.acquisitions = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("primaryDesignator")) {
-                    retVal.primaryDesignator = Integer.parseInt(wn2.getTextContent());
+                    retVal.primaryDesignator = ROMDesignation.parseFromString(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("secondaryDesignator")) {
-                    retVal.secondaryDesignator = Integer.parseInt(wn2.getTextContent());
+                    retVal.secondaryDesignator = ROMDesignation.parseFromString(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("daysToWaitForHealing")) {
                     retVal.daysToWaitForHealing = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("idleMonths")) {
                     retVal.idleMonths = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("id")) {
-                    if (version.getMajorVersion() == 0 && version.getMinorVersion() < 2 && version.getSnapshot() < 14) {
-                        retVal.oldId = Integer.parseInt(wn2.getTextContent());
-                    } else {
-                        retVal.id = UUID.fromString(wn2.getTextContent());
-                    }
-                } else if (wn2.getNodeName().equalsIgnoreCase("ancestors")) {
-                    retVal.ancestorsID = UUID.fromString(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("spouse")) {
-                    retVal.spouse = UUID.fromString(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("duedate")) {
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-                    retVal.dueDate = (GregorianCalendar) GregorianCalendar.getInstance();
-                    retVal.dueDate.setTime(df.parse(wn2.getTextContent().trim()));
-                } else if (wn2.getNodeName().equalsIgnoreCase("teamId")) {
-                    retVal.teamId = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("portraitCategory")) {
-                    retVal.setPortraitCategory(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("portraitFile")) {
-                    retVal.setPortraitFileName(wn2.getTextContent());
+                    retVal.id = UUID.fromString(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("ancestors")) { // legacy - 0.47.6 removal
+                    CampaignXmlParser.addToAncestryMigrationMap(UUID.fromString(wn2.getTextContent().trim()), retVal);
+                } else if (wn2.getNodeName().equalsIgnoreCase("spouse")) { // legacy - 0.47.6 removal
+                    retVal.getGenealogy().setSpouse(new PersonIdReference(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("formerSpouses")) { // legacy - 0.47.6 removal
+                    retVal.getGenealogy().loadFormerSpouses(wn2.getChildNodes());
+                } else if (wn2.getNodeName().equalsIgnoreCase("genealogy")) {
+                    retVal.getGenealogy().fillFromXML(wn2.getChildNodes());
+                } else if (wn2.getNodeName().equalsIgnoreCase("tryingToMarry")) {
+                    retVal.tryingToMarry = Boolean.parseBoolean(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("tryingToConceive")) {
+                    retVal.tryingToConceive = Boolean.parseBoolean(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("dueDate")) {
+                    retVal.dueDate = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("expectedDueDate")) {
+                    retVal.expectedDueDate = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase(Portrait.XML_TAG)) {
+                    retVal.setPortrait(Portrait.parseFromXML(wn2));
+                } else if (wn2.getNodeName().equalsIgnoreCase("portraitCategory")) { // Legacy - 0.49.3 removal
+                    retVal.getPortrait().setCategory(wn2.getTextContent());
+                } else if (wn2.getNodeName().equalsIgnoreCase("portraitFile")) { // Legacy - 0.49.3 removal
+                    retVal.getPortrait().setFilename(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("xp")) {
-                    retVal.xp = Integer.parseInt(wn2.getTextContent());
+                    retVal.setXPDirect(Integer.parseInt(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("totalXPEarnings")) {
+                    retVal.setTotalXPEarnings(Integer.parseInt(wn2.getTextContent().trim()));
                 } else if (wn2.getNodeName().equalsIgnoreCase("nTasks")) {
                     retVal.nTasks = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("hits")) {
                     retVal.hits = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("gender")) {
-                    retVal.gender = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("rank")) {
-                    if (version.isLowerThan("0.3.4-r1782")) {
-                        RankTranslator rt = new RankTranslator(c);
-                        try {
-                            retVal.rank = rt.getNewRank(c.getRanks().getOldRankSystem(), Integer.parseInt(wn2.getTextContent()));
-                        } catch (ArrayIndexOutOfBoundsException e) {
-                            // Do nothing
-                        }
-                    } else {
-                        retVal.rank = Integer.parseInt(wn2.getTextContent());
-                    }
-                } else if (wn2.getNodeName().equalsIgnoreCase("rankLevel")) {
-                    retVal.rankLevel = Integer.parseInt(wn2.getTextContent());
+                    retVal.setGender(Gender.parseFromString(wn2.getTextContent().trim()));
                 } else if (wn2.getNodeName().equalsIgnoreCase("rankSystem")) {
-                    retVal.setRankSystem(Integer.parseInt(wn2.getTextContent()));
-                } else if (wn2.getNodeName().equalsIgnoreCase("maneiDominiRank")) {
-                    retVal.maneiDominiRank = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("maneiDominiClass")) {
-                    retVal.maneiDominiClass = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("doctorId")) {
-                    if (version.getMajorVersion() == 0 && version.getMinorVersion() < 2 && version.getSnapshot() < 14) {
-                        retVal.oldDoctorId = Integer.parseInt(wn2.getTextContent());
+                    final RankSystem rankSystem;
+
+                    if (version.isLowerThan("0.49.0")) {
+                        final int rankSystemNumeric = Integer.parseInt(wn2.getTextContent().trim());
+                        rankSystem = (rankSystemNumeric >= 0) ? Ranks.getRankSystemFromCode(PersonMigrator
+                                .migrateRankSystemCode(rankSystemNumeric)) : retVal.getRankSystem();
                     } else {
-                        if (!wn2.getTextContent().equals("null")) {
-                            retVal.doctorId = UUID.fromString(wn2.getTextContent());
-                        }
+                        rankSystem = Ranks.getRankSystemFromCode(wn2.getTextContent().trim());
+                    }
+
+                    if (rankSystem != null) {
+                        retVal.setRankSystemDirect(rankSystem);
+                    }
+                } else if (wn2.getNodeName().equalsIgnoreCase("rank")) {
+                    retVal.setRank(Integer.parseInt(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("rankLevel")) {
+                    retVal.setRankLevel(Integer.parseInt(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("maneiDominiClass")) {
+                    retVal.setManeiDominiClassDirect(ManeiDominiClass.parseFromString(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("maneiDominiRank")) {
+                    retVal.setManeiDominiRankDirect(ManeiDominiRank.parseFromString(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("doctorId")) {
+                    if (!wn2.getTextContent().equals("null")) {
+                        retVal.doctorId = UUID.fromString(wn2.getTextContent());
                     }
                 } else if (wn2.getNodeName().equalsIgnoreCase("unitId")) {
-                    if (version.getMajorVersion() == 0 && version.getMinorVersion() < 2 && version.getSnapshot() < 14) {
-                        retVal.oldUnitId = Integer.parseInt(wn2.getTextContent());
-                    } else {
-                        if (!wn2.getTextContent().equals("null")) {
-                            retVal.unitId = UUID.fromString(wn2.getTextContent());
-                        }
+                    if (!wn2.getTextContent().equals("null")) {
+                        retVal.unit = new PersonUnitRef(UUID.fromString(wn2.getTextContent()));
                     }
                 } else if (wn2.getNodeName().equalsIgnoreCase("status")) {
-                    retVal.status = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("prisonerstatus")) {
-                    retVal.prisonerStatus = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("willingToDefect")) {
-                    retVal.willingToDefect = Boolean.parseBoolean(wn2.getTextContent());
+                    retVal.setStatus(PersonnelStatus.parseFromString(wn2.getTextContent().trim()));
+                } else if (wn2.getNodeName().equalsIgnoreCase("prisonerStatus")) {
+                    retVal.prisonerStatus = PrisonerStatus.parseFromString(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("willingToDefect")) { // Legacy
+                    if (Boolean.parseBoolean(wn2.getTextContent().trim())) {
+                        retVal.prisonerStatus = PrisonerStatus.PRISONER_DEFECTOR;
+                    }
                 } else if (wn2.getNodeName().equalsIgnoreCase("salary")) {
                     retVal.salary = Money.fromXmlString(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("totalEarnings")) {
+                    retVal.totalEarnings = Money.fromXmlString(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("minutesLeft")) {
                     retVal.minutesLeft = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("overtimeLeft")) {
                     retVal.overtimeLeft = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("birthday")) {
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-                    retVal.birthday = (GregorianCalendar) GregorianCalendar.getInstance();
-                    retVal.birthday.setTime(df.parse(wn2.getTextContent().trim()));
+                    retVal.birthday = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("deathday")) {
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-                    retVal.deathday = (GregorianCalendar) GregorianCalendar.getInstance();
-                    retVal.deathday.setTime(df.parse(wn2.getTextContent().trim()));
+                    retVal.dateOfDeath = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
                 } else if (wn2.getNodeName().equalsIgnoreCase("recruitment")) {
-                    SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
-                    retVal.recruitment = (GregorianCalendar) GregorianCalendar.getInstance();
-                    retVal.recruitment.setTime(df.parse(wn2.getTextContent().trim()));
+                    retVal.recruitment = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("lastRankChangeDate")) {
+                    retVal.lastRankChangeDate = MekHqXmlUtil.parseDate(wn2.getTextContent().trim());
+                } else if (wn2.getNodeName().equalsIgnoreCase("retirement")) {
+                    retVal.setRetirement(MekHqXmlUtil.parseDate(wn2.getTextContent().trim()));
                 } else if (wn2.getNodeName().equalsIgnoreCase("advantages")) {
                     advantages = wn2.getTextContent();
                 } else if (wn2.getNodeName().equalsIgnoreCase("edge")) {
@@ -1712,24 +1780,12 @@ public class Person implements Serializable, MekHqXmlSerializable {
                     implants = wn2.getTextContent();
                 } else if (wn2.getNodeName().equalsIgnoreCase("toughness")) {
                     retVal.toughness = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("pilotGunnery")) {
-                    pilotGunnery = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("pilotPiloting")) {
-                    pilotPiloting = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("pilotHits")) {
                     retVal.hits = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("pilotCommandBonus")) {
-                    pilotCommandBonus = Integer.parseInt(wn2.getTextContent());
-                } else if (wn2.getNodeName().equalsIgnoreCase("pilotName")) {
-                    pilotName = wn2.getTextContent();
-                } else if (wn2.getNodeName().equalsIgnoreCase("pilotNickname")) {
-                    pilotNickname = wn2.getTextContent();
-                } else if (wn2.getNodeName().equalsIgnoreCase("type")) {
-                    type = Integer.parseInt(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("skill")) {
                     Skill s = Skill.generateInstanceFromXML(wn2);
-                    if (null != s && null != s.getType()) {
-                        retVal.skills.put(s.getType().getName(), s);
+                    if ((s != null) && (s.getType() != null)) {
+                        retVal.skills.addSkill(s.getType().getName(), s);
                     }
                 } else if (wn2.getNodeName().equalsIgnoreCase("techUnitIds")) {
                     NodeList nl2 = wn2.getChildNodes();
@@ -1741,13 +1797,10 @@ public class Person implements Serializable, MekHqXmlSerializable {
                         }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("id")) {
-                            // Error condition of sorts!
-                            // Errr, what should we do here?
-                            MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in techUnitIds nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in techUnitIds nodes: " + wn3.getNodeName());
                             continue;
                         }
-                        retVal.addTechUnitID(UUID.fromString(wn3.getTextContent()));
+                        retVal.addTechUnit(new PersonUnitRef(UUID.fromString(wn3.getTextContent())));
                     }
                 } else if (wn2.getNodeName().equalsIgnoreCase("personnelLog")) {
                     NodeList nl2 = wn2.getChildNodes();
@@ -1759,10 +1812,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
                         }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("logEntry")) {
-                            // Error condition of sorts!
-                            // Errr, what should we do here?
-                            MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in personnel log nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in personnel log nodes: " + wn3.getNodeName());
                             continue;
                         }
 
@@ -1791,15 +1841,13 @@ public class Person implements Serializable, MekHqXmlSerializable {
                         }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("logEntry")) {
-                            // Error condition of sorts!
-                            // Errr, what should we do here?
-                            MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in mission log nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in mission log nodes: " + wn3.getNodeName());
                             continue;
                         }
                         retVal.addMissionLogEntry(LogEntryFactory.getInstance().generateInstanceFromXML(wn3));
                     }
-                } else if (wn2.getNodeName().equalsIgnoreCase("awards")){
+                } else if (wn2.getNodeName().equalsIgnoreCase("awards")) {
+                    final boolean defaultSetMigrationRequired = version.isLowerThan("0.47.15");
                     NodeList nl2 = wn2.getChildNodes();
                     for (int y = 0; y < nl2.getLength(); y++) {
 
@@ -1810,12 +1858,12 @@ public class Person implements Serializable, MekHqXmlSerializable {
                         }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("award")) {
-                            MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in personnel log nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in personnel log nodes: " + wn3.getNodeName());
                             continue;
                         }
 
-                        retVal.awardController.addAwardFromXml(AwardsFactory.getInstance().generateNewFromXML(wn3));
+                        retVal.getAwardController().addAwardFromXml(AwardsFactory.getInstance()
+                                .generateNewFromXML(wn3, defaultSetMigrationRequired));
                     }
 
                 } else if (wn2.getNodeName().equalsIgnoreCase("injuries")) {
@@ -1828,15 +1876,12 @@ public class Person implements Serializable, MekHqXmlSerializable {
                         }
 
                         if (!wn3.getNodeName().equalsIgnoreCase("injury")) {
-                            // Error condition of sorts!
-                            // Errr, what should we do here?
-                            MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                    "Unknown node type not loaded in injury nodes: " + wn3.getNodeName()); //$NON-NLS-1$
+                            LogManager.getLogger().error("Unknown node type not loaded in injury nodes: " + wn3.getNodeName());
                             continue;
                         }
                         retVal.injuries.add(Injury.generateInstanceFromXML(wn3));
                     }
-                    DateTime now = new DateTime(c.getCalendar());
+                    LocalDate now = c.getLocalDate();
                     retVal.injuries.stream().filter(inj -> (null == inj.getStart()))
                         .forEach(inj -> inj.setStart(now.minusDays(inj.getOriginalTime() - inj.getTime())));
                 } else if (wn2.getNodeName().equalsIgnoreCase("founder")) {
@@ -1849,43 +1894,16 @@ public class Person implements Serializable, MekHqXmlSerializable {
                     retVal.originalUnitId = UUID.fromString(wn2.getTextContent());
                 } else if (wn2.getNodeName().equalsIgnoreCase("extraData")) {
                     retVal.extraData = ExtraData.createFromXml(wn2);
+                } else if (wn2.getNodeName().equalsIgnoreCase("honorific")) { //Legacy, removed in 0.49.3
+                    retVal.setPostNominalDirect(wn2.getTextContent());
                 }
             }
 
-            if (version.getMajorVersion() == 0 && version.getMinorVersion() < 2 && version.getSnapshot() < 13) {
-                if (retVal.primaryRole > T_INFANTRY) {
-                    retVal.primaryRole += 4;
+            retVal.setFullName(); // this sets the name based on the loaded values
 
-                }
-                if (retVal.secondaryRole > T_INFANTRY) {
-                    retVal.secondaryRole += 4;
-                }
-            }
-
-            if (version.getMajorVersion() == 0 && version.getMinorVersion() < 3 && version.getMinorVersion() > 1) {
-                //adjust for conventional fighter pilots
-                if (retVal.primaryRole >= T_CONV_PILOT) {
-                    retVal.primaryRole += 1;
-                }
-                if (retVal.secondaryRole >= T_CONV_PILOT) {
-                    retVal.secondaryRole += 1;
-                }
-            }
-
-            if (version.getMajorVersion() == 0 && version.getMinorVersion() == 3 && version.getSnapshot() < 1) {
-                //adjust for conventional fighter pilots
-                if (retVal.primaryRole == T_CONV_PILOT && retVal.hasSkill(SkillType.S_PILOT_SPACE) && !retVal.hasSkill(SkillType.S_PILOT_JET)) {
-                    retVal.primaryRole += 1;
-                }
-                if (retVal.secondaryRole == T_CONV_PILOT && retVal.hasSkill(SkillType.S_PILOT_SPACE) && !retVal.hasSkill(SkillType.S_PILOT_JET)) {
-                    retVal.secondaryRole += 1;
-                }
-                if (retVal.primaryRole == T_AERO_PILOT && !retVal.hasSkill(SkillType.S_PILOT_SPACE) && retVal.hasSkill(SkillType.S_PILOT_JET)) {
-                    retVal.primaryRole += 8;
-                }
-                if (retVal.secondaryRole == T_AERO_PILOT && !retVal.hasSkill(SkillType.S_PILOT_SPACE) && retVal.hasSkill(SkillType.S_PILOT_JET)) {
-                    retVal.secondaryRole += 8;
-                }
+            if (version.isLowerThan("0.47.5") && (retVal.getExpectedDueDate() == null)
+                    && (retVal.getDueDate() != null)) {
+                retVal.setExpectedDueDate(retVal.getDueDate());
             }
 
             if ((null != advantages) && (advantages.trim().length() > 0)) {
@@ -1898,8 +1916,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
                     try {
                         retVal.getOptions().getOption(advName).setValue(value);
                     } catch (Exception e) {
-                        MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                "Error restoring advantage: " + adv); //$NON-NLS-1$
+                        LogManager.getLogger().error("Error restoring advantage: " + adv);
                     }
                 }
             }
@@ -1913,8 +1930,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
                     try {
                         retVal.getOptions().getOption(advName).setValue(value);
                     } catch (Exception e) {
-                        MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                "Error restoring edge: " + adv); //$NON-NLS-1$
+                        LogManager.getLogger().error("Error restoring edge: " + adv);
                     }
                 }
             }
@@ -1928,79 +1944,33 @@ public class Person implements Serializable, MekHqXmlSerializable {
                     try {
                         retVal.getOptions().getOption(advName).setValue(value);
                     } catch (Exception e) {
-                        MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                                "Error restoring implants: " + adv); //$NON-NLS-1$
+                        LogManager.getLogger().error("Error restoring implants: " + adv);
                     }
                 }
             }
-            //check to see if we are dealing with a PilotPerson from 0.1.8 or earlier
-            if (pilotGunnery != -1) {
-                switch (type) {
-                    case 0:
-                        retVal.addSkill(SkillType.S_GUN_MECH, 7 - pilotGunnery, 0);
-                        retVal.addSkill(SkillType.S_PILOT_MECH, 8 - pilotPiloting, 0);
-                        retVal.primaryRole = T_MECHWARRIOR;
-                        break;
-                    case 1:
-                        retVal.addSkill(SkillType.S_GUN_VEE, 7 - pilotGunnery, 0);
-                        retVal.addSkill(SkillType.S_PILOT_GVEE, 8 - pilotPiloting, 0);
-                        retVal.primaryRole = T_GVEE_DRIVER;
-                        break;
-                    case 2:
-                        retVal.addSkill(SkillType.S_GUN_AERO, 7 - pilotGunnery, 0);
-                        retVal.addSkill(SkillType.S_PILOT_AERO, 8 - pilotPiloting, 0);
-                        retVal.primaryRole = T_AERO_PILOT;
-                        break;
-                    case 4:
-                        retVal.addSkill(SkillType.S_GUN_BA, 7 - pilotGunnery, 0);
-                        retVal.addSkill(SkillType.S_ANTI_MECH, 8 - pilotPiloting, 0);
-                        retVal.primaryRole = T_BA;
-                        break;
 
-                }
-                retVal.addSkill(SkillType.S_TACTICS, pilotCommandBonus, 0);
-            }
-            if (null != pilotName) {
-                retVal.setName(pilotName);
-            }
-            if (null != pilotNickname) {
-                retVal.setCallsign(pilotNickname);
-            }
+            // Ensure the Genealogy Origin is set to this
+            retVal.getGenealogy().setOrigin(retVal);
 
-            if (retVal.id == null) {
-                MekHQ.getLogger().log(Person.class, METHOD_NAME, LogLevel.ERROR,
-                        "ID not pre-defined; generating person's ID."); //$NON-NLS-1$
-                retVal.id = UUID.randomUUID();
+            // Fixing Prisoner Ranks - 0.47.X Fix
+            if (retVal.getRankNumeric() < 0) {
+                retVal.setRank(0);
             }
-    
-            // Prisoner and Bondsman updating
-            if (retVal.prisonerStatus != PRISONER_NOT && retVal.rank == 0) {
-                if (retVal.prisonerStatus == PRISONER_BONDSMAN) {
-                    retVal.setRankNumeric(Ranks.RANK_BONDSMAN);
-                } else {
-                    retVal.setRankNumeric(Ranks.RANK_PRISONER);
-                }
-            }
-        } catch (Exception ex) {
-            // Errrr, apparently either the class name was invalid...
-            // Or the listed name doesn't exist.
-            // Doh!
-            MekHQ.getLogger().error(Person.class, METHOD_NAME, ex);
+        } catch (Exception e) {
+            LogManager.getLogger().error("Failed to read person " + retVal.getFullName() + " from file", e);
+            retVal = null;
         }
 
         return retVal;
     }
+    //endregion File I/O
 
     public void setSalary(Money s) {
         salary = s;
     }
 
-    public Money getRawSalary() {
-        return salary;
-    }
-
     public Money getSalary() {
-        if (isPrisoner() || isBondsman()) {
+        if (!getPrisonerStatus().isFree()) {
             return Money.zero();
         }
 
@@ -2008,204 +1978,199 @@ public class Person implements Serializable, MekHqXmlSerializable {
             return salary;
         }
 
-        //if salary is negative, then use the standard amounts
-        Money primaryBase = campaign.getCampaignOptions().getBaseSalary(getPrimaryRole());
-        primaryBase = primaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryXpMultiplier(getExperienceLevel(false)));
-        if (hasSkill(SkillType.S_ANTI_MECH) && (getPrimaryRole() == T_INFANTRY || getPrimaryRole() == T_BA)) {
-            primaryBase = primaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryAntiMekMultiplier());
+        // If the salary is negative, then use the standard amounts
+        // TODO : Figure out a way to allow negative salaries... could be used to simulate a Holovid
+        // TODO : star paying to be part of the company, for example
+        Money primaryBase = campaign.getCampaignOptions().getRoleBaseSalaries()[getPrimaryRole().ordinal()];
+        primaryBase = primaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryXPMultiplier(getExperienceLevel(false)));
+        if (getPrimaryRole().isSoldierOrBattleArmour()) {
+            if (hasSkill(SkillType.S_ANTI_MECH)) {
+                primaryBase = primaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryAntiMekMultiplier());
+            }
+
+            if ((getUnit() != null) && getUnit().isConventionalInfantry()
+                    && ((Infantry) getUnit().getEntity()).hasSpecialization()) {
+                primaryBase = primaryBase.multipliedBy(campaign.getCampaignOptions().getSalarySpecialistInfantryMultiplier());
+            }
         }
 
-        Money secondaryBase = campaign.getCampaignOptions().getBaseSalary(getSecondaryRole()).dividedBy(2);
-        secondaryBase = secondaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryXpMultiplier(getExperienceLevel(true)));
-        if (hasSkill(SkillType.S_ANTI_MECH) && (getSecondaryRole() == T_INFANTRY || getSecondaryRole() == T_BA)) {
-            secondaryBase = secondaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryAntiMekMultiplier());
+        Money secondaryBase = campaign.getCampaignOptions().getRoleBaseSalaries()[getSecondaryRole().ordinal()].dividedBy(2);
+        secondaryBase = secondaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryXPMultiplier(getExperienceLevel(true)));
+        if (getSecondaryRole().isSoldierOrBattleArmour()) {
+            if (hasSkill(SkillType.S_ANTI_MECH)) {
+                secondaryBase = secondaryBase.multipliedBy(campaign.getCampaignOptions().getSalaryAntiMekMultiplier());
+            }
+
+            if ((getUnit() != null) && getUnit().isConventionalInfantry()
+                    && ((Infantry) getUnit().getEntity()).hasSpecialization()) {
+                secondaryBase = secondaryBase.multipliedBy(campaign.getCampaignOptions().getSalarySpecialistInfantryMultiplier());
+            }
         }
 
-        Money totalBase = primaryBase.plus(secondaryBase);
+        // TODO: distinguish DropShip, JumpShip, and WarShip crew
+        // TODO: Add era mod to salary calc..
+        return primaryBase.plus(secondaryBase)
+                .multipliedBy(getRank().isOfficer()
+                        ? campaign.getCampaignOptions().getSalaryCommissionMultiplier()
+                        : campaign.getCampaignOptions().getSalaryEnlistedMultiplier())
+                .multipliedBy(getRank().getPayMultiplier());
+    }
 
-        if (getRank().isOfficer()) {
-            totalBase = totalBase.multipliedBy(campaign.getCampaignOptions().getSalaryCommissionMultiplier());
-        } else {
-            totalBase = totalBase.multipliedBy(campaign.getCampaignOptions().getSalaryEnlistedMultiplier());
+    /**
+     * @return the person's total earnings
+     */
+    public Money getTotalEarnings() {
+        return totalEarnings;
+    }
+
+    /**
+     * This is used to pay a person
+     * @param money the amount of money to add to their total earnings
+     */
+    public void payPerson(Money money) {
+        totalEarnings = getTotalEarnings().plus(money);
+    }
+
+    /**
+     * This is used to pay a person their salary
+     */
+    public void payPersonSalary() {
+        if (getStatus().isActive()) {
+            payPerson(getSalary());
         }
+    }
 
-        totalBase = totalBase.multipliedBy(getRank().getPayMultiplier());
+    /**
+     * This is used to pay a person their share value based on the value of a single share
+     * @param money the value of a single share
+     * @param sharesForAll whether or not all personnel have shares
+     */
+    public void payPersonShares(Money money, boolean sharesForAll) {
+        int shares = getNumShares(sharesForAll);
+        if (shares > 0) {
+            payPerson(money.multipliedBy(shares));
+        }
+    }
 
-        return totalBase;
-        //TODO: distinguish dropship, jumpship, and warship crew
-        //TODO: Add era mod to salary calc..
+    //region Ranks
+    public RankSystem getRankSystem() {
+        return rankSystem;
+    }
+
+    public void setRankSystem(final RankValidator rankValidator, final RankSystem rankSystem) {
+        setRankSystemDirect(rankSystem);
+        rankValidator.checkPersonRank(this);
+        MekHQ.triggerEvent(new PersonChangedEvent(this));
+    }
+
+    private void setRankSystemDirect(final RankSystem rankSystem) {
+        this.rankSystem = rankSystem;
+    }
+
+    public Rank getRank() {
+        return getRankSystem().getRank(getRankNumeric());
     }
 
     public int getRankNumeric() {
         return rank;
     }
 
-    public void setRankNumeric(int r) {
-        rank = r;
-        rankLevel = 0; // Always reset to 0 so that a call to setRankLevel() isn't mandatory.
+    public void setRank(final int rank) {
+        this.rank = rank;
     }
 
     public int getRankLevel() {
-        // If we're somehow above the max level for this rank, drop to that level
-        int profession = getProfession();
-        while (profession != Ranks.RPROF_MW && getRanks().isEmptyProfession(profession)) {
-            profession = getRanks().getAlternateProfession(profession);
-        }
-
-        if (rankLevel > getRank().getRankLevels(profession)) {
-            rankLevel = getRank().getRankLevels(profession);
-        }
-
         return rankLevel;
     }
 
-    public void setRankLevel(int level) {
-        rankLevel = level;
+    public void setRankLevel(final int rankLevel) {
+        this.rankLevel = rankLevel;
     }
 
-    public int getRankSystem() {
-        if (rankSystem == -1) {
-            return campaign.getRanks().getRankSystem();
-        }
-        return rankSystem;
-    }
+    public void changeRank(final Campaign campaign, final int rankNumeric, final int rankLevel,
+                           final boolean report) {
+        final int oldRankNumeric = getRankNumeric();
+        final int oldRankLevel = getRankLevel();
+        setRank(rankNumeric);
+        setRankLevel(rankLevel);
 
-    public void setRankSystem(int system) {
-        rankSystem = system;
-        if (system == campaign.getRanks().getRankSystem()) {
-            rankSystem = -1;
-        }
-
-        // Set the ranks too
-        if (rankSystem == -1) {
-            ranks = null;
-        } else {
-            ranks = new Ranks(rankSystem);
-        }
-        MekHQ.triggerEvent(new PersonChangedEvent(this));
-    }
-
-    public Ranks getRanks() {
-        if (rankSystem != -1) {
-            // Null protection
-            if (ranks == null) {
-                ranks = new Ranks(rankSystem);
+        if (campaign.getCampaignOptions().getUseTimeInRank()) {
+            if (getPrisonerStatus().isFree() && !getPrimaryRole().isDependent()) {
+                setLastRankChangeDate(campaign.getLocalDate());
+            } else {
+                setLastRankChangeDate(null);
             }
-            return ranks;
         }
-        return campaign.getRanks();
-    }
 
-    public Rank getRank() {
-        if (rankSystem != -1) {
-            return Ranks.getRanksFromSystem(rankSystem).getRank(rank);
+        campaign.personUpdated(this);
+
+        if (report) {
+            if ((rankNumeric > oldRankNumeric)
+                    || ((rankNumeric == oldRankNumeric) && (rankLevel > oldRankLevel))) {
+                ServiceLogger.promotedTo(this, campaign.getLocalDate());
+            } else if ((rankNumeric < oldRankNumeric) || (rankLevel < oldRankLevel)) {
+                ServiceLogger.demotedTo(this, campaign.getLocalDate());
+            }
         }
-        return campaign.getRanks().getRank(rank);
     }
 
     public String getRankName() {
-        String rankName;
-        int profession = getProfession();
-
-        /* Track number of times the profession has been redirected so we don't get caught
-         * in a loop by self-reference or loops due to bad configuration */
-        int redirects = 0;
-
-        // If we're using an "empty" profession, default to MechWarrior
-        while (getRanks().isEmptyProfession(profession) && redirects < Ranks.RPROF_NUM) {
-            profession = campaign.getRanks().getAlternateProfession(profession);
-            redirects++;
-        }
-
-        // If we're set to a rank that no longer exists, demote ourself
-        while (getRank().getName(profession).equals("-") && (rank > 0)) {
-            setRankNumeric(--rank);
-        }
-
-        redirects = 0;
-        // re-route through any profession redirections
-        while (getRank().getName(profession).startsWith("--") && profession != Ranks.RPROF_MW
-                && redirects < Ranks.RPROF_NUM) {
-            // We've hit a rank that defaults to the MechWarrior table, so grab the equivalent name from there
-            if (getRank().getName(profession).equals("--")) {
-                profession = getRanks().getAlternateProfession(profession);
-            } else if (getRank().getName(profession).startsWith("--")) {
-                profession = getRanks().getAlternateProfession(getRank().getName(profession));
-            }
-            redirects++;
-        }
-        if (getRank().getName(profession).startsWith("--")) {
-            profession = Ranks.RPROF_MW;
-        }
-
-        rankName = getRank().getName(profession);
+        final Profession profession = Profession.getProfessionFromPersonnelRole(getPrimaryRole());
+        String rankName = getRank().getName(profession.getProfession(getRankSystem(), getRank()));
 
         // Manei Domini Additions
-        if (getRankSystem() != Ranks.RS_WOB) {
-            // Oops, clear our MD variables
-            maneiDominiClass = MD_NONE;
-            maneiDominiRank = Rank.MD_RANK_NONE;
-        }
-        if (maneiDominiClass != MD_NONE) {
-            rankName = getManeiDominiClassNames() + " " + rankName;
-        }
-        if (maneiDominiRank != Rank.MD_RANK_NONE) {
-            rankName += " " + Rank.getManeiDominiRankName(maneiDominiRank);
-        }
-        if (getRankSystem() == Ranks.RS_COM || getRankSystem() == Ranks.RS_WOB) {
-            rankName += getComstarBranchDesignation();
+        if (getRankSystem().isUseManeiDomini()) {
+            if (!getManeiDominiClass().isNone()) {
+                rankName = getManeiDominiClass() + " " + rankName;
+            }
+
+            if (!getManeiDominiRank().isNone()) {
+                rankName += " " + getManeiDominiRank();
+            }
         }
 
-        // If we have a rankLevel, add it
-        if (rankLevel > 0) {
-            if (getRank().getRankLevels(profession) > 0)
-                rankName += Utilities.getRomanNumeralsFromArabicNumber(rankLevel, true);
-            else // Oops! Our rankLevel didn't get correctly cleared, they's remedy that.
-                rankLevel = 0;
+        if (getRankSystem().isUseROMDesignation()) {
+            rankName += ROMDesignation.getComStarBranchDesignation(this);
         }
+
+        // Rank Level Modifications
+        if (getRankLevel() > 0) {
+            rankName += Utilities.getRomanNumeralsFromArabicNumber(rankLevel, true);
+        }
+
+        // Prisoner Status Modifications
+        rankName = rankName.equalsIgnoreCase("None")
+                ? getPrisonerStatus().getTitleExtension()
+                : getPrisonerStatus().getTitleExtension() + rankName;
 
         // We have our name, return it
-        return rankName;
+        return rankName.trim();
     }
 
-    public int getManeiDominiClass() {
+    public ManeiDominiClass getManeiDominiClass() {
         return maneiDominiClass;
     }
 
-    public void setManeiDominiClass(int maneiDominiClass) {
-        this.maneiDominiClass = maneiDominiClass;
+    public void setManeiDominiClass(final ManeiDominiClass maneiDominiClass) {
+        setManeiDominiClassDirect(maneiDominiClass);
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public int getManeiDominiRank() {
+    private void setManeiDominiClassDirect(final ManeiDominiClass maneiDominiClass) {
+        this.maneiDominiClass = maneiDominiClass;
+    }
+
+    public ManeiDominiRank getManeiDominiRank() {
         return maneiDominiRank;
     }
 
-    public void setManeiDominiRank(int maneiDominiRank) {
-        this.maneiDominiRank = maneiDominiRank;
+    public void setManeiDominiRank(final ManeiDominiRank maneiDominiRank) {
+        setManeiDominiRankDirect(maneiDominiRank);
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public String getManeiDominiClassNames() {
-        return getManeiDominiClassNames(maneiDominiClass, getRankSystem());
-    }
-
-    public static String getManeiDominiClassNames(int maneiDominiClass, int rankSystem) {
-        // Only WoB
-        if (rankSystem != Ranks.RS_WOB)
-            return "";
-
-        switch (maneiDominiClass) {
-            case MD_NONE: return "";
-            case MD_GHOST: return "Ghost";
-            case MD_WRAITH: return "Wraith";
-            case MD_BANSHEE: return "Banshee";
-            case MD_ZOMBIE: return "Zombie";
-            case MD_PHANTOM: return "Phantom";
-            case MD_SPECTER: return "Specter";
-            case MD_POLTERGEIST: return "Poltergeist";
-            default: return "";
-        }
+    private void setManeiDominiRankDirect(final ManeiDominiRank maneiDominiRank) {
+        this.maneiDominiRank = maneiDominiRank;
     }
 
     /**
@@ -2215,15 +2180,16 @@ public class Person implements Serializable, MekHqXmlSerializable {
      * @param other The <code>Person</code> to compare ranks with
      * @return      true if <code>other</code> has a lower rank, or if <code>other</code> is null.
      */
-    public boolean outRanks(@Nullable Person other) {
-        if (null == other) {
+    public boolean outRanks(final @Nullable Person other) {
+        if (other == null) {
             return true;
-        }
-        if (getRankNumeric() == other.getRankNumeric()) {
+        } else if (getRankNumeric() == other.getRankNumeric()) {
             return getRankLevel() > other.getRankLevel();
+        } else {
+            return getRankNumeric() > other.getRankNumeric();
         }
-        return getRankNumeric() > other.getRankNumeric();
     }
+    //endregion Ranks
 
     public String getSkillSummary() {
         return SkillType.getExperienceLevelName(getExperienceLevel(false));
@@ -2234,22 +2200,42 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return getFullName();
     }
 
-    public int getExperienceLevel(boolean secondary) {
-        int role = primaryRole;
-        if (secondary) {
-            role = secondaryRole;
+    /**
+     * Two people are determined to be equal if they have the same id
+     * @param object the object to check if it is equal to the person or not
+     * @return true if they have the same id, otherwise false
+     */
+    @Override
+    public boolean equals(@Nullable Object object) {
+        if (this == object) {
+            return true;
+        } else if (!(object instanceof Person)) {
+            return false;
+        } else {
+            return getId().equals(((Person) object).getId());
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
+
+    public int getExperienceLevel(boolean secondary) {
+        PersonnelRole role = secondary ? getSecondaryRole() : getPrimaryRole();
         switch (role) {
-            case T_MECHWARRIOR:
+            case MECHWARRIOR:
                 if (hasSkill(SkillType.S_GUN_MECH) && hasSkill(SkillType.S_PILOT_MECH)) {
-                    /* Attempt to use higher precision averaging, but if it doesn't provide a clear result
-                    due to non-standard experience thresholds then fall back on lower precision averaging
-                    See Bug #140 */
-                    if(campaign.getCampaignOptions().useAltQualityAveraging()) {
+                    /*
+                     * Attempt to use higher precision averaging, but if it doesn't provide a clear result
+                     * due to non-standard experience thresholds then fall back on lower precision averaging
+                     * See Bug #140
+                     */
+                    if (campaign.getCampaignOptions().useAlternativeQualityAveraging()) {
                         int rawScore = (int) Math.floor(
                             (getSkill(SkillType.S_GUN_MECH).getLevel() + getSkill(SkillType.S_PILOT_MECH).getLevel()) / 2.0
                         );
-                        if(getSkill(SkillType.S_GUN_MECH).getType().getExperienceLevel(rawScore) ==
+                        if (getSkill(SkillType.S_GUN_MECH).getType().getExperienceLevel(rawScore) ==
                             getSkill(SkillType.S_PILOT_MECH).getType().getExperienceLevel(rawScore)) {
                             return getSkill(SkillType.S_GUN_MECH).getType().getExperienceLevel(rawScore);
                         }
@@ -2260,37 +2246,52 @@ public class Person implements Serializable, MekHqXmlSerializable {
                 } else {
                     return -1;
                 }
-            case T_GVEE_DRIVER:
-                if (hasSkill(SkillType.S_PILOT_GVEE)) {
-                    return getSkill(SkillType.S_PILOT_GVEE).getExperienceLevel();
+            case LAM_PILOT:
+                if (Stream.of(SkillType.S_GUN_MECH, SkillType.S_PILOT_MECH,
+                        SkillType.S_GUN_AERO, SkillType.S_PILOT_AERO).allMatch(this::hasSkill)) {
+                    /*
+                     * Attempt to use higher precision averaging, but if it doesn't provide a clear result
+                     * due to non-standard experience thresholds then fall back on lower precision averaging
+                     * See Bug #140
+                     */
+                    if (campaign.getCampaignOptions().useAlternativeQualityAveraging()) {
+                        int rawScore = (int) Math.floor((Stream.of(SkillType.S_GUN_MECH, SkillType.S_PILOT_MECH,
+                                SkillType.S_GUN_AERO, SkillType.S_PILOT_AERO).mapToInt(s -> getSkill(s).getLevel()).sum())
+                                / 4.0);
+
+                        final int mechGunneryExperienceLevel = SkillType.lookupHash.get(SkillType.S_GUN_MECH).getExperienceLevel(rawScore);
+                        if ((mechGunneryExperienceLevel == SkillType.lookupHash.get(SkillType.S_PILOT_MECH).getExperienceLevel(rawScore)
+                                && (mechGunneryExperienceLevel == SkillType.lookupHash.get(SkillType.S_GUN_AERO).getExperienceLevel(rawScore))
+                                && (mechGunneryExperienceLevel == SkillType.lookupHash.get(SkillType.S_PILOT_AERO).getExperienceLevel(rawScore)))) {
+                            return getSkill(SkillType.S_GUN_MECH).getType().getExperienceLevel(rawScore);
+                        }
+                    }
+
+                    return (int) Math.floor(
+                            (getSkill(SkillType.S_GUN_MECH).getExperienceLevel() + getSkill(SkillType.S_PILOT_MECH).getExperienceLevel()
+                            + getSkill(SkillType.S_GUN_AERO).getExperienceLevel() + getSkill(SkillType.S_PILOT_AERO).getExperienceLevel())
+                            / 4.0);
                 } else {
                     return -1;
                 }
-            case T_NVEE_DRIVER:
-                if (hasSkill(SkillType.S_PILOT_NVEE)) {
-                    return getSkill(SkillType.S_PILOT_NVEE).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_VTOL_PILOT:
-                if (hasSkill(SkillType.S_PILOT_VTOL)) {
-                    return getSkill(SkillType.S_PILOT_VTOL).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_VEE_GUNNER:
-                if (hasSkill(SkillType.S_GUN_VEE)) {
-                    return getSkill(SkillType.S_GUN_VEE).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_AERO_PILOT:
+            case GROUND_VEHICLE_DRIVER:
+                return hasSkill(SkillType.S_PILOT_GVEE) ? getSkill(SkillType.S_PILOT_GVEE).getExperienceLevel() : -1;
+            case NAVAL_VEHICLE_DRIVER:
+                return hasSkill(SkillType.S_PILOT_NVEE) ? getSkill(SkillType.S_PILOT_NVEE).getExperienceLevel() : -1;
+            case VTOL_PILOT:
+                return hasSkill(SkillType.S_PILOT_VTOL) ? getSkill(SkillType.S_PILOT_VTOL).getExperienceLevel() : -1;
+            case VEHICLE_GUNNER:
+                return hasSkill(SkillType.S_GUN_VEE) ? getSkill(SkillType.S_GUN_VEE).getExperienceLevel() : -1;
+            case VEHICLE_CREW:
+                return hasSkill(SkillType.S_TECH_MECHANIC) ? getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel() : -1;
+            case AEROSPACE_PILOT:
                 if (hasSkill(SkillType.S_GUN_AERO) && hasSkill(SkillType.S_PILOT_AERO)) {
-                    if(campaign.getCampaignOptions().useAltQualityAveraging()) {
+                    if (campaign.getCampaignOptions().useAlternativeQualityAveraging()) {
                         int rawScore = (int) Math.floor(
-                            (getSkill(SkillType.S_GUN_AERO).getLevel() + getSkill(SkillType.S_PILOT_AERO).getLevel()) / 2.0
+                            (getSkill(SkillType.S_GUN_AERO).getLevel() + getSkill(SkillType.S_PILOT_AERO)
+                                    .getLevel()) / 2.0
                         );
-                        if(getSkill(SkillType.S_GUN_AERO).getType().getExperienceLevel(rawScore) ==
+                        if (getSkill(SkillType.S_GUN_AERO).getType().getExperienceLevel(rawScore) ==
                             getSkill(SkillType.S_PILOT_AERO).getType().getExperienceLevel(rawScore)) {
                             return getSkill(SkillType.S_GUN_AERO).getType().getExperienceLevel(rawScore);
                         }
@@ -2301,13 +2302,14 @@ public class Person implements Serializable, MekHqXmlSerializable {
                 } else {
                     return -1;
                 }
-            case T_CONV_PILOT:
+            case CONVENTIONAL_AIRCRAFT_PILOT:
                 if (hasSkill(SkillType.S_GUN_JET) && hasSkill(SkillType.S_PILOT_JET)) {
-                    if(campaign.getCampaignOptions().useAltQualityAveraging()) {
+                    if (campaign.getCampaignOptions().useAlternativeQualityAveraging()) {
                         int rawScore = (int) Math.floor(
-                            (getSkill(SkillType.S_GUN_JET).getLevel() + getSkill(SkillType.S_PILOT_JET).getLevel()) / 2.0
+                            (getSkill(SkillType.S_GUN_JET).getLevel() + getSkill(SkillType.S_PILOT_JET)
+                                    .getLevel()) / 2.0
                         );
-                        if(getSkill(SkillType.S_GUN_JET).getType().getExperienceLevel(rawScore) ==
+                        if (getSkill(SkillType.S_GUN_JET).getType().getExperienceLevel(rawScore) ==
                             getSkill(SkillType.S_PILOT_JET).getType().getExperienceLevel(rawScore)) {
                             return getSkill(SkillType.S_GUN_JET).getType().getExperienceLevel(rawScore);
                         }
@@ -2318,13 +2320,16 @@ public class Person implements Serializable, MekHqXmlSerializable {
                 } else {
                     return -1;
                 }
-            case T_BA:
+            case PROTOMECH_PILOT:
+                return hasSkill(SkillType.S_GUN_PROTO) ? getSkill(SkillType.S_GUN_PROTO).getExperienceLevel() : -1;
+            case BATTLE_ARMOUR:
                 if (hasSkill(SkillType.S_GUN_BA) && hasSkill(SkillType.S_ANTI_MECH)) {
-                    if(campaign.getCampaignOptions().useAltQualityAveraging()) {
+                    if (campaign.getCampaignOptions().useAlternativeQualityAveraging()) {
                         int rawScore = (int) Math.floor(
-                            (getSkill(SkillType.S_GUN_BA).getLevel() + getSkill(SkillType.S_ANTI_MECH).getLevel()) / 2.0
+                            (getSkill(SkillType.S_GUN_BA).getLevel() + getSkill(SkillType.S_ANTI_MECH)
+                                    .getLevel()) / 2.0
                         );
-                        if(getSkill(SkillType.S_GUN_BA).getType().getExperienceLevel(rawScore) ==
+                        if (getSkill(SkillType.S_GUN_BA).getType().getExperienceLevel(rawScore) ==
                             getSkill(SkillType.S_ANTI_MECH).getType().getExperienceLevel(rawScore)) {
                             return getSkill(SkillType.S_GUN_BA).getType().getExperienceLevel(rawScore);
                         }
@@ -2335,273 +2340,84 @@ public class Person implements Serializable, MekHqXmlSerializable {
                 } else {
                     return -1;
                 }
-            case T_PROTO_PILOT:
-                if (hasSkill(SkillType.S_GUN_PROTO)) {
-                    return getSkill(SkillType.S_GUN_PROTO).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_INFANTRY:
-                if (hasSkill(SkillType.S_SMALL_ARMS)) {
-                    return getSkill(SkillType.S_SMALL_ARMS).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_SPACE_PILOT:
-                if (hasSkill(SkillType.S_PILOT_SPACE)) {
-                    return getSkill(SkillType.S_PILOT_SPACE).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_SPACE_CREW:
-                if (hasSkill(SkillType.S_TECH_VESSEL)) {
-                    return getSkill(SkillType.S_TECH_VESSEL).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_SPACE_GUNNER:
-                if (hasSkill(SkillType.S_GUN_SPACE)) {
-                    return getSkill(SkillType.S_GUN_SPACE).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_NAVIGATOR:
-                if (hasSkill(SkillType.S_NAV)) {
-                    return getSkill(SkillType.S_NAV).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_MECH_TECH:
-                if (hasSkill(SkillType.S_TECH_MECH)) {
-                    return getSkill(SkillType.S_TECH_MECH).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_MECHANIC:
-                if (hasSkill(SkillType.S_TECH_MECHANIC)) {
-                    return getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_AERO_TECH:
-                if (hasSkill(SkillType.S_TECH_AERO)) {
-                    return getSkill(SkillType.S_TECH_AERO).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_BA_TECH:
-                if (hasSkill(SkillType.S_TECH_BA)) {
-                    return getSkill(SkillType.S_TECH_BA).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_ASTECH:
-                if (hasSkill(SkillType.S_ASTECH)) {
-                    return getSkill(SkillType.S_ASTECH).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_DOCTOR:
-                if (hasSkill(SkillType.S_DOCTOR)) {
-                    return getSkill(SkillType.S_DOCTOR).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_MEDIC:
-                if (hasSkill(SkillType.S_MEDTECH)) {
-                    return getSkill(SkillType.S_MEDTECH).getExperienceLevel();
-                } else {
-                    return -1;
-                }
-            case T_ADMIN_COM:
-            case T_ADMIN_LOG:
-            case T_ADMIN_TRA:
-            case T_ADMIN_HR:
-                if (hasSkill(SkillType.S_ADMIN)) {
-                    return getSkill(SkillType.S_ADMIN).getExperienceLevel();
-                } else {
-                    return -1;
-                }
+            case SOLDIER:
+                return hasSkill(SkillType.S_SMALL_ARMS) ? getSkill(SkillType.S_SMALL_ARMS).getExperienceLevel() : -1;
+            case VESSEL_PILOT:
+                return hasSkill(SkillType.S_PILOT_SPACE) ? getSkill(SkillType.S_PILOT_SPACE).getExperienceLevel() : -1;
+            case VESSEL_GUNNER:
+                return hasSkill(SkillType.S_GUN_SPACE) ? getSkill(SkillType.S_GUN_SPACE).getExperienceLevel() : -1;
+            case VESSEL_CREW:
+                return hasSkill(SkillType.S_TECH_VESSEL) ? getSkill(SkillType.S_TECH_VESSEL).getExperienceLevel() : -1;
+            case VESSEL_NAVIGATOR:
+                return hasSkill(SkillType.S_NAV) ? getSkill(SkillType.S_NAV).getExperienceLevel() : -1;
+            case MECH_TECH:
+                return hasSkill(SkillType.S_TECH_MECH) ? getSkill(SkillType.S_TECH_MECH).getExperienceLevel() : -1;
+            case MECHANIC:
+                return hasSkill(SkillType.S_TECH_MECHANIC) ? getSkill(SkillType.S_TECH_MECHANIC).getExperienceLevel() : -1;
+            case AERO_TECH:
+                return hasSkill(SkillType.S_TECH_AERO) ? getSkill(SkillType.S_TECH_AERO).getExperienceLevel() : -1;
+            case BA_TECH:
+                return hasSkill(SkillType.S_TECH_BA) ? getSkill(SkillType.S_TECH_BA).getExperienceLevel() : -1;
+            case ASTECH:
+                return hasSkill(SkillType.S_ASTECH) ? getSkill(SkillType.S_ASTECH).getExperienceLevel() : -1;
+            case DOCTOR:
+                return hasSkill(SkillType.S_DOCTOR) ? getSkill(SkillType.S_DOCTOR).getExperienceLevel() : -1;
+            case MEDIC:
+                return hasSkill(SkillType.S_MEDTECH) ? getSkill(SkillType.S_MEDTECH).getExperienceLevel() : -1;
+            case ADMINISTRATOR_COMMAND:
+            case ADMINISTRATOR_LOGISTICS:
+            case ADMINISTRATOR_TRANSPORT:
+            case ADMINISTRATOR_HR:
+                return hasSkill(SkillType.S_ADMIN) ? getSkill(SkillType.S_ADMIN).getExperienceLevel() : -1;
+            case DEPENDENT:
+            case NONE:
             default:
                 return -1;
         }
     }
 
-    public String getPatientDesc() {
-        String toReturn = "<html><font size='2'><b>" + getFullTitle() + "</b><br/>";
-        toReturn += getHits() + " hit(s)<br>[next check in " + getDaysToWaitForHealing() + " days]";
-        toReturn += "</font></html>";
-        return toReturn;
-    }
-
     /**
-     * returns a full description in HTML format that will be used for the graphical display in the personnel table among other places
-     * @param htmlRank if the rank will be wrapped in an HTML DIV and id
+     * returns a full description in HTML format that will be used for the graphical display in the
+     * personnel table among other places
      * @return String
      */
-    public String getFullDesc(boolean htmlRank) {
-        return "<b>" + getFullTitle(htmlRank) + "</b><br/>" + getSkillSummary() + " " + getRoleDesc();
+    public String getFullDesc() {
+        return "<b>" + getFullTitle() + "</b><br/>" + getSkillSummary() + " " + getRoleDesc();
+    }
+
+    public String getHTMLTitle() {
+        return String.format("<html><div id=\"%s\" style=\"white-space: nowrap;\">%s</div></html>", getId(), getFullTitle());
     }
 
     public String getFullTitle() {
-        return getFullTitle(false);
-    }
-
-    public String getFullTitle(boolean html) {
         String rank = getRankName();
 
-        // Do prisoner checks
-        if (rank.equalsIgnoreCase("None")) {
-            if (isPrisoner()) {
-                return "Prisoner " + getFullName();
-            }
-            if (isBondsman()) {
-                return "Bondsman " + getFullName();
-            }
-            return getFullName();
+        if (!rank.isBlank()) {
+            rank = rank + " ";
         }
 
-        // This is used for the rank sorter. If you have a better way to accomplish it, by all means...
-        // Of course, nothing that uses Full Title actually uses the rank sorter yet I guess...
-        // Still, I've turned it back on and I don't see it messing anything up anywhere.
-        // - Dylan
-        // If we need it in html for any reason, make it so.
-        if (html)
-            rank = makeHTMLRankDiv();
-
-        return rank + " " + getFullName();
+        return rank + getFullName();
     }
 
     public String makeHTMLRank() {
-        return "<html>"+makeHTMLRankDiv()+"</html>";
-    }
-
-    public String makeHTMLRankDiv() {
-        return "<div id=\""+getId()+"\">"+getRankName()+ (isPrisoner() && isWillingToDefect() ? "*" : "") + "</div>";
+        return String.format("<html><div id=\"%s\">%s</div></html>", getId(), getRankName().trim());
     }
 
     public String getHyperlinkedFullTitle() {
-        return "<a href='PERSON:" + getId() + "'>" + getFullTitle() + "</a>";
-    }
-
-    public String getComstarBranchDesignation() {
-        StringBuilder sb = new StringBuilder(" ");
-
-        // Primary
-        if (getPrimaryDesignator() != DESIG_NONE) {
-            sb.append(parseDesignator(getPrimaryDesignator()));
-        } else if (isTechPrimary()) {
-            sb.append("Zeta");
-        } else if (isAdminPrimary()) {
-            sb.append("Chi");
-        } else {
-            parseRoleForDesignation(getPrimaryRole(), sb);
-        }
-
-        // Secondary
-        if (getSecondaryDesignator() != DESIG_NONE) {
-            sb.append(" ");
-            sb.append(parseDesignator(getSecondaryDesignator()));
-        } else if (isTechSecondary()) {
-            sb.append(" Zeta");
-        } else if (isAdminSecondary()) {
-            sb.append(" Chi");
-        } else if (getSecondaryRole() != T_NONE) {
-            sb.append(" ");
-            parseRoleForDesignation(getSecondaryRole(), sb);
-        }
-
-        return sb.toString();
-    }
-
-    private void parseRoleForDesignation(int role, StringBuilder sb) {
-        switch (role) {
-            case T_MECHWARRIOR:
-                sb.append("Epsilon");
-                break;
-            case T_AERO_PILOT:
-                sb.append("Pi");
-                break;
-            case T_BA:
-            case T_INFANTRY:
-                sb.append("Iota");
-                break;
-            case T_SPACE_CREW:
-            case T_SPACE_GUNNER:
-            case T_SPACE_PILOT:
-            case T_NAVIGATOR:
-                Unit u = campaign.getUnit(getUnitId());
-                if (u != null) {
-                    Entity en = u.getEntity();
-                    if (en instanceof Dropship) {
-                        sb.append("Xi");
-                    }
-                    if (en instanceof Jumpship) {
-                        sb.append("Theta");
-                    }
-                }
-                break;
-            case T_DOCTOR:
-            case T_MEDIC:
-                sb.append("Kappa");
-                break;
-            case T_GVEE_DRIVER:
-            case T_NVEE_DRIVER:
-            case T_VTOL_PILOT:
-            case T_VEE_GUNNER:
-            case T_CONV_PILOT:
-                sb.append("Lambda");
-                break;
-            default: break;
-        }
-    }
-
-    public static String parseDesignator(int designator) {
-        switch (designator) {
-            case DESIG_NONE:
-                return "None (Auto-Set)";
-            case DESIG_EPSILON:
-                return "Epsilon";
-            case DESIG_PI:
-                return "Pi";
-            case DESIG_IOTA:
-                return "Iota";
-            case DESIG_XI:
-                return "Xi";
-            case DESIG_THETA:
-                return "Theta";
-            case DESIG_ZETA:
-                return "Zeta";
-            case DESIG_MU:
-                return "Mu";
-            case DESIG_RHO:
-                return "Rho";
-            case DESIG_LAMBDA:
-                return "Lambda";
-            case DESIG_PSI:
-                return "Psi";
-            case DESIG_OMICRON:
-                return "Omicron";
-            case DESIG_CHI:
-                return "Chi";
-            case DESIG_GAMMA:
-                return "Gamma";
-            default:
-                return "";
-        }
+        return String.format("<a href='PERSON:%s'>%s</a>", getId(), getFullTitle());
     }
 
     /**
      * @return the primaryDesignator
      */
-    public int getPrimaryDesignator() {
+    public ROMDesignation getPrimaryDesignator() {
         return primaryDesignator;
     }
 
     /**
      * @param primaryDesignator the primaryDesignator to set
      */
-    public void setPrimaryDesignator(int primaryDesignator) {
+    public void setPrimaryDesignator(ROMDesignation primaryDesignator) {
         this.primaryDesignator = primaryDesignator;
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
@@ -2609,14 +2425,14 @@ public class Person implements Serializable, MekHqXmlSerializable {
     /**
      * @return the secondaryDesignator
      */
-    public int getSecondaryDesignator() {
+    public ROMDesignation getSecondaryDesignator() {
         return secondaryDesignator;
     }
 
     /**
      * @param secondaryDesignator the secondaryDesignator to set
      */
-    public void setSecondaryDesignator(int secondaryDesignator) {
+    public void setSecondaryDesignator(ROMDesignation secondaryDesignator) {
         this.secondaryDesignator = secondaryDesignator;
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
@@ -2628,55 +2444,58 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return 0;
     }
 
-    public TargetRoll getHealingMods(Person doctor) {
+    public TargetRoll getHealingMods() {
         return new TargetRoll(getHealingDifficulty(), "difficulty");
     }
 
-    public String fail(int rating) {
+    public String fail() {
         return " <font color='red'><b>Failed to heal.</b></font>";
     }
 
+    //region skill
     public boolean hasSkill(String skillName) {
-        return null != skills.get(skillName);
+        return skills.hasSkill(skillName);
+    }
+
+    public Skills getSkills() {
+        return skills;
     }
 
     @Nullable
     public Skill getSkill(String skillName) {
-        return skills.get(skillName);
+        return skills.getSkill(skillName);
     }
-    
-    public void addSkill(String skillName, int lvl, int bonus) {
-        skills.put(skillName, new Skill(skillName, lvl, bonus));
+
+    public void addSkill(String skillName, Skill skill) {
+        skills.addSkill(skillName, skill);
     }
-    
-    public void addSkill(String skillName, int xpLvl, boolean random, int bonus) {
-        skills.put(skillName, new Skill(skillName, xpLvl, random, bonus, 0));
-    }
-    
-    public void addSkill(String skillName, int xpLvl, boolean random, int bonus, int rollMod) {
-        skills.put(skillName, new Skill(skillName, xpLvl, random, bonus, rollMod));
+
+    public void addSkill(String skillName, int level, int bonus) {
+        skills.addSkill(skillName, new Skill(skillName, level, bonus));
     }
 
     public void removeSkill(String skillName) {
-        if (hasSkill(skillName)) {
-            skills.remove(skillName);
-        }
+        skills.removeSkill(skillName);
     }
-    
+
+    public int getSkillNumber() {
+        return skills.size();
+    }
+
     /**
      * Remove all skills
      */
     public void removeAllSkills() {
         skills.clear();
-    }   
-    
+    }
+
     /**
      * Limit skills to the maximum of the given level
      */
     public void limitSkills(int maxLvl) {
-        for(Map.Entry<String, Skill> skill : skills.entrySet()) {
-            if(skill.getValue().getLevel() > maxLvl) {
-                skill.getValue().setLevel(maxLvl);
+        for (Skill skill : skills.getSkills()) {
+            if (skill.getLevel() > maxLvl) {
+                skill.setLevel(maxLvl);
             }
         }
     }
@@ -2697,6 +2516,13 @@ public class Person implements Serializable, MekHqXmlSerializable {
             return -1;
         }
     }
+    //endregion skill
+
+    //region Awards
+    public PersonAwardController getAwardController() {
+        return awardController;
+    }
+    //endregion Awards
 
     public int getHits() {
         return hits;
@@ -2711,18 +2537,18 @@ public class Person implements Serializable, MekHqXmlSerializable {
       * which implies that the location (most likely a limb) is severed.
       */
     public boolean isLocationMissing(BodyLocation loc) {
-        if(null == loc) {
+        if (null == loc) {
             return false;
         }
-        for(Injury i : getInjuriesByLocation(loc)) {
-            if(i.getType().impliesMissingLocation(loc)) {
+        for (Injury i : getInjuriesByLocation(loc)) {
+            if (i.getType().impliesMissingLocation(loc)) {
                 return true;
             }
         }
         // Check parent locations as well (a hand can be missing if the corresponding arm is)
-        return isLocationMissing(loc.parent);
+        return isLocationMissing(loc.Parent());
     }
-    
+
     public void heal() {
         hits = Math.max(hits - 1, 0);
         if (!needsFixing()) {
@@ -2731,70 +2557,24 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     public boolean needsFixing() {
-        return (hits > 0 || needsAMFixing()) && status != S_KIA && status == S_ACTIVE;
+        return ((hits > 0) || needsAMFixing()) && getStatus().isActive();
     }
 
     public String succeed() {
         heal();
         return " <font color='green'><b>Successfully healed one hit.</b></font>";
     }
-    
+
+    //region Personnel Options
     public PersonnelOptions getOptions() {
         return options;
     }
-    
+
     /**
      * Returns the options of the given category that this pilot has
      */
     public Enumeration<IOption> getOptions(String grpKey) {
-        for (Enumeration<IOptionGroup> i = options.getGroups(); i.hasMoreElements(); ) {
-            IOptionGroup group = i.nextElement();
-
-            if (group.getKey().equalsIgnoreCase(grpKey)) {
-                return group.getOptions();
-            }
-        }
-
-        // no pilot advantages -- return an empty Enumeration
-        return new Vector<IOption>().elements();
-    }
-
-    public ArrayList<SpecialAbility> getEligibleSPAs(boolean generation) {
-        ArrayList<SpecialAbility> eligible = new ArrayList<>();
-        for (Enumeration<IOption> i = getOptions(PilotOptions.LVL3_ADVANTAGES); i.hasMoreElements(); ) {
-            IOption ability = i.nextElement();
-            if (!ability.booleanValue()) {
-                SpecialAbility spa = SpecialAbility.getAbility(ability.getName());
-                if(null == spa) {
-                    continue;
-                }
-                if(!spa.isEligible(this)) {
-                    continue;
-                }
-                if(generation & spa.getWeight() <= 0) {
-                    continue;
-                }
-                eligible.add(spa);
-            }
-        }
-        return eligible;
-    }
-
-    public int countOptions() {
-        int count = 0;
-
-        for (Enumeration<IOptionGroup> i = options.getGroups(); i.hasMoreElements(); ) {
-            IOptionGroup group = i.nextElement();
-            for (Enumeration<IOption> j = group.getOptions(); j.hasMoreElements(); ) {
-                IOption option = j.nextElement();
-
-                if (option.booleanValue()) {
-                    count++;
-                }
-            }
-        }
-
-        return count;
+        return options.getOptions(grpKey);
     }
 
     public int countOptions(String grpKey) {
@@ -2853,27 +2633,49 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return adv.toString();
     }
 
+    /**
+     * @return an html-coded list that says what abilities are enabled for this pilot
+     */
+    public String getAbilityListAsString(String type) {
+        StringBuilder abilityString = new StringBuilder();
+        for (Enumeration<IOption> i = getOptions(type); i.hasMoreElements(); ) {
+            IOption ability = i.nextElement();
+            if (ability.booleanValue()) {
+                abilityString.append(Utilities.getOptionDisplayName(ability)).append("<br>");
+            }
+        }
+        if (abilityString.length() == 0) {
+            return null;
+        }
+        return "<html>" + abilityString + "</html>";
+    }
+    //endregion Personnel Options
+
+    //region edge
     public int getEdge() {
         return getOptions().intOption("edge");
     }
 
     public void setEdge(int e) {
-        for (Enumeration<IOption> i = getOptions(PilotOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
+        for (Enumeration<IOption> i = getOptions(PersonnelOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
             IOption ability = i.nextElement();
             if (ability.getName().equals("edge")) {
                 ability.setValue(e);
             }
         }
     }
-    
+
+    public void changeEdge(final int amount) {
+        setEdge(Math.max(getEdge() + amount, 0));
+    }
+
     /**
      * Resets support personnel edge points to the purchased level. Used for weekly refresh.
-     * 
      */
     public void resetCurrentEdge() {
         setCurrentEdge(getEdge());
     }
-    
+
     /**
      * Sets support personnel edge points to the value 'e'. Used for weekly refresh.
      * @param e - integer used to track this person's edge points available for the current week
@@ -2881,19 +2683,22 @@ public class Person implements Serializable, MekHqXmlSerializable {
     public void setCurrentEdge(int e) {
         currentEdge = e;
     }
-    
+
+    public void changeCurrentEdge(int amount) {
+        currentEdge = Math.max(currentEdge + amount, 0);
+    }
+
     /**
      *  Returns this person's currently available edge points. Used for weekly refresh.
-     * 
      */
     public int getCurrentEdge() {
         return currentEdge;
     }
-    
+
     public void setEdgeUsed(int e) {
         edgeUsedThisRound = e;
     }
-    
+
     public int getEdgeUsed() {
         return edgeUsedThisRound;
     }
@@ -2902,7 +2707,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
      * This will set a specific edge trigger, regardless of the current status
      */
     public void setEdgeTrigger(String name, boolean status) {
-        for (Enumeration<IOption> i = getOptions(PilotOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
+        for (Enumeration<IOption> i = getOptions(PersonnelOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
             IOption ability = i.nextElement();
             if (ability.getName().equals(name)) {
                 ability.setValue(status);
@@ -2910,14 +2715,14 @@ public class Person implements Serializable, MekHqXmlSerializable {
         }
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
-    
+
     /**
      * This will flip the boolean status of the current edge trigger
      *
-     * @param name
+     * @param name of the trigger condition
      */
     public void changeEdgeTrigger(String name) {
-        for (Enumeration<IOption> i = getOptions(PilotOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
+        for (Enumeration<IOption> i = getOptions(PersonnelOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
             IOption ability = i.nextElement();
             if (ability.getName().equals(name)) {
                 ability.setValue(!ability.booleanValue());
@@ -2927,99 +2732,22 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     /**
-     * This function returns an html-coded tooltip that says what edge will be used
      *
-     * @return
+     * @return an html-coded tooltip that says what edge will be used
      */
     public String getEdgeTooltip() {
-        String edgett = "";
-        for (Enumeration<IOption> i = getOptions(PilotOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
+        StringBuilder edgett = new StringBuilder();
+        for (Enumeration<IOption> i = getOptions(PersonnelOptions.EDGE_ADVANTAGES); i.hasMoreElements(); ) {
             IOption ability = i.nextElement();
             //yuck, it would be nice to have a more fool-proof way of identifying edge triggers
             if (ability.getName().contains("edge_when") && ability.booleanValue()) {
-                edgett = edgett + ability.getDescription() + "<br>";
+                edgett.append(ability.getDescription()).append("<br>");
             }
         }
-        if (edgett.equals("")) {
-            return "No triggers set";
-        }
-        return "<html>" + edgett + "</html>";
-    }
 
-    /**
-     * This function returns an html-coded list that says what abilities are enabled for this pilot
-     *
-     * @return
-     */
-    public String getAbilityList(String type) {
-        String abilityString = "";
-        for (Enumeration<IOption> i = getOptions(type); i.hasMoreElements(); ) {
-            IOption ability = i.nextElement();
-            if (ability.booleanValue()) {
-                abilityString = abilityString + Utilities.getOptionDisplayName(ability) + "<br>";
-            }
-        }
-        if (abilityString.equals("")) {
-            return null;
-        }
-        return "<html>" + abilityString + "</html>";
+        return edgett.toString().isBlank() ? "No triggers set" : "<html>" + edgett + "</html>";
     }
-
-    public void acquireAbility(String type, String name, Object value) {
-        //we might also need to remove some prior abilities
-        SpecialAbility spa = SpecialAbility.getAbility(name);
-        Vector<String> toRemove = new Vector<>();
-        if(null != spa) {
-            toRemove = spa.getRemovedAbilities();
-        }
-        for (Enumeration<IOption> i = getOptions(type); i.hasMoreElements(); ) {
-            IOption ability = i.nextElement();
-            if (ability.getName().equals(name)) {
-                ability.setValue(value);
-            } else {
-                for(String remove : toRemove) {
-                    if (ability.getName().equals(remove)) {
-                        ability.setValue(ability.getDefault());
-                    }
-                }
-            }
-        }
-    }
-    
-    /**
-     * @return true if this person has either a primary or a secondary role that is considered a combat
-     *         role
-     */
-    public boolean isCombat() {
-        return isCombatRole(primaryRole) || isCombatRole(secondaryRole);
-    }
-
-    /**
-     * @return true if this person has either a primary or a secondary role that is considered a support
-     *         role
-     */
-    public boolean isSupport() {
-        return isSupportRole(primaryRole) || isSupportRole(secondaryRole);
-    }
-    
-    /**
-     * Determines whether a role is considered a combat role. Note that T_LAM_PILOT is a special
-     * placeholder which is not used for either primary or secondary role and will return false.
-     * 
-     * @param role A value that can be used for a person's primary or secondary role.
-     * @return     Whether the role is considered a combat role
-     */
-    public static boolean isCombatRole(int role) {
-        return (role > T_NONE) && (role <= T_NAVIGATOR);
-    }
-    
-    /**
-     * @param role A value that can be used for a person's primary or secondary role.
-     * @return     Whether the role is considered a support role
-     */
-    public static boolean isSupportRole(int role) {
-        return (role >= T_MECH_TECH) && (role < T_LAM_PILOT);
-    }
+    //endregion edge
 
     public boolean canDrive(Entity ent) {
         if (ent instanceof LandAirMech) {
@@ -3088,57 +2816,77 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return false;
     }
 
+    /**
+     * @return the person's current daily available tech time. This does NOT account for any expended
+     * time.
+     */
+    public int getDailyAvailableTechTime() {
+        return (getPrimaryRole().isTech() ? PRIMARY_ROLE_SUPPORT_TIME : SECONDARY_ROLE_SUPPORT_TIME)
+                - getMaintenanceTimeUsing();
+    }
+
     public int getMaintenanceTimeUsing() {
         int time = 0;
-        for (UUID id : getTechUnitIDs()) {
-            Unit u = campaign.getUnit(id);
-            if (null != u) {
-                time += u.getMaintenanceTime();
-            }
+        for (Unit u : getTechUnits()) {
+            time += u.getMaintenanceTime();
         }
         return time;
     }
 
     public boolean isMothballing() {
-        if (!isTech()) {
-            return false;
+        return isTech() && techUnits.stream().anyMatch(Unit::isMothballing);
+    }
+
+    public @Nullable Unit getUnit() {
+        return unit;
+    }
+
+    public void setUnit(@Nullable Unit unit) {
+        this.unit = unit;
+    }
+
+    public void removeTechUnit(Unit unit) {
+        techUnits.remove(unit);
+    }
+
+    public void addTechUnit(Unit unit) {
+        Objects.requireNonNull(unit);
+
+        if (!techUnits.contains(unit)) {
+            techUnits.add(unit);
         }
-        for (Unit u : campaign.getUnits()) {
-            if (u.isMothballing() && u.getTech().getId().equals(id)) {
-                return true;
+    }
+
+    public void clearTechUnits() {
+        techUnits.clear();
+    }
+
+    public List<Unit> getTechUnits() {
+        return Collections.unmodifiableList(techUnits);
+    }
+
+    public void removeAllTechJobs(final Campaign campaign) {
+        campaign.getHangar().forEachUnit(u -> {
+            if (equals(u.getTech())) {
+                u.remove(this, true);
+            }
+
+            if ((u.getRefit() != null) && equals(u.getRefit().getTech())) {
+                u.getRefit().setTech(null);
+            }
+        });
+
+        for (final Part part : campaign.getWarehouse().getParts()) {
+            if (equals(part.getTech())) {
+                part.cancelAssignment();
             }
         }
-        return false;
-    }
 
-    public UUID getUnitId() {
-        return unitId;
-    }
-
-    public void setUnitId(UUID i) {
-        unitId = i;
-    }
-
-    public void removeTechUnitId(UUID i) {
-        techUnitIds.remove(i);
-    }
-
-    public void addTechUnitID(UUID id) {
-        if (!techUnitIds.contains(id)) {
-            techUnitIds.add(id);
+        for (final Force force : campaign.getAllForces()) {
+            if (getId().equals(force.getTechID())) {
+                force.setTechID(null);
+            }
         }
-    }
-
-    public void clearTechUnitIDs() {
-        techUnitIds.clear();
-    }
-
-    public ArrayList<UUID> getTechUnitIDs() {
-        return techUnitIds;
-    }
-
-    public int getOldSupportTeamId() {
-        return teamId;
     }
 
     public int getMinutesLeft() {
@@ -3147,13 +2895,10 @@ public class Person implements Serializable, MekHqXmlSerializable {
 
     public void setMinutesLeft(int m) {
         this.minutesLeft = m;
-        if(engineer && null != getUnitId()) {
+        if (engineer && (null != getUnit())) {
             //set minutes for all crewmembers
-            Unit u = campaign.getUnit(getUnitId());
-            if(null != u) {
-                for(Person p : u.getActiveCrew()) {
-                    p.setMinutesLeft(m);
-                }
+            for (Person p : getUnit().getActiveCrew()) {
+                p.setMinutesLeft(m);
             }
         }
     }
@@ -3164,42 +2909,22 @@ public class Person implements Serializable, MekHqXmlSerializable {
 
     public void setOvertimeLeft(int m) {
         this.overtimeLeft = m;
-        if(engineer && null != getUnitId()) {
+        if (engineer && (null != getUnit())) {
             //set minutes for all crewmembers
-            Unit u = campaign.getUnit(getUnitId());
-            if(null != u) {
-                for(Person p : u.getActiveCrew()) {
-                    p.setMinutesLeft(m);
-                }
+            for (Person p : getUnit().getActiveCrew()) {
+                p.setMinutesLeft(m);
             }
         }
     }
 
     public void resetMinutesLeft() {
-        if (isTechPrimary() || getPrimaryRole() == T_DOCTOR) {
-            this.minutesLeft = 480;
-            this.overtimeLeft = 240;
+        if (getPrimaryRole().isTech() || getPrimaryRole().isDoctor()) {
+            this.minutesLeft = PRIMARY_ROLE_SUPPORT_TIME;
+            this.overtimeLeft = PRIMARY_ROLE_OVERTIME_SUPPORT_TIME;
+        } else if (getSecondaryRole().isTechSecondary() || getSecondaryRole().isDoctor()) {
+            this.minutesLeft = SECONDARY_ROLE_SUPPORT_TIME;
+            this.overtimeLeft = SECONDARY_ROLE_OVERTIME_SUPPORT_TIME;
         }
-        if (isTechSecondary() || getSecondaryRole() == T_DOCTOR) {
-            this.minutesLeft = 240;
-            this.overtimeLeft = 240;
-        }
-    }
-
-    public boolean isAdmin() {
-        return (isAdminPrimary() || isAdminSecondary());
-    }
-
-    public boolean isMedic() {
-        return (T_MEDIC == primaryRole) || (T_MEDIC == secondaryRole);
-    }
-
-    public boolean isAdminPrimary() {
-        return primaryRole == T_ADMIN_HR || primaryRole == T_ADMIN_COM || primaryRole == T_ADMIN_LOG || primaryRole == T_ADMIN_TRA;
-    }
-
-    public boolean isAdminSecondary() {
-        return secondaryRole == T_ADMIN_HR || secondaryRole == T_ADMIN_COM || secondaryRole == T_ADMIN_LOG || secondaryRole == T_ADMIN_TRA;
     }
 
     public Skill getBestTechSkill() {
@@ -3233,20 +2958,20 @@ public class Person implements Serializable, MekHqXmlSerializable {
         /*boolean isEngineer = hasSkill(SkillType.S_TECH_VESSEL) && getSkill(SkillType.S_TECH_VESSEL).getExperienceLevel() > SkillType.EXP_ULTRA_GREEN
                 && campaign.getUnit(getUnitId()).getEngineer() != null
                 && campaign.getUnit(getUnitId()).getEngineer().equals(this);*/
-        return (isTechPrimary() || isTechSecondary()) && (isMechTech || isAeroTech || isMechanic || isBATech);
+        return (getPrimaryRole().isTech() || getSecondaryRole().isTechSecondary()) && (isMechTech || isAeroTech || isMechanic || isBATech);
     }
 
-    public boolean isTechPrimary() {
-        return primaryRole == T_MECH_TECH || primaryRole == T_AERO_TECH || primaryRole == T_MECHANIC || primaryRole == T_BA_TECH || primaryRole == T_SPACE_CREW;
+    public boolean isAdministrator() {
+        return (getPrimaryRole().isAdministrator() || getSecondaryRole().isAdministrator());
     }
 
-    public boolean isTechSecondary() {
-        return secondaryRole == T_MECH_TECH || secondaryRole == T_AERO_TECH || secondaryRole == T_MECHANIC || secondaryRole == T_BA_TECH;
+    public boolean isDoctor() {
+        return hasSkill(SkillType.S_DOCTOR) && (getPrimaryRole().isDoctor() || getSecondaryRole().isDoctor());
     }
 
     public boolean isTaskOvertime(IPartWork partWork) {
-        return partWork.getTimeLeft() > getMinutesLeft()
-               && (partWork.getTimeLeft() - getMinutesLeft()) <= getOvertimeLeft();
+        return (partWork.getTimeLeft() > getMinutesLeft())
+               && (getOvertimeLeft() > 0);
     }
 
     public Skill getSkillForWorkingOn(IPartWork part) {
@@ -3307,20 +3032,24 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     public Skill getSkillForWorkingOn(Unit unit) {
-        if (null != unit && unit.getEntity() instanceof Mech && hasSkill(SkillType.S_TECH_MECH)) {
+        if (unit == null) {
+            return null;
+        }
+        if ((unit.getEntity() instanceof Mech || unit.getEntity() instanceof Protomech)
+            && hasSkill(SkillType.S_TECH_MECH)) {
             return getSkill(SkillType.S_TECH_MECH);
         }
-        if (null != unit && unit.getEntity() instanceof BattleArmor && hasSkill(SkillType.S_TECH_BA)) {
+        if (unit.getEntity() instanceof BattleArmor && hasSkill(SkillType.S_TECH_BA)) {
             return getSkill(SkillType.S_TECH_BA);
         }
-        if (null != unit && unit.getEntity() instanceof Tank && hasSkill(SkillType.S_TECH_MECHANIC)) {
+        if (unit.getEntity() instanceof Tank && hasSkill(SkillType.S_TECH_MECHANIC)) {
             return getSkill(SkillType.S_TECH_MECHANIC);
         }
-        if (null != unit && (unit.getEntity() instanceof Dropship || unit.getEntity() instanceof Jumpship)
+        if ((unit.getEntity() instanceof Dropship || unit.getEntity() instanceof Jumpship)
             && hasSkill(SkillType.S_TECH_VESSEL)) {
             return getSkill(SkillType.S_TECH_VESSEL);
         }
-        if (null != unit && unit.getEntity() instanceof Aero
+        if (unit.getEntity() instanceof Aero
             && !(unit.getEntity() instanceof Dropship)
             && !(unit.getEntity() instanceof Jumpship)
             && hasSkill(SkillType.S_TECH_AERO)) {
@@ -3329,7 +3058,7 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return null;
     }
 
-    public Skill getSkillForWorkingOn(IAcquisitionWork acquisition, String skillName) {
+    public Skill getSkillForWorkingOn(String skillName) {
         if (skillName.equals(CampaignOptions.S_TECH)) {
             return getBestTechSkill();
         }
@@ -3337,31 +3066,6 @@ public class Person implements Serializable, MekHqXmlSerializable {
             return getSkill(skillName);
         }
         return null;
-    }
-
-    public String getDocDesc() {
-        StringBuilder toReturn = new StringBuilder(128);
-        toReturn.append("<html><font size='2'><b>");
-        toReturn.append(getFullName());
-        toReturn.append(String.format("</b> (%d XP)<br/>", getXp()));
-
-        Skill skill = getSkill(SkillType.S_DOCTOR);
-        if (null != skill) {
-            toReturn.append(SkillType.getExperienceLevelName(skill.getExperienceLevel()));
-            toReturn.append(" " + SkillType.S_DOCTOR);
-        }
-
-        if (campaign.getMedicsPerDoctor() < 4) {
-            toReturn.append("</font><font size='2' color='red'>, ");
-            toReturn.append(campaign.getMedicsPerDoctor());
-            toReturn.append(" medics</font><font size='2'><br/>");
-        } else {
-            toReturn.append(String.format(", %d medics<br />", campaign.getMedicsPerDoctor()));
-        }
-        
-        toReturn.append(String.format("%d patient(s)</font></html>", campaign.getPatientsFor(this)));
-
-        return toReturn.toString();
     }
 
     public int getBestTechLevel() {
@@ -3385,57 +3089,14 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return lvl;
     }
 
-    public String getTechDesc(boolean overtimeAllowed) {
-        return getTechDesc(overtimeAllowed, null);
-    }
-
-    public String getTechDesc(boolean overtimeAllowed, IPartWork part) {
-        StringBuilder toReturn = new StringBuilder(128);
-        toReturn.append("<html><font size='2'");
-        if (null != part && null != part.getUnit() && getTechUnitIDs().contains(part.getUnit().getId())) {
-            toReturn.append(" color='green'><b>@");
-        }
-        else {
-            toReturn.append("><b>");
-        }
-        toReturn.append(getFullName());
-        toReturn.append(String.format("</b> (%d XP)<br/>", getXp()));
-
-        boolean first = true;
-        for (String skillName : DISPLAYED_SKILL_LEVELS) {
-            Skill skill = getSkill(skillName);
-            if (null == skill) {
-                continue;
-            }
-            else if (!first) {
-                toReturn.append("; ");
-            }
-            
-            toReturn.append(SkillType.getExperienceLevelName(skill.getExperienceLevel()));
-            toReturn.append(" " + skillName);
-            first = false;
-        }
-
-        toReturn.append("<br/>");
-        toReturn.append(String.format("%d minutes left", getMinutesLeft()));
-        if (overtimeAllowed) {
-            toReturn.append(String.format(" + (%d overtime)", getOvertimeLeft()));
-        }
-        toReturn.append("</font></html>");
-        return toReturn.toString();
-    }
-
     public boolean isRightTechTypeFor(IPartWork part) {
         Unit unit = part.getUnit();
         if (null == unit) {
-            if ((hasSkill(SkillType.S_TECH_MECH) && part.isRightTechType(SkillType.S_TECH_MECH))
-                || (hasSkill(SkillType.S_TECH_AERO) && part.isRightTechType(SkillType.S_TECH_AERO))
-                || (hasSkill(SkillType.S_TECH_MECHANIC) && part.isRightTechType(SkillType.S_TECH_MECHANIC))
-                || (hasSkill(SkillType.S_TECH_BA) && part.isRightTechType(SkillType.S_TECH_BA))
-                || (hasSkill(SkillType.S_TECH_VESSEL) && part.isRightTechType(SkillType.S_TECH_VESSEL))) {
-                return true;
-            }
-            return false;
+            return (hasSkill(SkillType.S_TECH_MECH) && part.isRightTechType(SkillType.S_TECH_MECH))
+                    || (hasSkill(SkillType.S_TECH_AERO) && part.isRightTechType(SkillType.S_TECH_AERO))
+                    || (hasSkill(SkillType.S_TECH_MECHANIC) && part.isRightTechType(SkillType.S_TECH_MECHANIC))
+                    || (hasSkill(SkillType.S_TECH_BA) && part.isRightTechType(SkillType.S_TECH_BA))
+                    || (hasSkill(SkillType.S_TECH_VESSEL) && part.isRightTechType(SkillType.S_TECH_VESSEL));
         }
         if (unit.getEntity() instanceof Mech || unit.getEntity() instanceof Protomech) {
             return hasSkill(SkillType.S_TECH_MECH);
@@ -3459,10 +3120,6 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return doctorId;
     }
 
-    public boolean isDoctor() {
-        return hasSkill(SkillType.S_DOCTOR) && (primaryRole == T_DOCTOR || secondaryRole == T_DOCTOR);
-    }
-
     public int getToughness() {
         return toughness;
     }
@@ -3472,19 +3129,9 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     public void resetSkillTypes() {
-        for (String skillName : skills.keySet()) {
-            Skill s = skills.get(skillName);
+        for (Skill s : skills.getSkills()) {
             s.updateType();
         }
-    }
-
-    public int getOldId() {
-        return oldId;
-    }
-
-    public void fixIdReferences(Map<Integer, UUID> uHash, Map<Integer, UUID> pHash) {
-        unitId = uHash.get(oldUnitId);
-        doctorId = pHash.get(oldDoctorId);
     }
 
     public int getNTasks() {
@@ -3495,13 +3142,13 @@ public class Person implements Serializable, MekHqXmlSerializable {
         nTasks = n;
     }
 
-    public ArrayList<LogEntry> getPersonnelLog() {
-        Collections.sort(personnelLog, Comparator.comparing(LogEntry::getDate));
+    public List<LogEntry> getPersonnelLog() {
+        personnelLog.sort(Comparator.comparing(LogEntry::getDate));
         return personnelLog;
     }
 
     public List<LogEntry> getMissionLog() {
-        Collections.sort(missionLog, Comparator.comparing(LogEntry::getDate));
+        missionLog.sort(Comparator.comparing(LogEntry::getDate));
         return missionLog;
     }
 
@@ -3513,11 +3160,12 @@ public class Person implements Serializable, MekHqXmlSerializable {
         missionLog.add(entry);
     }
 
+    //region injuries
     /**
-     * All methods below are for the Advanced Medical option **
+     * All methods below are for the Advanced Medical option
      */
 
-    public ArrayList<Injury> getInjuries() {
+    public List<Injury> getInjuries() {
         return new ArrayList<>(injuries);
     }
 
@@ -3534,59 +3182,10 @@ public class Person implements Serializable, MekHqXmlSerializable {
         MekHQ.triggerEvent(new PersonChangedEvent(this));
     }
 
-    public String getInjuriesDesc() {
-        String toReturn = "<html><font size='2'><b>" + getFullTitle() + "</b><br/>";
-        toReturn += "&nbsp;&nbsp;&nbsp;Injuries:";
-        String sep = "<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-        for (Injury injury : injuries) {
-            toReturn += sep + injury.getFluff();
-            if (sep.contains("<br/>")) {
-                sep = ", ";
-            } else {
-                sep = ",<br/>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
-            }
-        }
-        toReturn += "</font></html>";
-        return toReturn;
-    }
-
-    private int getHitsInLocation(BodyLocation loc) {
-        return ((null != loc) && hitsPerLocation.containsKey(loc)) ? hitsPerLocation.get(loc).intValue() : 0;
-    }
-    
     public void diagnose(int hits) {
         InjuryUtil.resolveAfterCombat(campaign, this, hits);
         InjuryUtil.resolveCombatDamage(campaign, this, hits);
         setHits(0);
-    }
-    public void changeStatus(int status) {
-        if (status == getStatus()) {
-            return;
-        }
-        Unit u = campaign.getUnit(getUnitId());
-        if (status == Person.S_KIA) {
-            MedicalLogger.diedFromWounds(this, campaign.getDate());
-            //set the deathday
-            setDeathday((GregorianCalendar) campaign.getCalendar().clone());
-        }
-        if (status == Person.S_RETIRED) {
-            ServiceLogger.retireDueToWounds(this, campaign.getDate());
-        }
-        setStatus(status);
-        if (status != Person.S_ACTIVE) {
-            setDoctorId(null, campaign.getCampaignOptions().getNaturalHealingWaitingPeriod());
-            // If we're assigned to a unit, remove us from it
-            if (null != u) {
-                u.remove(this, true);
-            }
-            // If we're assigned as a tech for any unit, remove us from it/them
-            if (!techUnitIds.isEmpty()) {
-                for (UUID tuuid : techUnitIds) {
-                    Unit t = campaign.getUnit(tuuid);
-                    t.remove(this, true);
-                }
-            }
-        }
     }
 
     public int getAbilityTimeModifier() {
@@ -3608,16 +3207,8 @@ public class Person implements Serializable, MekHqXmlSerializable {
         return modifier;
     }
 
-    public void applyBodyHit(BodyLocation location) {
-        hitsPerLocation.put(location, getHitsInLocation(location) + 1);
-    }
-
     public boolean hasInjury(BodyLocation loc) {
         return (null != getInjuryByLocation(loc));
-    }
-    
-    public boolean hasInjury(BodyLocation loc, InjuryType type) {
-        return (null != getInjuryByLocationAndType(loc, type));
     }
 
     public boolean needsAMFixing() {
@@ -3634,47 +3225,13 @@ public class Person implements Serializable, MekHqXmlSerializable {
     }
 
     public int getPilotingInjuryMod() {
-        return Modifier.calcTotalModifier(injuries.stream().flatMap(i -> i.getModifiers().stream()), Modifier.Value.PILOTING);
+        return Modifier.calcTotalModifier(injuries.stream().flatMap(i -> i.getModifiers().stream()), ModifierValue.PILOTING);
     }
 
     public int getGunneryInjuryMod() {
-        return Modifier.calcTotalModifier(injuries.stream().flatMap(i -> i.getModifiers().stream()), Modifier.Value.GUNNERY);
+        return Modifier.calcTotalModifier(injuries.stream().flatMap(i -> i.getModifiers().stream()), ModifierValue.GUNNERY);
     }
 
-    /**
-     * @return an HTML encoded string of effects
-     */
-    public String getEffectString() {
-        StringBuilder sb = new StringBuilder("<html>");
-        final int pilotingMod = getPilotingInjuryMod();
-        final int gunneryMod = getGunneryInjuryMod();
-        if((pilotingMod != 0) && (pilotingMod < Integer.MAX_VALUE)) {
-            sb.append(String.format("  Piloting %+d <br>", pilotingMod));
-        } else if(pilotingMod == Integer.MAX_VALUE) {
-            sb.append("  Piloting: <i>Impossible</i>  <br>");
-        }
-        if((gunneryMod != 0) && (gunneryMod < Integer.MAX_VALUE)) {
-            sb.append(String.format("  Gunnery: %+d <br>", gunneryMod));
-        } else if(gunneryMod == Integer.MAX_VALUE) {
-            sb.append("  Gunnery: <i>Impossible</i>  <br>");
-        }
-        return sb.append("</html>").toString();
-    }
-
-    public String getInjuriesText() {
-        String nl = System.getProperty("line.separator");
-        String buffer = "";
-        for (Injury injury : injuries) {
-            buffer = buffer + injury.getFluff() + nl;
-        }
-        return buffer + getEffectString();
-    }
-
-    public boolean hasInjuryModifiers() {
-        return injuries.stream().flatMap(i -> i.getModifiers().stream())
-            .anyMatch(mod -> mod.tags.contains(InjuryType.MODTAG_INJURY));
-    }
-    
     public boolean hasInjuries(boolean permCheck) {
         boolean tf = false;
         if (injuries.size() > 0) {
@@ -3715,67 +3272,15 @@ public class Person implements Serializable, MekHqXmlSerializable {
             .filter((i) -> (i.getLocation() == loc)).findFirst().orElse(null);
     }
 
-    public Injury getInjuryByType(InjuryType t) {
-        return injuries.stream()
-            .filter((i) -> (i.getType() == t)).findFirst().orElse(null);
-    }
-
-    public Injury getInjuryByLocationAndType(BodyLocation loc, InjuryType t) {
-        return injuries.stream()
-            .filter((i) -> (i.getLocation() == loc) && (i.getType() == t)).findFirst().orElse(null);
-    }
-
     public void addInjury(Injury i) {
-        injuries.add(i);
-        if (null != getUnitId()) {
-            campaign.getUnit(getUnitId()).resetPilotAndEntity();
+        injuries.add(Objects.requireNonNull(i));
+        if (null != getUnit()) {
+            getUnit().resetPilotAndEntity();
         }
     }
-
-    public int getProfession() {
-        return getProfessionFromPrimaryRole(primaryRole);
-    }
-
-    public static int getProfessionFromPrimaryRole(int role) {
-        switch (role) {
-            case T_MECHWARRIOR:
-            case T_PROTO_PILOT:
-            case T_DOCTOR:
-            case T_MEDIC:
-                return Ranks.RPROF_MW;
-            case T_AERO_PILOT:
-            case T_CONV_PILOT:
-                return Ranks.RPROF_ASF;
-            case T_GVEE_DRIVER:
-            case T_NVEE_DRIVER:
-            case T_VTOL_PILOT:
-            case T_VEE_GUNNER:
-            return Ranks.RPROF_VEE;
-            case T_BA:
-            case T_INFANTRY:
-                return Ranks.RPROF_INF;
-            case T_SPACE_PILOT:
-            case T_SPACE_CREW:
-            case T_SPACE_GUNNER:
-            case T_NAVIGATOR:
-                return Ranks.RPROF_NAVAL;
-            case T_MECH_TECH:
-            case T_MECHANIC:
-            case T_AERO_TECH:
-            case T_BA_TECH:
-            case T_ASTECH:
-            case T_ADMIN_COM:
-            case T_ADMIN_LOG:
-            case T_ADMIN_TRA:
-            case T_ADMIN_HR:
-                return Ranks.RPROF_TECH;
-            default:
-                return Ranks.RPROF_MW;
-        }
-    }
+    //endregion injuries
 
     /* For use by Against the Bot retirement/defection rolls */
-
     public boolean isFounder() {
         return founder;
     }
@@ -3810,53 +3315,53 @@ public class Person implements Serializable, MekHqXmlSerializable {
 
     public void setOriginalUnit(Unit unit) {
         originalUnitId = unit.getId();
-        originalUnitTech = 0;
         if (unit.getEntity().isClan()) {
-            originalUnitTech += 2;
-        } else if (unit.getEntity().getTechLevel() > megamek.common.TechConstants.T_INTRO_BOXSET) {
-            originalUnitTech++;
+            originalUnitTech = TECH_CLAN;
+        } else if (unit.getEntity().getTechLevel() > TechConstants.T_INTRO_BOXSET) {
+            originalUnitTech = TECH_IS2;
+        } else {
+            originalUnitTech = TECH_IS1;
         }
         originalUnitWeight = unit.getEntity().getWeightClass();
     }
 
+    /**
+     * This is used to get the number of shares the person has
+     * @param sharesForAll true if all combat and support personnel have shares, otherwise false if
+     *                     just MechWarriors have shares
+     * @return the number of shares the person has
+     */
     public int getNumShares(boolean sharesForAll) {
-        if (isPrisoner() || isBondsman() || !isActive()) {
-            return 0;
-        }
-        if (!sharesForAll && primaryRole != T_MECHWARRIOR &&
-                secondaryRole != T_MECHWARRIOR) {
+        if (!getStatus().isActive() || !getPrisonerStatus().isFree()
+                || (!sharesForAll && !hasRole(PersonnelRole.MECHWARRIOR))) {
             return 0;
         }
         int shares = 1;
-        if (founder) {
+        if (isFounder()) {
             shares++;
         }
         shares += Math.max(-1, getExperienceLevel(false) - 2);
 
         if (getRank().isOfficer()) {
-            Ranks ranks = getRanks();
-            int rankOrder = ranks.getOfficerCut();
-            while (rankOrder <= rank && rankOrder < Ranks.RC_NUM) {
-                Rank rank = ranks.getAllRanks().get(rankOrder);
-                if (!rank.getName(getProfession()).equals("-")) {
+            final Profession profession = Profession.getProfessionFromPersonnelRole(getPrimaryRole());
+            int rankOrder = getRankSystem().getOfficerCut();
+            while ((rankOrder <= getRankNumeric()) && (rankOrder < Rank.RC_NUM)) {
+                Rank rank = getRankSystem().getRanks().get(rankOrder);
+                if (!rank.isEmpty(profession)) {
                     shares++;
                 }
                 rankOrder++;
             }
         }
-        if (originalUnitWeight >= 1) {
+        if (getOriginalUnitWeight() >= 1) {
             shares++;
         }
-        if (originalUnitWeight >= 3) {
+        if (getOriginalUnitWeight()  >= 3) {
             shares++;
         }
-        shares += originalUnitTech;
+        shares += getOriginalUnitTech();
 
         return shares;
-    }
-
-    public boolean isDeadOrMIA() {
-        return (status == S_KIA) || (status == S_MIA);
     }
 
     public boolean isEngineer() {
@@ -3866,48 +3371,48 @@ public class Person implements Serializable, MekHqXmlSerializable {
     public void setEngineer(boolean b) {
         engineer = b;
     }
-    
-    public String getChildList() {
-        List<UUID> ancestors = new ArrayList<>();
-        for (Ancestors a : campaign.getAncestors()) {
-            if ((null != a)
-                && (getId().equals(a.getMotherID()) || getId().equals(a.getFatherID()))) {
-                ancestors.add(a.getId());
-            }
-        }
-        
-        List<String> children = new ArrayList<>();
-        for (Person p : campaign.getPersonnel()) {
-            if (ancestors.contains(p.getAncestorsID())) {
-                children.add(p.getFullName());
-            }
-        }
-        return "<html>" + Utilities.combineString(children, "<br/>") + "</html>";
+
+    /**
+     *
+     * @return the ransom value of this individual
+     * Useful for prisoner who you want to ransom or hand off to your employer in an AtB context
+     */
+    public Money getRansomValue() {
+        // MechWarriors and aero pilots are worth more than the other types of scrubs
+        return (getPrimaryRole().isMechWarriorGrouping() || getPrimaryRole().isAerospacePilot()
+                ? MECHWARRIOR_AERO_RANSOM_VALUES : OTHER_RANSOM_VALUES)
+                .get(getExperienceLevel(false));
     }
 
-    public boolean hasChildren() {
-        boolean hasKids = false;
-        if (getId() != null) {
-            for (Ancestors a : campaign.getAncestors()) {
-                if (getId().equals(a.getMotherID()) || getId().equals(a.getFatherID())) {
-                    hasKids = true;
-                    break;
-                }
+    public static class PersonUnitRef extends Unit {
+        private PersonUnitRef(UUID id) {
+            setId(id);
+        }
+    }
+
+    public void fixReferences(Campaign campaign) {
+        if (unit instanceof PersonUnitRef) {
+            UUID id = unit.getId();
+            unit = campaign.getUnit(id);
+            if (unit == null) {
+                LogManager.getLogger().error(
+                    String.format("Person %s ('%s') references missing unit %s",
+                        getId(), getFullName(), id));
             }
         }
-        
-        return hasKids;
-    }
-    
-    /** Returns the ransom value of this individual
-    * Useful for prisoner who you want to ransom or hand off to your employer in an AtB context */
-    public Money getRansomValue() {
-        // mechwarriors and aero pilots are worth more than the other types of scrubs
-        if(primaryRole == T_MECHWARRIOR || primaryRole == T_AERO_PILOT) {
-            return MECHWARRIOR_AERO_RANSOM_VALUES.get(getExperienceLevel(false));
-        }
-        else {
-            return OTHER_RANSOM_VALUES.get(getExperienceLevel(false));
+        for (int ii = techUnits.size() - 1; ii >= 0; --ii) {
+            Unit techUnit = techUnits.get(ii);
+            if (techUnit instanceof PersonUnitRef) {
+                Unit realUnit = campaign.getUnit(techUnit.getId());
+                if (realUnit != null) {
+                    techUnits.set(ii, realUnit);
+                } else {
+                    LogManager.getLogger().error(
+                        String.format("Person %s ('%s') techs missing unit %s",
+                            getId(), getFullName(), techUnit.getId()));
+                    techUnits.remove(ii);
+                }
+            }
         }
     }
 }

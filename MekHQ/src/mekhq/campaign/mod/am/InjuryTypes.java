@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 MegaMek team
+ * Copyright (C) 2016 - The MegaMek Team. All Rights Reserved.
  *
  * This file is part of MekHQ.
  *
@@ -7,36 +7,32 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
 package mekhq.campaign.mod.am;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.EnumSet;
-import java.util.List;
-
 import megamek.common.Compute;
-import megamek.common.logging.LogLevel;
-import mekhq.MekHQ;
+import megamek.common.enums.Gender;
 import mekhq.Utilities;
-import mekhq.campaign.*;
-import mekhq.campaign.log.LogEntryController;
+import mekhq.campaign.Campaign;
+import mekhq.campaign.GameEffect;
 import mekhq.campaign.log.MedicalLogEntry;
 import mekhq.campaign.log.MedicalLogger;
-import mekhq.campaign.personnel.BodyLocation;
 import mekhq.campaign.personnel.Injury;
-import mekhq.campaign.personnel.InjuryLevel;
 import mekhq.campaign.personnel.InjuryType;
 import mekhq.campaign.personnel.Modifier;
 import mekhq.campaign.personnel.Person;
+import mekhq.campaign.personnel.enums.*;
+import org.apache.logging.log4j.LogManager;
+
+import java.util.*;
 
 /** Advanced Medical sub-system injury types */
 public final class InjuryTypes {
@@ -60,10 +56,10 @@ public final class InjuryTypes {
     public static final InjuryType SEVERED_SPINE = new InjuryTypes.SeveredSpine();
 
     private static boolean registered = false;
-    
+
     /** Register all injury types defined here. Don't use them until you called this once! */
     public static synchronized void registerAll() {
-        if(!registered) {
+        if (!registered) {
             InjuryType.register(0, "am:cut", CUT);
             InjuryType.register(1, "am:bruise", BRUISE);
             InjuryType.register(2, "am:laceration", LACERATION);
@@ -83,18 +79,18 @@ public final class InjuryTypes {
             registered = true;
         }
     }
-    
+
     private static class AMInjuryType extends InjuryType {
         protected int modifyInjuryTime(Person p, int time) {
             // Randomize healing time
             int mod = 100;
             int rand = Compute.randomInt(100);
-            if(rand < 5) {
+            if (rand < 5) {
                 mod += (Compute.d6() < 4) ? rand : -rand;
             }
             return (int)Math.round((time * mod * p.getAbilityTimeModifier()) / 10000.0);
         }
-        
+
         @Override
         public Injury newInjury(Campaign c, Person p, BodyLocation loc, int severity) {
             Injury result = super.newInjury(c, p, loc, severity);
@@ -104,7 +100,7 @@ public final class InjuryTypes {
             return result;
         }
     }
-    
+
     public static final class SeveredSpine extends AMInjuryType {
         public SeveredSpine() {
             recoveryTime = 180;
@@ -114,16 +110,16 @@ public final class InjuryTypes {
             simpleName = "severed spine";
             level = InjuryLevel.CHRONIC;
         }
-    
+
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
             return "A severed spine in " + ((loc == BodyLocation.CHEST) ? "upper" : "lower") + " body";
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
-            return Arrays.asList(new Modifier(Modifier.Value.PILOTING, Integer.MAX_VALUE,
-                null, InjuryType.MODTAG_INJURY));
+            return Collections.singletonList(new Modifier(ModifierValue.PILOTING, Integer.MAX_VALUE,
+                    null, InjuryType.MODTAG_INJURY));
         }
     }
 
@@ -135,29 +131,27 @@ public final class InjuryTypes {
             simpleName = "broken back";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int"; //$NON-NLS-1$
-            
-            return Arrays.asList(new GameEffect(
-                "20% chance of severing the spine, permanently paralizing the character",
-                rnd -> {
-                    if(rnd.applyAsInt(100) < 20) {
-                        Injury severedSpine = SEVERED_SPINE.newInjury(c, p, BodyLocation.CHEST, 1);
-                        p.addInjury(severedSpine);
+            return Collections.singletonList(new GameEffect(
+                    "20% chance of severing the spine, permanently paralyzing the character",
+                    rnd -> {
+                        if (rnd.applyAsInt(100) < 20) {
+                            Injury severedSpine = SEVERED_SPINE.newInjury(c, p, BodyLocation.CHEST, 1);
+                            p.addInjury(severedSpine);
 
-                        MedicalLogEntry entry = MedicalLogger.severedSpine(p, c.getDate());
-                        MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                    }
-                }));
+                            MedicalLogEntry entry = MedicalLogger.severedSpine(p, c.getLocalDate());
+                            LogManager.getLogger().info(entry.toString());
+                        }
+                    }));
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
             return Arrays.asList(
-                new Modifier(Modifier.Value.GUNNERY, 3, null, InjuryType.MODTAG_INJURY),
-                new Modifier(Modifier.Value.PILOTING, 3, null, InjuryType.MODTAG_INJURY));
+                new Modifier(ModifierValue.GUNNERY, 3, null, InjuryType.MODTAG_INJURY),
+                new Modifier(ModifierValue.PILOTING, 3, null, InjuryType.MODTAG_INJURY));
         }
     }
 
@@ -170,40 +164,37 @@ public final class InjuryTypes {
             simpleName = "CTE";
             level = InjuryLevel.DEADLY;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
-            int deathchance = Math.max((int) Math.round((1 + hits) * 100.0 / 6.0), 100);
-            if(hits > 4) {
-                return Arrays.asList(
-                    new GameEffect(
-                        "certain death",
-                        rnd -> {
-                            p.setStatus(Person.S_KIA);
-                            MedicalLogEntry entry = MedicalLogger.diedDueToBrainTrauma(p, c.getDate());
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                        }));
+            int deathChance = Math.max((int) Math.round((1 + hits) * 100.0 / 6.0), 100);
+            if (hits > 4) {
+                return Collections.singletonList(
+                        new GameEffect(
+                                "certain death",
+                                rnd -> {
+                                    p.changeStatus(c, c.getLocalDate(), PersonnelStatus.WOUNDS);
+                                    MedicalLogEntry entry = MedicalLogger.diedDueToBrainTrauma(p, c.getLocalDate());
+                                    LogManager.getLogger().info(entry.toString());
+                                }));
             } else {
                 // We have a chance!
                 return Arrays.asList(
                     newResetRecoveryTimeAction(i),
-                    new GameEffect(
-                        deathchance + "% chance of death",
+                    new GameEffect(deathChance + "% chance of death",
                         rnd -> {
-                            if(rnd.applyAsInt(6) + hits >= 5) {
-                                p.setStatus(Person.S_KIA);
-                                MedicalLogEntry entry = MedicalLogger.diedDueToBrainTrauma(p, c.getDate());
-                                MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                            if (rnd.applyAsInt(6) + hits >= 5) {
+                                p.changeStatus(c, c.getLocalDate(), PersonnelStatus.WOUNDS);
+                                MedicalLogEntry entry = MedicalLogger.diedDueToBrainTrauma(p, c.getLocalDate());
+                                LogManager.getLogger().info(entry.toString());
                         }
                     }));
             }
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
-            return Arrays.asList(new Modifier(Modifier.Value.PILOTING, Integer.MAX_VALUE, null, InjuryType.MODTAG_INJURY));
+            return Collections.singletonList(new Modifier(ModifierValue.PILOTING, Integer.MAX_VALUE, null, InjuryType.MODTAG_INJURY));
         }
     }
 
@@ -215,10 +206,10 @@ public final class InjuryTypes {
             simpleName = "punctured lung";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            return Arrays.asList(newResetRecoveryTimeAction(i));
+            return Collections.singletonList(newResetRecoveryTimeAction(i));
         }
     }
 
@@ -230,13 +221,11 @@ public final class InjuryTypes {
             simpleName = "cerebral contusion";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
             String secondEffectFluff = "development of a chronic traumatic encephalopathy";
-            if(hits < 5) {
+            if (hits < 5) {
                 int worseningChance = Math.max((int) Math.round((1 + hits) * 100.0 / 6.0), 100);
                 secondEffectFluff = worseningChance + "% chance of " + secondEffectFluff;
             }
@@ -245,20 +234,20 @@ public final class InjuryTypes {
                 new GameEffect(
                     secondEffectFluff,
                     rnd -> {
-                        if(rnd.applyAsInt(6) + hits >= 5) {
+                        if (rnd.applyAsInt(6) + hits >= 5) {
                             Injury cte = CTE.newInjury(c, p, BodyLocation.HEAD, 1);
                             p.addInjury(cte);
                             p.removeInjury(i);
-                            MedicalLogEntry entry = MedicalLogger.developedEncephalopatyh(p, c.getDate());
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                            MedicalLogEntry entry = MedicalLogger.developedEncephalopathy(p, c.getLocalDate());
+                            LogManager.getLogger().info(entry.toString());
                         }
                     })
                 );
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
-            return Arrays.asList(new Modifier(Modifier.Value.PILOTING, 2, null, InjuryType.MODTAG_INJURY));
+            return Collections.singletonList(new Modifier(ModifierValue.PILOTING, 2, null, InjuryType.MODTAG_INJURY));
         }
     }
 
@@ -269,38 +258,38 @@ public final class InjuryTypes {
             simpleName = "lost";
             level = InjuryLevel.CHRONIC;
         }
-    
+
         @Override
         public boolean isValidInLocation(BodyLocation loc) {
-            return loc.isLimb;
+            return loc.isLimb();
         }
-        
+
         @Override
         public boolean impliesMissingLocation(BodyLocation loc) {
             return true;
         }
-        
+
         @Override
         public String getName(BodyLocation loc, int severity) {
-            return "Missing " + Utilities.capitalize(loc.readableName);
+            return "Missing " + Utilities.capitalize(loc.locationName());
         }
 
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "Lost " + Person.getGenderPronoun(gender, Person.PRONOUN_HISHER) + " "
-                + loc.readableName;
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "Lost " + GenderDescriptors.HIS_HER.getDescriptor(gender) + " "
+                    + loc.locationName();
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
             BodyLocation loc = inj.getLocation();
-            switch(loc) {
+            switch (loc) {
                 case LEFT_ARM: case LEFT_HAND: case RIGHT_ARM: case RIGHT_HAND:
-                    return Arrays.asList(new Modifier(Modifier.Value.GUNNERY, 3, null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.GUNNERY, 3, null, InjuryType.MODTAG_INJURY));
                 case LEFT_LEG: case LEFT_FOOT: case RIGHT_LEG: case RIGHT_FOOT:
-                    return Arrays.asList(new Modifier(Modifier.Value.PILOTING, 3, null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.PILOTING, 3, null, InjuryType.MODTAG_INJURY));
                 default:
-                    return Arrays.asList();
+                    return Collections.emptyList();
             }
         }
     }
@@ -312,61 +301,64 @@ public final class InjuryTypes {
             maxSeverity = 3;
             simpleName = "internal bleeding";
         }
-    
+
         @Override
         public int getRecoveryTime(int severity) {
             return 20 * severity;
         }
-    
+
         @Override
         public String getName(BodyLocation loc, int severity) {
-            return Utilities.capitalize(getFluffText(loc, severity, 0));
+            return Utilities.capitalize(getFluffText(loc, severity, Gender.MALE));
         }
-        
+
         @Override
         public InjuryLevel getLevel(Injury i) {
             return (i.getHits() > 2) ? InjuryLevel.DEADLY : InjuryLevel.MAJOR;
         }
-        
+
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            switch(severity) {
-                case 2: return "Severe internal bleeding";
-                case 3: return "Critical internal bleeding";
-                default: return "Internal bleeding";
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            switch (severity) {
+                case 2:
+                    return "Severe internal bleeding";
+                case 3:
+                    return "Critical internal bleeding";
+                default:
+                    return "Internal bleeding";
             }
         }
 
         @Override
         public String getSimpleName(int severity) {
-            switch(severity) {
-                case 2: return "internal bleeding (severe)";
-                case 3: return "internal bleeding (critical)";
-                default: return "internal bleeding";
+            switch (severity) {
+                case 2:
+                    return "internal bleeding (severe)";
+                case 3:
+                    return "internal bleeding (critical)";
+                default:
+                    return "internal bleeding";
             }
         }
 
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
-            String secondEffectFluff = (i.getHits() < 3)
-                ? "internal bleeding worsening" : "death";
-            if(hits < 5) {
+            String secondEffectFluff = (i.getHits() < 3) ? "internal bleeding worsening" : "death";
+            if (hits < 5) {
                 int worseningChance = Math.max((int) Math.round((1 + hits) * 100.0 / 6.0), 100);
                 secondEffectFluff = worseningChance + "% chance of " + secondEffectFluff;
             }
-            if(hits >= 5 && i.getHits() >= 3) {
+            if (hits >= 5 && i.getHits() >= 3) {
                 // Don't even bother doing anything else; we're dead
-                return Arrays.asList(
-                    new GameEffect(
-                        "certain death",
-                        rnd -> {
-                            p.setStatus(Person.S_KIA);
-                            MedicalLogEntry entry = MedicalLogger.diedOfInternalBleeding(p, c.getDate());
-                            MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                        })
-                    );
+                return Collections.singletonList(
+                        new GameEffect(
+                                "certain death",
+                                rnd -> {
+                                    p.changeStatus(c, c.getLocalDate(), PersonnelStatus.WOUNDS);
+                                    MedicalLogEntry entry = MedicalLogger.diedOfInternalBleeding(p, c.getLocalDate());
+                                    LogManager.getLogger().info(entry.toString());
+                                })
+                );
             } else {
                 // We have a chance!
                 return Arrays.asList(
@@ -374,15 +366,15 @@ public final class InjuryTypes {
                     new GameEffect(
                         secondEffectFluff,
                         rnd -> {
-                            if(rnd.applyAsInt(6) + hits >= 5) {
-                                if(i.getHits() < 3) {
+                            if (rnd.applyAsInt(6) + hits >= 5) {
+                                if (i.getHits() < 3) {
                                     i.setHits(i.getHits() + 1);
-                                    MedicalLogEntry entry = MedicalLogger.internalBleedingWorsened(p, c.getDate());
-                                    MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                                    MedicalLogEntry entry = MedicalLogger.internalBleedingWorsened(p, c.getLocalDate());
+                                    LogManager.getLogger().info(entry.toString());
                                 } else {
-                                    p.setStatus(Person.S_KIA);
-                                    MedicalLogEntry entry = MedicalLogger.diedOfInternalBleeding(p, c.getDate());
-                                    MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                                    p.changeStatus(c, c.getLocalDate(), PersonnelStatus.WOUNDS);
+                                    MedicalLogEntry entry = MedicalLogger.diedOfInternalBleeding(p, c.getLocalDate());
+                                    LogManager.getLogger().info(entry.toString());
                                 }
                             }
                         })
@@ -399,10 +391,10 @@ public final class InjuryTypes {
             simpleName = "broken collar bone";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            return Arrays.asList(newResetRecoveryTimeAction(i));
+            return Collections.singletonList(newResetRecoveryTimeAction(i));
         }
     }
 
@@ -412,39 +404,39 @@ public final class InjuryTypes {
             simpleName = "broken";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public boolean isValidInLocation(BodyLocation loc) {
-            return loc.isLimb;
-        }
-        
-        @Override
-        public String getName(BodyLocation loc, int severity) {
-            return "Broken " + Utilities.capitalize(loc.readableName);
+            return loc.isLimb();
         }
 
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "A broken " + loc.readableName;
+        public String getName(BodyLocation loc, int severity) {
+            return "Broken " + Utilities.capitalize(loc.locationName());
         }
-    
+
+        @Override
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "A broken " + loc.locationName();
+        }
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            return Arrays.asList(newResetRecoveryTimeAction(i));
+            return Collections.singletonList(newResetRecoveryTimeAction(i));
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
             BodyLocation loc = inj.getLocation();
-            switch(loc) {
+            switch (loc) {
                 case LEFT_ARM: case LEFT_HAND: case RIGHT_ARM: case RIGHT_HAND:
-                    return Arrays.asList(new Modifier(Modifier.Value.GUNNERY, inj.isPermanent() ? 1 : 2,
-                        null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.GUNNERY, inj.isPermanent() ? 1 : 2,
+                            null, InjuryType.MODTAG_INJURY));
                 case LEFT_LEG: case LEFT_FOOT: case RIGHT_LEG: case RIGHT_FOOT:
-                    return Arrays.asList(new Modifier(Modifier.Value.PILOTING, inj.isPermanent() ? 1 : 2,
-                        null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.PILOTING, inj.isPermanent() ? 1 : 2,
+                            null, InjuryType.MODTAG_INJURY));
                 default:
-                    return Arrays.asList();
+                    return Collections.emptyList();
             }
         }
     }
@@ -457,21 +449,19 @@ public final class InjuryTypes {
             simpleName = "bruised kidney";
             level = InjuryLevel.MINOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
-            return Arrays.asList(new GameEffect(
-                "10% chance of internal bleeding",
-                rnd -> {
-                    if(rnd.applyAsInt(100) < 10) {
-                        Injury bleeding = INTERNAL_BLEEDING.newInjury(c, p, BodyLocation.ABDOMEN, 1);
-                        p.addInjury(bleeding);
-                        MedicalLogEntry entry = MedicalLogger.brokenRibPuncture(p, c.getDate());
-                        MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                    }
-                }));
+            return Collections.singletonList(new GameEffect(
+                    "10% chance of internal bleeding",
+                    rnd -> {
+                        if (rnd.applyAsInt(100) < 10) {
+                            Injury bleeding = INTERNAL_BLEEDING.newInjury(c, p, BodyLocation.ABDOMEN, 1);
+                            p.addInjury(bleeding);
+                            MedicalLogEntry entry = MedicalLogger.brokenRibPuncture(p, c.getLocalDate());
+                            LogManager.getLogger().info(entry.toString());
+                        }
+                    }));
         }
     }
 
@@ -483,26 +473,24 @@ public final class InjuryTypes {
             simpleName = "broken rib";
             level = InjuryLevel.MAJOR;
         }
-    
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
-            return Arrays.asList(new GameEffect(
-                "1% chance of death; 9% chance of puncturing a lung",
-                rnd -> {
-                    int rib = rnd.applyAsInt(100);
-                    if(rib < 1) {
-                        p.changeStatus(Person.S_KIA);
-                        MedicalLogEntry entry = MedicalLogger.brokenRibPunctureDead(p, c.getDate());
-                        MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                    } else if(rib < 10) {
-                        Injury puncturedLung = PUNCTURED_LUNG.newInjury(c, p, BodyLocation.CHEST, 1);
-                        p.addInjury(puncturedLung);
-                        MedicalLogEntry entry = MedicalLogger.brokenRibPuncture(p, c.getDate());
-                        MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
-                    }
-                }));
+            return Collections.singletonList(new GameEffect(
+                    "1% chance of death; 9% chance of puncturing a lung",
+                    rnd -> {
+                        int rib = rnd.applyAsInt(100);
+                        if (rib < 1) {
+                            p.changeStatus(c, c.getLocalDate(), PersonnelStatus.WOUNDS);
+                            MedicalLogEntry entry = MedicalLogger.brokenRibPunctureDead(p, c.getLocalDate());
+                            LogManager.getLogger().info(entry.toString());
+                        } else if (rib < 10) {
+                            Injury puncturedLung = PUNCTURED_LUNG.newInjury(c, p, BodyLocation.CHEST, 1);
+                            p.addInjury(puncturedLung);
+                            MedicalLogEntry entry = MedicalLogger.brokenRibPuncture(p, c.getLocalDate());
+                            LogManager.getLogger().info(entry.toString());
+                        }
+                    }));
         }
     }
 
@@ -513,57 +501,54 @@ public final class InjuryTypes {
             maxSeverity = 2;
             fluffText = "A concussion";
         }
-    
+
         @Override
         public int getRecoveryTime(int severity) {
             return severity >= 2 ? 42 : 14;
         }
-    
+
         @Override
         public InjuryLevel getLevel(Injury i) {
             return (i.getHits() > 1) ? InjuryLevel.MAJOR : InjuryLevel.MINOR;
         }
-        
+
         @Override
         public String getSimpleName(int severity) {
             return ((severity == 1) ? "concussion" : "concussion (severe)");
         }
-        
+
         @Override
         public List<GameEffect> genStressEffect(Campaign c, Person p, Injury i, int hits) {
-            final String METHOD_NAME = "genStressEffect(Campaign,Person,Injury,int)"; //$NON-NLS-1$
-
             String secondEffectFluff = (i.getHits() == 1)
                 ? "concussion worsening" : "development of a cerebral contusion";
-            if(hits < 5) {
+            if (hits < 5) {
                 int worseningChance = Math.max((int) Math.round((1 + hits) * 100.0 / 6.0), 100);
                 secondEffectFluff = worseningChance + "% chance of " + secondEffectFluff;
             }
-            return Arrays.asList(
-                newResetRecoveryTimeAction(i),
+            return Arrays.asList(newResetRecoveryTimeAction(i),
                 new GameEffect(
                     secondEffectFluff,
                     rnd -> {
-                        if(rnd.applyAsInt(6) + hits >= 5) {
-                            if(i.getHits() == 1) {
+                        if (rnd.applyAsInt(6) + hits >= 5) {
+                            if (i.getHits() == 1) {
                                 i.setHits(2);
-                                MedicalLogEntry entry = MedicalLogger.concussionWorsned(p, c.getDate());
-                                MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                                MedicalLogEntry entry = MedicalLogger.concussionWorsened(p, c.getLocalDate());
+                                LogManager.getLogger().info(entry.toString());
                             } else {
                                 Injury cerebralContusion = CEREBRAL_CONTUSION.newInjury(c, p, BodyLocation.HEAD, 1);
                                 p.addInjury(cerebralContusion);
                                 p.removeInjury(i);
-                                MedicalLogEntry entry = MedicalLogger.developedCerbralContusion(p, c.getDate());
-                                MekHQ.getLogger().log(getClass(), METHOD_NAME, LogLevel.INFO, entry.toString());
+                                MedicalLogEntry entry = MedicalLogger.developedCerebralContusion(p, c.getLocalDate());
+                                LogManager.getLogger().info(entry.toString());
                             }
                         }
                     })
                 );
         }
-        
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
-            return Arrays.asList(new Modifier(Modifier.Value.PILOTING, 1, null, InjuryType.MODTAG_INJURY));
+            return Collections.singletonList(new Modifier(ModifierValue.PILOTING, 1, null, InjuryType.MODTAG_INJURY));
         }
     }
 
@@ -573,32 +558,32 @@ public final class InjuryTypes {
             simpleName = "sprained";
             level = InjuryLevel.MINOR;
         }
-    
+
         @Override
         public boolean isValidInLocation(BodyLocation loc) {
-            return loc.isLimb;
-        }
-        
-        @Override
-        public String getName(BodyLocation loc, int severity) {
-            return "Sprained " + Utilities.capitalize(loc.readableName);
+            return loc.isLimb();
         }
 
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "A sprained " + loc.readableName;
+        public String getName(BodyLocation loc, int severity) {
+            return "Sprained " + Utilities.capitalize(loc.locationName());
         }
-        
+
+        @Override
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "A sprained " + loc.locationName();
+        }
+
         @Override
         public Collection<Modifier> getModifiers(Injury inj) {
             BodyLocation loc = inj.getLocation();
             switch(loc) {
                 case LEFT_ARM: case LEFT_HAND: case RIGHT_ARM: case RIGHT_HAND:
-                    return Arrays.asList(new Modifier(Modifier.Value.GUNNERY, 1, null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.GUNNERY, 1, null, InjuryType.MODTAG_INJURY));
                 case LEFT_LEG: case LEFT_FOOT: case RIGHT_LEG: case RIGHT_FOOT:
-                    return Arrays.asList(new Modifier(Modifier.Value.PILOTING, 1, null, InjuryType.MODTAG_INJURY));
+                    return Collections.singletonList(new Modifier(ModifierValue.PILOTING, 1, null, InjuryType.MODTAG_INJURY));
                 default:
-                    return Arrays.asList();
+                    return Collections.emptyList();
             }
         }
     }
@@ -609,17 +594,17 @@ public final class InjuryTypes {
             simpleName = "laceration";
             level = InjuryLevel.MINOR;
         }
-    
+
         @Override
         public String getName(BodyLocation loc, int severity) {
-            return "Lacerated " + Utilities.capitalize(loc.readableName);
+            return "Lacerated " + Utilities.capitalize(loc.locationName());
         }
 
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "A laceration on " + Person.getGenderPronoun(gender, Person.PRONOUN_HISHER) + " head";
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "A laceration on " + GenderDescriptors.HIS_HER.getDescriptor(gender) + " head";
         }
-        
+
         @Override
         protected int modifyInjuryTime(Person p, int time) {
             return super.modifyInjuryTime(p, time + Compute.d6());
@@ -632,23 +617,23 @@ public final class InjuryTypes {
             simpleName = "bruised";
             level = InjuryLevel.MINOR;
         }
-    
+
         @Override
         public boolean isValidInLocation(BodyLocation loc) {
-            return loc.isLimb || super.isValidInLocation(loc);
-        }
-        
-        @Override
-        public String getName(BodyLocation loc, int severity) {
-            return "Bruised " + Utilities.capitalize(loc.readableName);
+            return loc.isLimb() || super.isValidInLocation(loc);
         }
 
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "A bruise on " + Person.getGenderPronoun(gender, Person.PRONOUN_HISHER) + " "
-                + loc.readableName;
+        public String getName(BodyLocation loc, int severity) {
+            return "Bruised " + Utilities.capitalize(loc.locationName());
         }
-        
+
+        @Override
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "A bruise on " + GenderDescriptors.HIS_HER.getDescriptor(gender) + " "
+                    + loc.locationName();
+        }
+
         @Override
         protected int modifyInjuryTime(Person p, int time) {
             return super.modifyInjuryTime(p, time + Compute.d6());
@@ -661,23 +646,23 @@ public final class InjuryTypes {
             simpleName = "cut";
             level = InjuryLevel.MINOR;
         }
-    
+
         @Override
         public boolean isValidInLocation(BodyLocation loc) {
-            return loc.isLimb || super.isValidInLocation(loc);
+            return loc.isLimb() || super.isValidInLocation(loc);
         }
 
         @Override
         public String getName(BodyLocation loc, int severity) {
-            return "Cut " + Utilities.capitalize(loc.readableName);
+            return "Cut " + Utilities.capitalize(loc.locationName());
         }
-        
+
         @Override
-        public String getFluffText(BodyLocation loc, int severity, int gender) {
-            return "Some cuts on " + Person.getGenderPronoun(gender, Person.PRONOUN_HISHER) + " "
-                + loc.readableName;
+        public String getFluffText(BodyLocation loc, int severity, Gender gender) {
+            return "Some cuts on " + GenderDescriptors.HIS_HER.getDescriptor(gender) + " "
+                    + loc.locationName();
         }
-        
+
         @Override
         protected int modifyInjuryTime(Person p, int time) {
             return super.modifyInjuryTime(p, time + Compute.d6());

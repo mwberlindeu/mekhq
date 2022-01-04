@@ -1,24 +1,23 @@
 /*
  * Avionics.java
- * 
+ *
  * Copyright (c) 2009 Jay Lawson <jaylawson39 at yahoo.com>. All rights reserved.
- * 
+ *
  * This file is part of MekHQ.
- * 
+ *
  * MekHQ is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
-
 package mekhq.campaign.parts;
 
 import java.io.PrintWriter;
@@ -29,47 +28,45 @@ import org.w3c.dom.Node;
 import megamek.common.Aero;
 import megamek.common.Compute;
 import megamek.common.CriticalSlot;
+import megamek.common.Dropship;
 import megamek.common.Entity;
 import megamek.common.EquipmentType;
 import megamek.common.IAero;
+import megamek.common.Jumpship;
 import megamek.common.LandAirMech;
 import megamek.common.TechAdvancement;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.personnel.SkillType;
 
 /**
- *
  * @author Jay Lawson <jaylawson39 at yahoo.com>
  */
 public class Avionics extends Part {
-
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = -717866644605314883L;
 
 	public Avionics() {
     	this(0, null);
     }
-    
+
     public Avionics(int tonnage, Campaign c) {
         super(tonnage, c);
         this.name = "Avionics";
     }
-    
+
+    @Override
     public Avionics clone() {
     	Avionics clone = new Avionics(0, campaign);
         clone.copyBaseData(this);
     	return clone;
     }
-        
+
 	@Override
 	public void updateConditionFromEntity(boolean checkForDestruction) {
 		int priorHits = hits;
-		if(null != unit
+		if (null != unit
 		        && (unit.getEntity().getEntityType() & (Entity.ETYPE_AERO | Entity.ETYPE_LAND_AIR_MECH)) != 0) {
-			hits = ((IAero)unit.getEntity()).getAvionicsHits();
-			if(checkForDestruction 
+			hits = ((IAero) unit.getEntity()).getAvionicsHits();
+			if (checkForDestruction
 					&& hits > priorHits
 					&& (hits < 3 && !campaign.getCampaignOptions().useAeroSystemHits())
 					&& Compute.d6(2) < campaign.getCampaignOptions().getDestroyPartTarget()) {
@@ -79,20 +76,19 @@ public class Avionics extends Part {
 			}
 		}
 	}
-	
-	@Override 
+
+	@Override
 	public int getBaseTime() {
-	    int time = 0;
+	    int time;
 		if (campaign.getCampaignOptions().useAeroSystemHits()) {
 		    //Test of proposed errata for repair times
-		    Entity e = unit.getEntity();
-		    if (e.hasETypeFlag(Entity.ETYPE_DROPSHIP) || e.hasETypeFlag(Entity.ETYPE_JUMPSHIP)) {
+		    if (null != unit && (unit.getEntity() instanceof Dropship || unit.getEntity() instanceof Jumpship)) {
                 time = 240;
             } else {
                 time = 120;
             }
 		    if (isSalvaging()) {
-		        if (e.hasETypeFlag(Entity.ETYPE_DROPSHIP) || e.hasETypeFlag(Entity.ETYPE_JUMPSHIP)) {
+		        if (null != unit && (unit.getEntity() instanceof Dropship || unit.getEntity() instanceof Jumpship)) {
 	                time *= 10;
 	            } else {
 	                time *= 5;
@@ -100,7 +96,7 @@ public class Avionics extends Part {
 		    }
 		    if (hits == 1) {
 		        time *= 1;
-		    } 
+		    }
 		    if (hits == 2) {
 		        time *= 2;
 		    }
@@ -113,22 +109,22 @@ public class Avionics extends Part {
 		}
 		return time;
 	}
-	
+
 	@Override
 	public int getDifficulty() {
 	    if (campaign.getCampaignOptions().useAeroSystemHits()) {
             //Test of proposed errata for repair time and difficulty
-            if(isSalvaging()) {
+            if (isSalvaging()) {
                 return 1;
             }
             if (hits == 1) {
                 return 0;
-            } 
+            }
             if (hits == 2) {
                 return 1;
             }
         }
-		if(isSalvaging()) {
+		if (isSalvaging()) {
 			return 1;
 		}
 		return 0;
@@ -140,9 +136,9 @@ public class Avionics extends Part {
 	        return;
 	    }
 	    if (unit.getEntity() instanceof Aero) {
-			((Aero)unit.getEntity()).setAvionicsHits(hits);
+			((Aero) unit.getEntity()).setAvionicsHits(hits);
 		} else if (unit.getEntity() instanceof LandAirMech) {
-		    if(hits == 0) {
+		    if (hits == 0) {
 		        unit.repairSystem(CriticalSlot.TYPE_SYSTEM, LandAirMech.LAM_AVIONICS);
 		    } else {
 		        unit.damageSystem(CriticalSlot.TYPE_SYSTEM, LandAirMech.LAM_AVIONICS, hits);
@@ -153,9 +149,9 @@ public class Avionics extends Part {
 	@Override
 	public void fix() {
 		super.fix();
-		if(null != unit) {
+		if (null != unit) {
 		    if (unit.getEntity() instanceof Aero) {
-		        ((Aero)unit.getEntity()).setAvionicsHits(0);
+		        ((Aero) unit.getEntity()).setAvionicsHits(0);
 		    } else if (unit.getEntity() instanceof LandAirMech) {
                 unit.repairSystem(CriticalSlot.TYPE_SYSTEM, LandAirMech.LAM_AVIONICS);
 		    }
@@ -164,23 +160,23 @@ public class Avionics extends Part {
 
 	@Override
 	public void remove(boolean salvage) {
-		if(null != unit) {
+		if (null != unit) {
 		    if (unit.getEntity() instanceof Aero) {
-		        ((Aero)unit.getEntity()).setAvionicsHits(3);
+		        ((Aero) unit.getEntity()).setAvionicsHits(3);
 		    } else if (unit.getEntity() instanceof LandAirMech) {
 		        unit.damageSystem(CriticalSlot.TYPE_SYSTEM, LandAirMech.LAM_AVIONICS, 3);
 		    }
-			Part spare = campaign.checkForExistingSparePart(this);
-			if(!salvage) {
-				campaign.removePart(this);
-			} else if(null != spare) {
+			Part spare = campaign.getWarehouse().checkForExistingSparePart(this);
+			if (!salvage) {
+				campaign.getWarehouse().removePart(this);
+			} else if (null != spare) {
 				spare.incrementQuantity();
-				campaign.removePart(this);
+				campaign.getWarehouse().removePart(this);
 			}
 			unit.removePart(this);
 			Part missing = getMissingPart();
 			unit.addPart(missing);
-			campaign.addPart(missing, 0);
+			campaign.getQuartermaster().addPart(missing, 0);
 		}
 		setUnit(null);
 		updateConditionFromEntity(false);
@@ -233,13 +229,13 @@ public class Avionics extends Part {
 	protected void loadFieldsFromXmlNode(Node wn) {
 		//nothing to load
 	}
-	
+
 	@Override
 	public boolean isRightTechType(String skillType) {
 	    if (unit != null && unit.getEntity() instanceof LandAirMech) {
 	        return skillType.equals(SkillType.S_TECH_MECH);
 	    }
-		return skillType.equals(SkillType.S_TECH_AERO);
+		return (skillType.equals(SkillType.S_TECH_AERO) || skillType.equals(SkillType.S_TECH_VESSEL));
 	}
 
     @Override
@@ -257,10 +253,9 @@ public class Avionics extends Part {
         }
         return Entity.LOC_NONE;
     }
-    
+
 	@Override
 	public TechAdvancement getTechAdvancement() {
 	    return TA_GENERIC;
 	}
-	
 }

@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -145,6 +145,9 @@ CLLaserAntiMissileSystem
 CLLaserAntiMissileSystem
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 20
 </structural_integrity>
@@ -156,6 +159,10 @@ TRO 3145 Mercenaries - Late Republic
 <tonnage>
 3000.0
 </tonnage>
+
+<designtype>
+1
+</designtype>
 
 <crew>
 15
@@ -192,4 +199,3 @@ TRO 3145 Mercenaries - Late Republic
 <escape_pod>
 4
 </escape_pod>
-

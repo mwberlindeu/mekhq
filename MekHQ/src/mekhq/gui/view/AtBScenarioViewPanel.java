@@ -1,7 +1,7 @@
 /*
  * AtBScenarioViewPanel.java
  *
- * Copyright (C) 2014-2016 MegaMek team
+ * Copyright (C) 2014-2021 - The MegaMek Team. All Rights Reserved.
  * Copyright (c) 2014 Carl Spain. All rights reserved.
  *
  * This file is part of MekHQ.
@@ -13,80 +13,52 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
 package mekhq.gui.view;
 
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Image;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
-import java.awt.event.MouseEvent;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.ResourceBundle;
-import java.util.Vector;
-
-import javax.swing.BorderFactory;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JCheckBox;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JMenuItem;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JTextArea;
-import javax.swing.JTree;
-import javax.swing.event.MouseInputAdapter;
-import javax.swing.event.TreeModelListener;
-import javax.swing.tree.DefaultMutableTreeNode;
-import javax.swing.tree.DefaultTreeCellRenderer;
-import javax.swing.tree.TreeModel;
-import javax.swing.tree.TreePath;
-import javax.swing.tree.TreeSelectionModel;
-
+import megamek.client.ui.dialogs.BotConfigDialog;
+import megamek.client.ui.enums.DialogResult;
 import megamek.client.ui.swing.UnitEditorDialog;
-import megamek.common.Crew;
 import megamek.common.IStartingPositions;
 import megamek.common.PlanetaryConditions;
 import megamek.common.util.EncodeControl;
-import mekhq.IconPackage;
+import mekhq.MHQStaticDirectoryManager;
 import mekhq.campaign.Campaign;
-import mekhq.campaign.force.Force;
 import mekhq.campaign.force.ForceStub;
 import mekhq.campaign.force.UnitStub;
-import mekhq.campaign.mission.AtBDynamicScenario;
-import mekhq.campaign.mission.AtBScenario;
-import mekhq.campaign.mission.BotForceStub;
-import mekhq.campaign.mission.Loot;
-import mekhq.campaign.mission.ScenarioForceTemplate;
-import mekhq.gui.dialog.PrincessBehaviorDialog;
+import mekhq.campaign.mission.*;
+import mekhq.gui.baseComponents.JScrollablePanel;
+import org.apache.logging.log4j.LogManager;
+
+import javax.swing.*;
+import javax.swing.event.MouseInputAdapter;
+import javax.swing.event.TreeModelListener;
+import javax.swing.tree.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.ItemListener;
+import java.awt.event.MouseEvent;
+import java.text.DecimalFormat;
+import java.util.List;
+import java.util.*;
 
 /**
  * @author Neoancient
- *
  */
-public class AtBScenarioViewPanel extends JPanel {
+public class AtBScenarioViewPanel extends JScrollablePanel {
     private static final long serialVersionUID = -3104784717190158181L;
 
     private AtBScenario scenario;
     private Campaign campaign;
     private ForceStub playerForces;
-    private ArrayList<String> attachedAllyStub;
-    private ArrayList<BotForceStub> botStubs;
-    private IconPackage icons;
+    private List<String> attachedAllyStub;
+    private List<BotForceStub> botStubs;
     private JFrame frame;
 
     private JPanel panStats;
@@ -112,9 +84,9 @@ public class AtBScenarioViewPanel extends JPanel {
     private JLabel lblFog = new JLabel();
     private JLabel lblFogDesc = new JLabel();
     private JLabel lblAtmosphere = new JLabel();
-    private JLabel    lblAtmosphereDesc = new JLabel();
+    private JLabel lblAtmosphereDesc = new JLabel();
     private JLabel lblGravity = new JLabel();
-    private JLabel    lblGravityDesc = new JLabel();
+    private JLabel lblGravityDesc = new JLabel();
     private JLabel lblPlayerStart = new JLabel();
     private JLabel lblPlayerStartPos = new JLabel();
 
@@ -127,7 +99,7 @@ public class AtBScenarioViewPanel extends JPanel {
     private final static int REROLL_WEATHER = 4;
     private final static int REROLL_NUM = 5;
     private JCheckBox[] chkReroll = new JCheckBox[REROLL_NUM];
-    JButton btnReroll;
+    private JButton btnReroll;
 
     private JTree playerForceTree;
 
@@ -136,14 +108,14 @@ public class AtBScenarioViewPanel extends JPanel {
 
     private StubTreeModel playerForceModel;
 
-    public AtBScenarioViewPanel(AtBScenario s, Campaign c, IconPackage ip, JFrame frame) {
+    public AtBScenarioViewPanel(AtBScenario s, Campaign c, JFrame frame) {
+        super();
         this.frame = frame;
         this.scenario = s;
         this.campaign = c;
-        this.icons = ip;
-        botStubs = new ArrayList<BotForceStub>();
+        botStubs = new ArrayList<>();
 
-        if(s.isCurrent()) {
+        if (s.getStatus().isCurrent()) {
             s.refresh(c);
             this.playerForces = new ForceStub(s.getForces(campaign), campaign);
             attachedAllyStub = s.generateEntityStub(s.getAlliesPlayer());
@@ -160,7 +132,7 @@ public class AtBScenarioViewPanel extends JPanel {
     }
 
     private void initComponents() {
-        java.awt.GridBagConstraints gridBagConstraints;
+        GridBagConstraints gridBagConstraints;
 
         panStats = new JPanel();
         txtDesc = new JTextArea();
@@ -169,20 +141,19 @@ public class AtBScenarioViewPanel extends JPanel {
 
         setLayout(new GridBagLayout());
 
-        setBackground(Color.WHITE);
+        setTracksViewportWidth(false);
 
         int y = 0;
 
         panStats.setName("pnlStats");
         panStats.setBorder(BorderFactory.createTitledBorder(scenario.getName()));
-        panStats.setBackground(Color.WHITE);
         fillStats();
         gridBagConstraints = new java.awt.GridBagConstraints();
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = y++;
         gridBagConstraints.gridheight = 1;
         gridBagConstraints.weightx = 0.0;
-        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         add(panStats, gridBagConstraints);
@@ -226,8 +197,8 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.anchor = GridBagConstraints.NORTHWEST;
         panStats.add(lblStatus, gridBagConstraints);
 
-        lblStatusDesc.setName("lblOwner"); // NOI18N
-        lblStatusDesc.setText(scenario.getStatusName());
+        lblStatusDesc.setName("lblOwner");
+        lblStatusDesc.setText(scenario.getStatus().toString());
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblStatusDesc, gridBagConstraints);
@@ -243,7 +214,7 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridheight = 1;
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.weighty = 1.0;
-        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         panStats.add(playerForceTree, gridBagConstraints);
@@ -261,7 +232,7 @@ public class AtBScenarioViewPanel extends JPanel {
             gridBagConstraints.gridheight = 1;
             gridBagConstraints.weightx = 1.0;
             gridBagConstraints.weighty = 1.0;
-            gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
+            gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
             gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
             gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
             panStats.add(tree, gridBagConstraints);
@@ -287,11 +258,11 @@ public class AtBScenarioViewPanel extends JPanel {
             gridBagConstraints.gridheight = 1;
             gridBagConstraints.weightx = 1.0;
             gridBagConstraints.weighty = 1.0;
-            gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
+            gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
             gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
             gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
             panStats.add(tree, gridBagConstraints);
-            if (scenario.isCurrent()) {
+            if (scenario.getStatus().isCurrent()) {
                 tree.addMouseListener(new TreeMouseAdapter(tree, i));
             }
         }
@@ -309,7 +280,7 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridy = y++;
         panStats.add(lblTypeDesc, gridBagConstraints);
 
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             lblForce.setText(resourceMap.getString("lblForce.text"));
             gridBagConstraints.gridx = 0;
             gridBagConstraints.gridy = y;
@@ -318,37 +289,36 @@ public class AtBScenarioViewPanel extends JPanel {
 
             if (null != scenario.getLance(campaign)) {
                 lblForceDesc.setText(campaign.getForce(scenario.getLanceForceId()).getFullName());
-            } else if(scenario instanceof AtBDynamicScenario){
-            
+            } else if (scenario instanceof AtBDynamicScenario) {
                 StringBuilder forceBuilder = new StringBuilder();
                 forceBuilder.append("<html>");
                 boolean chop = false;
-                for(int forceID : scenario.getForceIDs()) {
+                for (int forceID : scenario.getForceIDs()) {
                     forceBuilder.append(campaign.getForce(forceID).getFullName());
                     forceBuilder.append("<br/>");
                     ScenarioForceTemplate template = ((AtBDynamicScenario) scenario).getPlayerForceTemplates().get(forceID);
-                    if(template != null && template.getActualDeploymentZone() >= 0) {
+                    if (template != null && template.getActualDeploymentZone() >= 0) {
                         forceBuilder.append("Deploy: ");
                         forceBuilder.append(IStartingPositions.START_LOCATION_NAMES[template.getActualDeploymentZone()]);
                         forceBuilder.append("<br/>");
                     }
                     chop = true;
                 }
-                
-                if(chop) {
+
+                if (chop) {
                     forceBuilder.delete(forceBuilder.length() - 5, forceBuilder.length());
                 }
                 forceBuilder.append("</html>");
                 lblForceDesc.setText(forceBuilder.toString());
             }
-            
+
             gridBagConstraints.gridx = 2;
             gridBagConstraints.gridy = y++;
             gridBagConstraints.gridwidth = 1;
             panStats.add(lblForceDesc, gridBagConstraints);
         }
 
-        if(scenario.getTerrainType() == AtBScenario.TER_SPACE) {
+        if (scenario.getTerrainType() == AtBScenario.TER_SPACE) {
             y = fillSpaceStats(gridBagConstraints, resourceMap, y);
         } else if (scenario.getTerrainType() == AtBScenario.TER_LOW_ATMO) {
             y = fillLowAtmoStats(gridBagConstraints, resourceMap, y);
@@ -356,20 +326,20 @@ public class AtBScenarioViewPanel extends JPanel {
             y = fillPlanetSideStats(gridBagConstraints, resourceMap, y);
         }
 
-        if(!(scenario instanceof AtBDynamicScenario)) {
+        if (!(scenario instanceof AtBDynamicScenario)) {
             lblPlayerStart.setText(resourceMap.getString("lblPlayerStart.text"));
             gridBagConstraints.gridx = 0;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
             panStats.add(lblPlayerStart, gridBagConstraints);
-    
+
             lblPlayerStartPos.setText(IStartingPositions.START_LOCATION_NAMES[scenario.getStart()]);
             gridBagConstraints.gridx = 2;
             gridBagConstraints.gridy = y++;
             panStats.add(lblPlayerStartPos, gridBagConstraints);
         }
 
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             btnReroll = new JButton(scenario.getRerollsRemaining() +
                     " Reroll" + ((scenario.getRerollsRemaining() == 1)?"":"s") +
                     " Remaining");
@@ -378,64 +348,8 @@ public class AtBScenarioViewPanel extends JPanel {
             gridBagConstraints.gridwidth = 1;
             panStats.add(btnReroll, gridBagConstraints);
             btnReroll.setEnabled(scenario.getRerollsRemaining() > 0);
-            btnReroll.addActionListener(new ActionListener() {
-                @Override
-                public void actionPerformed(ActionEvent arg0) {
-                    rerollBattleConditions();
-                }
-            });
+            btnReroll.addActionListener(arg0 -> rerollBattleConditions());
         }
-
-        txtDetails.setLineWrap(true);
-        txtDetails.setWrapStyleWord(true);
-        txtDetails.setEditable(false);
-        
-        if (scenario.isSpecialMission()) {
-            txtDetails.setText("Details:\n" +
-                    scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    ".description"));
-        } else if (scenario.isBigBattle()) {
-            txtDetails.setText("Special Conditions:\n" +
-            		scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    ".specialConditions") + "\n\n" +
-
-                    "Victory Conditions:\n" +
-                    scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    ".victory") + "\n\n" +
-
-                    "Observations:\n" +
-                    scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    ".observations"));
-        } else if(!(scenario instanceof AtBDynamicScenario)) {
-            txtDetails.setText("Victory Conditions:\n" +
-            		scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    (scenario.isAttacker()?
-                            ".attacker.victory":
-                                ".defender.victory")) + "\n\n" +
-
-                    "Observations:\n" +
-                    scenario.getResourceBundle().getString("battleDetails." +
-                    scenario.getResourceKey() +
-                    (scenario.isAttacker()?
-                            ".attacker.observations":
-                                ".defender.observations")));
-        }
-
-        gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = y++;
-        gridBagConstraints.gridwidth = 3;
-        gridBagConstraints.weightx = 1.0;
-        gridBagConstraints.weighty = 1.0;
-        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
-        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
-        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
-        panStats.add(txtDetails, gridBagConstraints);
-
 
         txtDesc.setName("txtDesc");
         txtDesc.setText(scenario.getDescription());
@@ -447,12 +361,75 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridwidth = 3;
         gridBagConstraints.weightx = 1.0;
         gridBagConstraints.weighty = 1.0;
-        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 20);
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
         gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
         gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
         panStats.add(txtDesc, gridBagConstraints);
 
-        if(scenario.getLoot().size() > 0) {
+        StringBuilder objectiveBuilder = new StringBuilder();
+        objectiveBuilder.append(scenario.getDeploymentInstructions());
+
+        for (ScenarioObjective objective : scenario.getScenarioObjectives()) {
+            objectiveBuilder.append(objective.getDescription());
+            objectiveBuilder.append("\n");
+
+            for (String forceName : objective.getAssociatedForceNames()) {
+                objectiveBuilder.append("\t");
+                objectiveBuilder.append(forceName);
+                objectiveBuilder.append("\n");
+            }
+
+            for (String associatedUnitID : objective.getAssociatedUnitIDs()) {
+                String associatedUnitName = "";
+                UUID uid = UUID.fromString(associatedUnitID);
+
+                // "logic": try to get a hold of the unit with the given UUID,
+                // either from the list of bot units or from the list of player units
+                if (scenario.getExternalIDLookup().containsKey(associatedUnitID)) {
+                    associatedUnitName = scenario.getExternalIDLookup().get(associatedUnitID).getShortName();
+                } else if (scenario.getForces(campaign).getAllUnits(true).contains(uid)) {
+                    associatedUnitName = campaign.getUnit(uid).getEntity().getShortName();
+                }
+
+                if (associatedUnitName.length() == 0) {
+                    continue;
+                }
+                objectiveBuilder.append("\t");
+                objectiveBuilder.append(associatedUnitName);
+                objectiveBuilder.append("\n");
+            }
+
+            objectiveBuilder.append("\t");
+            objectiveBuilder.append(objective.getTimeLimitString());
+            objectiveBuilder.append("\n");
+
+            for (String detail : objective.getDetails()) {
+                objectiveBuilder.append("\t");
+                objectiveBuilder.append(detail);
+                objectiveBuilder.append("\n");
+            }
+
+            objectiveBuilder.append("\n");
+        }
+
+        objectiveBuilder.append(scenario.getBattlefieldControlDescription());
+
+        txtDetails.setText(objectiveBuilder.toString());
+        txtDetails.setLineWrap(true);
+        txtDetails.setWrapStyleWord(true);
+        txtDetails.setEditable(false);
+
+        gridBagConstraints.gridx = 0;
+        gridBagConstraints.gridy = y++;
+        gridBagConstraints.gridwidth = 3;
+        gridBagConstraints.weightx = 1.0;
+        gridBagConstraints.weighty = 1.0;
+        gridBagConstraints.insets = new java.awt.Insets(5, 5, 5, 5);
+        gridBagConstraints.fill = java.awt.GridBagConstraints.BOTH;
+        gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
+        panStats.add(txtDetails, gridBagConstraints);
+
+        if (scenario.getLoot().size() > 0) {
             gridBagConstraints.gridx = 0;
             gridBagConstraints.gridy = y++;
             gridBagConstraints.gridwidth = 2;
@@ -463,7 +440,7 @@ public class AtBScenarioViewPanel extends JPanel {
             gridBagConstraints.anchor = java.awt.GridBagConstraints.NORTHWEST;
             panStats.add(new JLabel("<html><b>Potential Rewards:</b></html>"), gridBagConstraints);
 
-            for(Loot loot : scenario.getLoot()) {
+            for (Loot loot : scenario.getLoot()) {
                 gridBagConstraints.gridx = 0;
                 gridBagConstraints.gridy++;
                 gridBagConstraints.gridwidth = 2;
@@ -492,7 +469,7 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridwidth = 1;
         panStats.add(lblTerrain, gridBagConstraints);
 
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -513,7 +490,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblMap, gridBagConstraints);
 
         chkReroll[REROLL_MAP] = new JCheckBox();
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -522,7 +499,7 @@ public class AtBScenarioViewPanel extends JPanel {
             chkReroll[REROLL_MAP].addItemListener(checkBoxListener);
         }
 
-        lblMapDesc.setText(scenario.getMap());
+        lblMapDesc.setText(scenario.getMapForDisplay());
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblMapDesc, gridBagConstraints);
@@ -534,7 +511,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblMapSize, gridBagConstraints);
 
         chkReroll[REROLL_MAPSIZE] = new JCheckBox();
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -555,7 +532,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblLight, gridBagConstraints);
 
         chkReroll[REROLL_LIGHT] = new JCheckBox();
-        if (scenario.isCurrent() && campaign.getCampaignOptions().getUseLightConditions()) {
+        if (scenario.getStatus().isCurrent() && campaign.getCampaignOptions().getUseLightConditions()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -578,7 +555,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblWeather, gridBagConstraints);
 
         chkReroll[REROLL_WEATHER] = new JCheckBox();
-        if (scenario.isCurrent() && campaign.getCampaignOptions().getUseWeatherConditions()) {
+        if (scenario.getStatus().isCurrent() && campaign.getCampaignOptions().getUseWeatherConditions()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -645,10 +622,10 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblAtmosphereDesc, gridBagConstraints);
         lblAtmosphere.setVisible(scenario.getAtmosphere() != PlanetaryConditions.ATMO_STANDARD);
         lblAtmosphereDesc.setVisible(scenario.getAtmosphere() != PlanetaryConditions.ATMO_STANDARD);
-        
+
         return y;
     }
-    
+
     /**
      * Worker function that generates UI elements appropriate for space scenarios
      * @param gridBagConstraints Current grid bag constraints in use
@@ -667,7 +644,7 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblTerrainDesc, gridBagConstraints);
-        
+
         lblMapSize.setText(resourceMap.getString("lblMapSize.text"));
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = y;
@@ -675,7 +652,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblMapSize, gridBagConstraints);
 
         chkReroll[REROLL_MAPSIZE] = new JCheckBox();
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -688,10 +665,10 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblMapSizeDesc, gridBagConstraints);
-        
+
         return y;
     }
-    
+
     /**
      * Worker function that generates UI elements appropriate for low atmosphere scenarios
      * @param gridBagConstraints Current grid bag constraints in use
@@ -710,7 +687,7 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblTerrainDesc, gridBagConstraints);
-        
+
         lblMapSize.setText(resourceMap.getString("lblMapSize.text"));
         gridBagConstraints.gridx = 0;
         gridBagConstraints.gridy = y;
@@ -718,7 +695,7 @@ public class AtBScenarioViewPanel extends JPanel {
         panStats.add(lblMapSize, gridBagConstraints);
 
         chkReroll[REROLL_MAPSIZE] = new JCheckBox();
-        if (scenario.isCurrent()) {
+        if (scenario.getStatus().isCurrent()) {
             gridBagConstraints.gridx = 1;
             gridBagConstraints.gridy = y;
             gridBagConstraints.gridwidth = 1;
@@ -731,16 +708,11 @@ public class AtBScenarioViewPanel extends JPanel {
         gridBagConstraints.gridx = 2;
         gridBagConstraints.gridy = y++;
         panStats.add(lblMapSizeDesc, gridBagConstraints);
-        
+
         return y;
     }
-    
-    private ItemListener checkBoxListener = new ItemListener() {
-        @Override
-        public void itemStateChanged(ItemEvent e) {
-            countRerollBoxes();
-        }
-    };
+
+    private ItemListener checkBoxListener = e -> countRerollBoxes();
 
     private void countRerollBoxes() {
         int checkedBoxes = 0;
@@ -753,7 +725,7 @@ public class AtBScenarioViewPanel extends JPanel {
          * If the number falls below that, all are re-enabled.
          */
         for (int i = 0; i < REROLL_NUM; i++) {
-            if(chkReroll[i] != null) {            
+            if(chkReroll[i] != null) {
                 chkReroll[i].setEnabled(checkedBoxes < scenario.getRerollsRemaining() ||
                         chkReroll[i].isSelected());
             }
@@ -802,10 +774,9 @@ public class AtBScenarioViewPanel extends JPanel {
         countRerollBoxes();
     }
 
-    protected class StubTreeModel implements TreeModel {
-
+    protected static class StubTreeModel implements TreeModel {
         private ForceStub rootForce;
-        private Vector<TreeModelListener> listeners = new Vector<TreeModelListener>();
+        private Vector<TreeModelListener> listeners = new Vector<>();
 
         public StubTreeModel(ForceStub root) {
             rootForce = root;
@@ -813,7 +784,7 @@ public class AtBScenarioViewPanel extends JPanel {
 
         @Override
         public Object getChild(Object parent, int index) {
-            if(parent instanceof ForceStub) {
+            if (parent instanceof ForceStub) {
                 return ((ForceStub)parent).getAllChildren().get(index);
             }
             return null;
@@ -821,7 +792,7 @@ public class AtBScenarioViewPanel extends JPanel {
 
         @Override
         public int getChildCount(Object parent) {
-            if(parent instanceof ForceStub) {
+            if (parent instanceof ForceStub) {
                 return ((ForceStub)parent).getAllChildren().size();
             }
             return 0;
@@ -829,7 +800,7 @@ public class AtBScenarioViewPanel extends JPanel {
 
         @Override
         public int getIndexOfChild(Object parent, Object child) {
-            if(parent instanceof ForceStub) {
+            if (parent instanceof ForceStub) {
                 return ((ForceStub)parent).getAllChildren().indexOf(child);
             }
             return 0;
@@ -866,7 +837,7 @@ public class AtBScenarioViewPanel extends JPanel {
            }
     }
 
-    protected class ForceStubRenderer extends DefaultTreeCellRenderer {
+    protected static class ForceStubRenderer extends DefaultTreeCellRenderer {
         private static final long serialVersionUID = 4076620029822185784L;
 
         public ForceStubRenderer() {
@@ -894,149 +865,25 @@ public class AtBScenarioViewPanel extends JPanel {
         }
 
         protected Icon getIcon(Object node) {
-
-            if(node instanceof UnitStub) {
-                return getIconFrom((UnitStub)node);
-            } else if(node instanceof ForceStub) {
-                return getIconFrom((ForceStub)node);
+            if (node instanceof UnitStub) {
+                return ((UnitStub) node).getPortrait().getImageIcon(50);
+            } else if (node instanceof ForceStub) {
+                return getIconFrom((ForceStub) node);
             } else {
-                return null;
-            }
-        }
-
-        protected Icon getIconFrom(UnitStub unit) {
-            String category = unit.getPortraitCategory();
-            String filename = unit.getPortraitFileName();
-
-            if(Crew.ROOT_PORTRAIT.equals(category)) {
-                category = "";
-            }
-
-            // Return a null if the player has selected no portrait file.
-            if ((null == category) || (null == filename) || Crew.PORTRAIT_NONE.equals(filename)) {
-                filename = "default.gif";
-            }
-            // Try to get the player's portrait file.
-            Image portrait = null;
-            try {
-                portrait = (Image) icons.getPortraits().getItem(category, filename);
-                if(null != portrait) {
-                    portrait = portrait.getScaledInstance(50, -1, Image.SCALE_DEFAULT);
-                } else {
-                    portrait = (Image) icons.getPortraits().getItem("", "default.gif");
-                    if(null != portrait) {
-                        portrait = portrait.getScaledInstance(50, -1, Image.SCALE_DEFAULT);
-                    }
-                }
-                return new ImageIcon(portrait);
-            } catch (Exception err) {
-                err.printStackTrace();
                 return null;
             }
         }
 
         protected Icon getIconFrom(ForceStub force) {
-            String category = force.getIconCategory();
-            String filename = force.getIconFileName();
-            LinkedHashMap<String, Vector<String>> iconMap = force.getIconMap();
-
-            if(Crew.ROOT_PORTRAIT.equals(category)) {
-                category = "";
-            }
-
-            // Return a null if the player has selected no portrait file.
-            if ((null == category) || (null == filename) || (Crew.PORTRAIT_NONE.equals(filename) && !Force.ROOT_LAYERED.equals(category))) {
-                filename = "empty.png";
-            }
-
-            // Try to get the player's portrait file.
-            Image portrait = null;
             try {
-                portrait = IconPackage.buildForceIcon(category, filename, icons.getForceIcons(), iconMap);
-               if(null != portrait) {
-                portrait = portrait.getScaledInstance(58, -1, Image.SCALE_SMOOTH);
-            } else {
-                portrait = (Image) icons.getForceIcons().getItem("", "empty.png");
-                if(null != portrait) {
-                    portrait = portrait.getScaledInstance(58, -1, Image.SCALE_SMOOTH);
-                }
-                }
-                return new ImageIcon(portrait);
-            } catch (Exception err) {
-                err.printStackTrace();
+                return new ImageIcon(MHQStaticDirectoryManager.buildForceIcon(force.getIconCategory(),
+                        force.getIconFileName(), force.getIconMap())
+                        .getScaledInstance(58, -1, Image.SCALE_SMOOTH));
+            } catch (Exception e) {
+                LogManager.getLogger().error(e);
                 return null;
             }
        }
-    }
-
-    protected class EntityListModel implements TreeModel {
-
-        private ArrayList<String> root;
-        private Vector<TreeModelListener> listeners = new Vector<TreeModelListener>();
-        private String name;
-
-        public EntityListModel(ArrayList<String> root, String name) {
-            this.root = root;
-            this.name = name;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        @Override
-        public Object getChild(Object parent, int index) {
-            if(parent instanceof ArrayList<?>) {
-                return ((ArrayList<?>)parent).get(index);
-            }
-            return null;
-        }
-
-        @Override
-        public int getChildCount(Object parent) {
-            if(parent instanceof ArrayList<?>) {
-                return ((ArrayList<?>)parent).size();
-            }
-            return 0;
-        }
-
-        @Override
-        public int getIndexOfChild(Object parent, Object child) {
-            if(parent instanceof ArrayList<?>) {
-                return ((ArrayList<?>)parent).indexOf(child);
-            }
-            return 0;
-        }
-
-        @Override
-        public Object getRoot() {
-            return root;
-        }
-
-        @Override
-        public boolean isLeaf(Object node) {
-            return node instanceof String;
-        }
-
-        @Override
-        public void valueForPathChanged(TreePath arg0, Object arg1) {
-            // Auto-generated method stub
-
-        }
-
-        @Override
-        public void addTreeModelListener( TreeModelListener listener ) {
-              if ( listener != null && !listeners.contains( listener ) ) {
-                 listeners.addElement( listener );
-              }
-           }
-
-           @Override
-        public void removeTreeModelListener( TreeModelListener listener ) {
-              if ( listener != null ) {
-                 listeners.removeElement( listener );
-              }
-           }
     }
 
     private class TreeMouseAdapter extends MouseInputAdapter implements ActionListener {
@@ -1053,16 +900,18 @@ public class AtBScenarioViewPanel extends JPanel {
             String command = action.getActionCommand();
 
             if (command.equalsIgnoreCase("CONFIG_BOT")) {
-                PrincessBehaviorDialog pbd = new PrincessBehaviorDialog(frame,
+                BotConfigDialog pbd = new BotConfigDialog(frame,
+                        null,
                         scenario.getBotForce(index).getBehaviorSettings(),
-                        scenario.getBotForce(index).getName());
+                        null);
+                pbd.setBotName(scenario.getBotForce(index).getName());
                 pbd.setVisible(true);
-                if (!pbd.dialogAborted) {
+                if (pbd.getResult() != DialogResult.CANCELLED) {
                     scenario.getBotForce(index).setBehaviorSettings(pbd.getBehaviorSettings());
                     scenario.getBotForce(index).setName(pbd.getBotName());
                 }
             } else if (command.equalsIgnoreCase("EDIT_UNIT")) {
-                if (tree.getSelectionCount() > 0) {
+                if ((tree.getSelectionCount() > 0) && (tree.getSelectionRows() != null)) {
                     // row 0 is root node
                     int i = tree.getSelectionRows()[0] - 1;
                     UnitEditorDialog med = new UnitEditorDialog(frame,
@@ -1083,10 +932,14 @@ public class AtBScenarioViewPanel extends JPanel {
         }
 
         private void maybeShowPopup(MouseEvent e) {
-            JPopupMenu popup = new JPopupMenu();
+            final JPopupMenu popup = new JPopupMenu();
             if (e.isPopupTrigger()) {
-                TreePath path = tree.getPathForLocation(e.getX(), e.getY());
-                JMenuItem menuItem = null;
+                final TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+                if (path == null) {
+                    return;
+                }
+
+                JMenuItem menuItem;
                 if (path.getPathCount() > 1) {
                     menuItem = new JMenuItem("Edit Unit...");
                     menuItem.setActionCommand("EDIT_UNIT");
@@ -1100,6 +953,5 @@ public class AtBScenarioViewPanel extends JPanel {
                 popup.show(e.getComponent(), e.getX(), e.getY());
             }
         }
-    };
-
+    }
 }

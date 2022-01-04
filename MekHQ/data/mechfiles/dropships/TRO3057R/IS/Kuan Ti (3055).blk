@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -154,6 +154,9 @@ ISAntiMissileSystem
 ISAMS Ammo:24
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 12
 </structural_integrity>
@@ -205,4 +208,3 @@ TRO 3057R - Clan Invasion
 <escape_pod>
 4
 </escape_pod>
-

@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -43,7 +43,7 @@ heavyvehiclebay:36.0:3:3
 2ndclassquarters:0.0:0
 1stclassquarters:80.0:0
 crewquarters:273.0:0
-cargobay:5752.0:1:4
+cargobay:5752.0:1:7
 </transporters>
 
 <SafeThrust>
@@ -129,6 +129,9 @@ IS Ammo LRM-20 Artemis-capable:12
 ISArtemisIV
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 10
 </structural_integrity>
@@ -180,4 +183,3 @@ TRO 3085 - Jihad
 <escape_pod>
 6
 </escape_pod>
-

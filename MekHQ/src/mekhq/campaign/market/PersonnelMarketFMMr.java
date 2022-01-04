@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018  - The MegaMek Team
+ * Copyright (c) 2018-2021 - The MegaMek Team. All Rights Reserved.
  *
  * This file is part of MekHQ.
  *
@@ -10,31 +10,29 @@
  *
  * MekHQ is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with MekHQ.  If not, see <http://www.gnu.org/licenses/>.
+ * along with MekHQ. If not, see <http://www.gnu.org/licenses/>.
  */
 package mekhq.campaign.market;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
-import java.util.UUID;
 
 import megamek.common.Compute;
 import megamek.common.Entity;
 import mekhq.campaign.Campaign;
 import mekhq.campaign.personnel.Person;
+import mekhq.campaign.personnel.enums.PersonnelRole;
 import mekhq.campaign.rating.IUnitRating;
 import mekhq.module.api.PersonnelMarketMethod;
 
 /**
  * Generation method for personnel market based on Field Manual: Mercenaries (Revised)
- * 
- * @author Neoancient
  *
+ * @author Neoancient
  */
 public class PersonnelMarketFMMr implements PersonnelMarketMethod {
 
@@ -45,7 +43,7 @@ public class PersonnelMarketFMMr implements PersonnelMarketMethod {
 
     @Override
     public List<Person> generatePersonnelForDay(Campaign c) {
-        if (c.getCalendar().get(Calendar.DAY_OF_MONTH) != 1) {
+        if (c.getLocalDate().getDayOfMonth() != 1) {
             return null;
         }
         List<Person> retVal = new ArrayList<>();
@@ -55,10 +53,10 @@ public class PersonnelMarketFMMr implements PersonnelMarketMethod {
         if (mft == Entity.ETYPE_MECH || mft == Entity.ETYPE_TANK || mft == Entity.ETYPE_INFANTRY || mft == Entity.ETYPE_BATTLEARMOR) {
             mftMod = 1;
         }
-        for (int i = Person.T_NONE + 1; i < Person.T_NUM; i++) {
+        for (PersonnelRole role : PersonnelRole.getMarketableRoles()) {
             int roll = Compute.d6(2);
             // TODO: Modifiers for hiring hall, but first needs to track the hiring hall
-            switch(c.getUnitRatingMod()) {
+            switch (c.getUnitRatingMod()) {
                 case IUnitRating.DRAGOON_A:
                 case IUnitRating.DRAGOON_ASTAR:
                     roll += 3;
@@ -94,11 +92,7 @@ public class PersonnelMarketFMMr implements PersonnelMarketMethod {
                 q = 6;
             }
             for (int j = 0; j < q; j++) {
-                Person p = c.newPerson(i);
-                UUID id = UUID.randomUUID();
-                p.setId(id);
-
-                retVal.add(p);
+                retVal.add(c.newPerson(role));
             }
         }
         return retVal;
@@ -106,11 +100,10 @@ public class PersonnelMarketFMMr implements PersonnelMarketMethod {
 
     @Override
     public List<Person> removePersonnelForDay(Campaign c, List<Person> current) {
-        if (c.getCalendar().get(Calendar.DAY_OF_MONTH) == 1) {
+        if (c.getLocalDate().getDayOfMonth() == 1) {
             return current;
         } else {
             return null;
         }
     }
-
 }

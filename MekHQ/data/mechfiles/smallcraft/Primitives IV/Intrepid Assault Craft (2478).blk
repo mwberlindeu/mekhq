@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -100,6 +100,9 @@ Medium Laser
 Medium Laser
 </Aft Equipment>
 
+<Hull Equipment>
+</Hull Equipment>
+
 <structural_integrity>
 10
 </structural_integrity>
@@ -113,7 +116,7 @@ XTRO Primitives IV - Age of War
 </tonnage>
 
 <designtype>
-0
+1
 </designtype>
 
 <crew>
@@ -151,4 +154,3 @@ XTRO Primitives IV - Age of War
 <escape_pod>
 0
 </escape_pod>
-

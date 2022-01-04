@@ -3,7 +3,7 @@
 1
 </BlockVersion>
 
-##Write the version number just in case...
+# Write the version number just in case...
 <Version>
 MAM0
 </Version>
@@ -93,7 +93,6 @@ ISAntiMissileSystem
 ISAntiMissileSystem
 ISAntiMissileSystem
 ISAMS Ammo:48
-CasparIIDroneControlSystem
 </Nose Equipment>
 
 <Left Side Equipment>
@@ -132,6 +131,10 @@ ISAntiMissileSystem
 ISAntiMissileSystem
 ISAMS Ammo:72
 </Aft Equipment>
+
+<Hull Equipment>
+CasparIIDroneControlSystem
+</Hull Equipment>
 
 <structural_integrity>
 15
@@ -184,4 +187,3 @@ Jihad Hot Spots: Terra - Civil War
 <escape_pod>
 0
 </escape_pod>
-
